@@ -1,0 +1,52 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  password  String   @default("") // Hashed password
+  role      String   // "SALES_REP", "SALES_MANAGER", "ADMIN"
+  target    Float    @default(500000) // Aylık Satış Hedefi (TL)
+  phone     String?  @default("")
+  avatar    String?  @default("")
+  clients   Client[]
+  createdAt DateTime @default(now())
+}
+
+model Client {
+  id                  String   @id @default(uuid())
+  firma_adi           String
+  yetkili_kisi        String
+  telefon             String
+  eposta              String?  @default("")
+  musteri_tipi        String   // "Kamu", "Kurumsal", "KOBİ", "Ajans", "Diğer"
+  satis_temsilcisi_id String
+  satis_temsilcisi    User     @relation(fields: [satis_temsilcisi_id], references: [id])
+  sonraki_takip_tarihi DateTime
+  deals               Deal[]
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+model Deal {
+  id                     String    @id @default(uuid())
+  musteri_id             String
+  musteri                Client    @relation(fields: [musteri_id], references: [id], onDelete: Cascade)
+  kanal                  String    // "Bi Kanal", "Sıfır TV"
+  teklif_tutari          Float     @default(0)
+  yayin_donemi           String    @default("")
+  tahmini_kapanis_tarihi DateTime?
+  ihtimal_derecesi       String    @default("Orta") // "Kesin", "Yüksek", "Orta", "Düşük"
+  asama                  String    @default("YENİ LEAD") // "YENİ LEAD", "GÖRÜŞME", "TEKLİF", "TAKİP", "PAZARLIK", "ONAY", "SATIŞ", "YAYIN", "TAHSİLAT"
+  not                    String    @default("")
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+}
