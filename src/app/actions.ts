@@ -230,6 +230,49 @@ export async function updateClientFollowUpDate(clientId: string, nextFollowUpDat
   return updated;
 }
 
+export async function createClient(data: {
+  firma_adi: string;
+  yetkili_kisi: string;
+  telefon: string;
+  eposta?: string;
+  musteri_tipi: string;
+  satis_temsilcisi_id: string;
+  sonraki_takip_tarihi: string;
+}) {
+  let repId = data.satis_temsilcisi_id;
+  if (!repId) {
+    const defaultUser = await prisma.user.findFirst({
+      where: { role: 'SALES_REP' },
+    }) || await prisma.user.findFirst();
+    if (defaultUser) {
+      repId = defaultUser.id;
+    }
+  }
+
+  const followUpDate = data.sonraki_takip_tarihi
+    ? new Date(data.sonraki_takip_tarihi)
+    : new Date();
+
+  const client = await prisma.client.create({
+    data: {
+      firma_adi: data.firma_adi,
+      yetkili_kisi: data.yetkili_kisi,
+      telefon: data.telefon,
+      eposta: data.eposta || '',
+      musteri_tipi: data.musteri_tipi || 'Kurumsal',
+      satis_temsilcisi_id: repId,
+      sonraki_takip_tarihi: isNaN(followUpDate.getTime()) ? new Date() : followUpDate,
+    },
+    include: {
+      satis_temsilcisi: true,
+      deals: true,
+    },
+  });
+
+  revalidatePath('/');
+  return client;
+}
+
 export async function deleteDeal(dealId: string) {
   await prisma.deal.delete({ where: { id: dealId } });
   revalidatePath('/');
@@ -238,4 +281,103 @@ export async function deleteDeal(dealId: string) {
 export async function deleteClient(clientId: string) {
   await prisma.client.delete({ where: { id: clientId } });
   revalidatePath('/');
+}
+
+export async function getWorkReports(filters?: {
+  userId?: string;
+  timeRange?: string;
+  startDate?: string;
+  endDate?: string;
+  kurumTuru?: string;
+  iletisimTuru?: string;
+}) {
+  const { userId, timeRange, startDate, endDate, kurumTuru, iletisimTuru } = filters || {};
+  let dateFilter: { gte?: Date; lte?: Date } | undefined = undefined;
+  const now = new Date();
+
+  if (startDate && endDate) {
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
+    dateFilter = { gte: start, lte: end };
+  } else if (timeRange === 'today') {
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+    dateFilter = { gte: start, lte: end };
+  } else if (timeRange === 'this_week') {
+    const day = now.getDay() || 7;
+    const start = new Date(now);
+    start.setDate(now.getDate() - day + 1);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+    end.setHours(23, 59, 59, 999);
+    dateFilter = { gte: start, lte: end };
+  } else if (timeRange === 'this_month') {
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+    dateFilter = { gte: start, lte: end };
+  }
+
+  return await prisma.workReport.findMany({
+    where: {
+      ...(userId && userId !== 'all' ? { user_id: userId } : {}),
+      ...(kurumTuru && kurumTuru !== 'all' ? { kurum_turu: kurumTuru } : {}),
+      ...(iletisimTuru && iletisimTuru !== 'all' ? { iletisim_turu: iletisimTuru } : {}),
+      ...(dateFilter ? { tarih: dateFilter } : {}),
+    },
+    include: {
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+        },
+      },
+    },
+    orderBy: { tarih: 'desc' },
+  });
+}
+
+export async function createWorkReport(data: any) {
+  const sessionUser = await getSessionUser();
+  if (!sessionUser) throw new Error('Oturum açılmalıdır.');
+  if (sessionUser.role === 'SALES_MANAGER') {
+    throw new Error('İzleyen yöneticiler çalışma raporu ekleyemez.');
+  }
+
+  const effectiveUserId = (sessionUser.role === 'ADMIN' && data.user_id) ? data.user_id : sessionUser.id;
+  const reportDate = data.tarih ? new Date(data.tarih) : new Date();
+
+  const report = await prisma.workReport.create({
+    data: {
+      user_id: effectiveUserId,
+      tarih: isNaN(reportDate.getTime()) ? new Date() : reportDate,
+      kurum_adi: data.kurum_adi,
+      kurum_turu: data.kurum_turu || 'Kurumsal',
+      yetkili: data.yetkili,
+      iletisim_turu: data.iletisim_turu,
+      gorusme_amaci: data.gorusme_amaci || '',
+      teklif_verildi: Boolean(data.teklif_verildi),
+      teklif_tutari: data.teklif_verildi ? Number(data.teklif_tutari) || 0 : 0,
+      teklif_ihtimal: data.teklif_verildi ? data.teklif_ihtimal || '' : '',
+      satis_yapildi: Boolean(data.satis_yapildi),
+      satis_turu: data.satis_yapildi ? data.satis_turu || '' : '',
+      satis_tutari: data.satis_yapildi ? Number(data.satis_tutari) || 0 : 0,
+      kurumsal_ziyaret: Boolean(data.kurumsal_ziyaret),
+      rezervasyon_var: Boolean(data.rezervasyon_var),
+      rezervasyon_gelen: data.rezervasyon_var ? Number(data.rezervasyon_gelen) || 0 : 0,
+      rezervasyon_turu: data.rezervasyon_var ? data.rezervasyon_turu || '' : '',
+      rezervasyon_birim_fiyat: data.rezervasyon_var ? Number(data.rezervasyon_birim_fiyat) || 0 : 0,
+      rezervasyon_toplam_saniye: data.rezervasyon_var ? Number(data.rezervasyon_toplam_saniye) || 0 : 0,
+    },
+    include: {
+      user: true,
+    },
+  });
+
+  revalidatePath('/');
+  return report;
 }

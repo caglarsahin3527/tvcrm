@@ -2,7 +2,68 @@
 
 import React, { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Tv, Lock, Mail, Eye, EyeOff, ShieldCheck, ArrowRight, Loader2, Sparkles } from 'lucide-react';
+import { Lock, Mail, Eye, EyeOff, ArrowRight, Loader2 } from 'lucide-react';
+
+function BiKanalLogo() {
+  return (
+    <div className="flex flex-col items-center select-none">
+      {/* 3D Box Logo */}
+      <div className="relative">
+        <svg width="76" height="56" viewBox="0 0 76 56" fill="none" xmlns="http://www.w3.org/2000/svg" className="drop-shadow-md">
+          <defs>
+            <linearGradient id="boxGradFront" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#FF7A3D" />
+              <stop offset="60%" stopColor="#F54A00" />
+              <stop offset="100%" stopColor="#D83600" />
+            </linearGradient>
+            <linearGradient id="boxGradTop" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor="#FFA070" />
+              <stop offset="100%" stopColor="#FF7A3D" />
+            </linearGradient>
+            <linearGradient id="boxGradSide" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor="#BA2E00" />
+              <stop offset="100%" stopColor="#8A2000" />
+            </linearGradient>
+            <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+              <feDropShadow dx="0" dy="4" stdDeviation="4" floodColor="#f54a00" floodOpacity="0.25" />
+            </filter>
+          </defs>
+
+          {/* 3D Isometric / Slanted Box */}
+          <g filter="url(#glow)">
+            {/* Top bevel */}
+            <path d="M 22 10 L 32 4 L 58 4 L 48 10 Z" fill="url(#boxGradTop)" />
+            {/* Right dark side */}
+            <path d="M 48 10 L 58 4 L 58 38 L 48 44 Z" fill="url(#boxGradSide)" />
+            {/* Front main face */}
+            <rect x="18" y="10" width="30" height="34" rx="4" fill="url(#boxGradFront)" />
+            {/* Subtle inner reflection */}
+            <path d="M 20 12 L 46 12 L 46 18 L 20 22 Z" fill="#ffffff" fillOpacity="0.22" rx="2" />
+            
+            {/* B! Text */}
+            <text
+              x="33"
+              y="35"
+              fill="#ffffff"
+              fontSize="24"
+              fontWeight="900"
+              fontFamily="system-ui, -apple-system, sans-serif"
+              textAnchor="middle"
+              className="drop-shadow-xs"
+            >
+              B!
+            </text>
+          </g>
+        </svg>
+      </div>
+
+      {/* KANAL Text Below */}
+      <span className="text-[11px] font-black tracking-[0.22em] text-slate-800 -mt-1 uppercase font-sans">
+        KANAL
+      </span>
+    </div>
+  );
+}
 
 function LoginForm() {
   const router = useRouter();
@@ -54,54 +115,54 @@ function LoginForm() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col justify-center items-center p-4 sm:p-6 relative font-sans text-slate-900 selection:bg-sky-500 selection:text-white">
-      {/* Subtle Background Elements */}
-      <div className="absolute top-0 inset-x-0 h-80 bg-gradient-to-b from-sky-50/60 to-transparent pointer-events-none" />
-
-      <div className="w-full max-w-md relative z-10">
+    <div className="min-h-screen bg-[#f4f7fb] flex flex-col justify-center items-center p-4 sm:p-6 relative font-sans text-slate-900 selection:bg-sky-500 selection:text-white">
+      
+      <div className="w-full max-w-[420px] flex flex-col items-center relative z-10">
         
         {/* Brand Header */}
-        <div className="text-center mb-7">
-          <div className="inline-flex items-center justify-center w-13 h-13 rounded-2xl bg-slate-900 border border-slate-800 shadow-md mb-3">
-            <Tv className="w-6 h-6 text-sky-400" />
-          </div>
+        <div className="flex flex-col items-center text-center mb-6">
           
-          <h1 className="text-2xl font-black tracking-tight text-slate-900 flex items-center justify-center gap-2 font-mono">
-            TV<span className="text-sky-600">CRM</span>
-            <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-slate-200 text-slate-700">
-              v2.0
-            </span>
-          </h1>
+          {/* B! KANAL 3D Logo */}
+          <BiKanalLogo />
 
-          <p className="text-xs text-slate-500 font-medium mt-1">
-            Reklam Satış, Kampanya & Yayın Masası
-          </p>
-
-          {/* Broadcast Channels Badge */}
-          <div className="flex items-center justify-center gap-2 mt-2.5">
-            <span className="inline-flex items-center gap-1.5 text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-sky-50 text-sky-700 border border-sky-200">
-              <span className="w-1.5 h-1.5 rounded-full bg-sky-500 animate-pulse" />
-              Bi Kanal
-            </span>
-            <span className="inline-flex items-center gap-1.5 text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-              Sıfır TV
-            </span>
+          {/* Department Header Badge */}
+          <div className="mt-4 border border-sky-200/90 bg-sky-50/70 rounded-2xl px-6 py-2.5 text-center shadow-2xs">
+            <h2 className="text-xs sm:text-[13px] font-bold text-[#0284c7] tracking-wide uppercase">
+              MARKA VE BÜYÜME MERKEZİ
+            </h2>
+            <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+              Reklam Satış Grup Direktörlüğü
+            </p>
           </div>
+
+          {/* Channels Pills */}
+          <div className="flex items-center justify-center gap-2.5 mt-3">
+            <div className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-3.5 py-1 rounded-full bg-white text-slate-700 border border-slate-200/80 shadow-2xs">
+              <span className="w-2 h-2 rounded-full bg-[#0284c7]" />
+              <span>Bi Kanal TV</span>
+            </div>
+            <div className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-3.5 py-1 rounded-full bg-white text-slate-700 border border-slate-200/80 shadow-2xs">
+              <span className="w-2 h-2 rounded-full bg-[#f59e0b]" />
+              <span>Sıfır TV</span>
+            </div>
+          </div>
+
         </div>
 
         {/* Main Card */}
-        <div className="bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-8 shadow-xs">
+        <div className="w-full bg-white border border-slate-200/70 rounded-[28px] p-6 sm:p-8 shadow-[0_4px_24px_rgba(0,0,0,0.03)]">
           
-          <div className="mb-6">
-            <h2 className="text-base font-bold text-slate-900 tracking-tight">Kullanıcı Girişi</h2>
-            <p className="text-xs text-slate-500 mt-0.5">
+          <div className="mb-5">
+            <h1 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight">
+              Kullanıcı Girişi
+            </h1>
+            <p className="text-xs text-slate-400 font-normal mt-1">
               Panele erişmek için kurumsal e-posta ve şifrenizi girin.
             </p>
           </div>
 
           {errorMessage && (
-            <div className="mb-5 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-start gap-2.5 animate-in fade-in duration-150">
+            <div className="mb-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-start gap-2.5 animate-in fade-in duration-150">
               <div className="w-1.5 h-1.5 rounded-full bg-rose-500 mt-1.5 shrink-0" />
               <span className="font-medium">{errorMessage}</span>
             </div>
@@ -111,7 +172,7 @@ function LoginForm() {
             
             {/* Email Field */}
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1.5">
+              <label className="block text-xs font-semibold text-slate-800 mb-1.5">
                 Kurumsal E-Posta
               </label>
               <div className="relative">
@@ -125,14 +186,14 @@ function LoginForm() {
                   placeholder="ornek@tvcrm.com"
                   required
                   autoComplete="email"
-                  className="w-full bg-white border border-slate-300 rounded-xl pl-10 pr-3.5 py-2.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition shadow-2xs"
+                  className="w-full bg-white border border-slate-200 rounded-xl pl-10 pr-3.5 py-2.5 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition shadow-2xs"
                 />
               </div>
             </div>
 
             {/* Password Field */}
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1.5">
+              <label className="block text-xs font-semibold text-slate-800 mb-1.5">
                 Şifre
               </label>
               <div className="relative">
@@ -146,12 +207,13 @@ function LoginForm() {
                   placeholder="••••••••"
                   required
                   autoComplete="current-password"
-                  className="w-full bg-white border border-slate-300 rounded-xl pl-10 pr-10 py-2.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition shadow-2xs"
+                  className="w-full bg-white border border-slate-200 rounded-xl pl-10 pr-10 py-2.5 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition shadow-2xs"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 transition cursor-pointer"
+                  tabIndex={-1}
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
@@ -162,7 +224,7 @@ function LoginForm() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full mt-2 bg-slate-900 hover:bg-slate-800 text-white font-bold py-2.5 px-4 rounded-xl text-xs transition duration-150 flex items-center justify-center gap-2 shadow-sm disabled:opacity-60 cursor-pointer"
+              className="w-full mt-2 bg-[#091124] hover:bg-[#121c3b] active:scale-[0.99] text-white font-semibold py-3 px-4 rounded-xl text-xs transition duration-150 flex items-center justify-center gap-2 shadow-sm disabled:opacity-60 cursor-pointer"
             >
               {isLoading ? (
                 <>
@@ -178,79 +240,32 @@ function LoginForm() {
             </button>
           </form>
 
-          {/* Quick Demo Login Switcher Box */}
-          <div className="mt-6 pt-5 border-t border-slate-200/90">
-            <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500 mb-2.5">
-              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-              <span>Hızlı Demo Giriş Kısayolları</span>
-            </div>
-
-            <div className="grid grid-cols-1 gap-2">
-              <button
-                type="button"
-                onClick={() => handleQuickLogin('admin@tvcrm.com', 'admin123')}
-                className="w-full flex items-center justify-between p-2.5 rounded-xl bg-slate-50 hover:bg-rose-50/60 border border-slate-200 hover:border-rose-200 text-left transition group cursor-pointer"
-              >
-                <div className="flex items-center gap-2.5">
-                  <div className="w-7 h-7 rounded-lg bg-rose-100 border border-rose-200 flex items-center justify-center text-[10px] font-black text-rose-700">
-                    ADM
-                  </div>
-                  <div>
-                    <div className="text-xs font-bold text-slate-800 group-hover:text-rose-700 transition">
-                      Ayşe Yıldız (Genel Müdür / Süper Admin)
-                    </div>
-                    <div className="text-[10px] text-slate-500">admin@tvcrm.com • Tüm Yetkiler & Personel Masası</div>
-                  </div>
-                </div>
-                <div className="text-[10px] font-semibold text-slate-400 group-hover:text-rose-600">Giriş →</div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleQuickLogin('mehmet@tvcrm.com', 'manager123')}
-                className="w-full flex items-center justify-between p-2.5 rounded-xl bg-slate-50 hover:bg-sky-50/60 border border-slate-200 hover:border-sky-200 text-left transition group cursor-pointer"
-              >
-                <div className="flex items-center gap-2.5">
-                  <div className="w-7 h-7 rounded-lg bg-sky-100 border border-sky-200 flex items-center justify-center text-[10px] font-black text-sky-700">
-                    MGR
-                  </div>
-                  <div>
-                    <div className="text-xs font-bold text-slate-800 group-hover:text-sky-700 transition">
-                      Mehmet Kaya (Satış Yöneticisi)
-                    </div>
-                    <div className="text-[10px] text-slate-500">mehmet@tvcrm.com • Ekip Satış & Pipeline İzleme</div>
-                  </div>
-                </div>
-                <div className="text-[10px] font-semibold text-slate-400 group-hover:text-sky-600">Giriş →</div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleQuickLogin('ahmet@tvcrm.com', 'rep123')}
-                className="w-full flex items-center justify-between p-2.5 rounded-xl bg-slate-50 hover:bg-emerald-50/60 border border-slate-200 hover:border-emerald-200 text-left transition group cursor-pointer"
-              >
-                <div className="flex items-center gap-2.5">
-                  <div className="w-7 h-7 rounded-lg bg-emerald-100 border border-emerald-200 flex items-center justify-center text-[10px] font-black text-emerald-700">
-                    REP
-                  </div>
-                  <div>
-                    <div className="text-xs font-bold text-slate-800 group-hover:text-emerald-700 transition">
-                      Ahmet Yılmaz (Satış Temsilcisi)
-                    </div>
-                    <div className="text-[10px] text-slate-500">ahmet@tvcrm.com • Yalnızca Kendi Portföyü</div>
-                  </div>
-                </div>
-                <div className="text-[10px] font-semibold text-slate-400 group-hover:text-emerald-600">Giriş →</div>
-              </button>
-            </div>
+          {/* Quick Demo Accounts Selection */}
+          <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-center gap-2 text-[10px] text-slate-400">
+            <span>Hızlı Test:</span>
+            <button
+              type="button"
+              onClick={() => handleQuickLogin('admin@tvcrm.com', 'admin123')}
+              className="px-2 py-0.5 rounded-md bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 transition cursor-pointer"
+            >
+              Admin
+            </button>
+            <button
+              type="button"
+              onClick={() => handleQuickLogin('mehmet@tvcrm.com', 'manager123')}
+              className="px-2 py-0.5 rounded-md bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 transition cursor-pointer"
+            >
+              Yönetici
+            </button>
+            <button
+              type="button"
+              onClick={() => handleQuickLogin('ahmet@tvcrm.com', 'rep123')}
+              className="px-2 py-0.5 rounded-md bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 transition cursor-pointer"
+            >
+              Temsilci
+            </button>
           </div>
 
-        </div>
-
-        {/* Security & System Info Footer */}
-        <div className="mt-6 text-center text-[11px] text-slate-400 flex items-center justify-center gap-1.5 font-medium">
-          <ShieldCheck className="w-3.5 h-3.5 text-slate-400" />
-          <span>Bi Kanal & Sıfır TV Güvenli Kurumsal CRM Ağı</span>
         </div>
 
       </div>
@@ -262,7 +277,7 @@ export default function LoginPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-slate-50 flex items-center justify-center text-slate-600">
+        <div className="min-h-screen bg-[#f3f7fb] flex items-center justify-center text-slate-600">
           <Loader2 className="w-7 h-7 animate-spin text-sky-600" />
         </div>
       }

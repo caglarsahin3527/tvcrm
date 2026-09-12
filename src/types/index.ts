@@ -34,7 +34,7 @@ export interface User {
   name: string;
   email: string;
   role: string;
-  target: number;
+  target?: number;
   phone?: string | null;
   avatar?: string | null;
 }
@@ -66,4 +66,43 @@ export interface Deal {
   createdAt: Date | string;
   updatedAt: Date | string;
   musteri?: Client;
+}
+
+export type WorkReportOrgType = 'Marka' | 'Ajans' | 'KOBİ' | 'Kamu';
+
+export type WorkReportContactType = 
+  | 'Telefon'
+  | 'E-posta'
+  | 'Yüzyüze Toplantı'
+  | 'Dijital Toplantı'
+  | 'Kurumsal Ziyaret';
+
+export type WorkReportSaleType = 'Spot Reklam' | 'Alt Bant Reklam' | 'Sponsorluk';
+
+export type WorkReportReservationType = 'Spot' | 'Alt Bant' | 'Sponsorluk' | 'Kamu Spotu';
+
+export interface WorkReport {
+  id: string;
+  user_id: string;
+  user?: User;
+  tarih: Date | string;
+  kurum_adi: string;
+  kurum_turu: string;
+  yetkili: string;
+  iletisim_turu: string;
+  gorusme_amaci: string;
+  teklif_verildi: boolean;
+  teklif_tutari?: number | null;
+  teklif_ihtimal?: string | null;
+  satis_yapildi: boolean;
+  satis_turu?: string | null;
+  satis_tutari?: number | null;
+  kurumsal_ziyaret: boolean;
+  rezervasyon_var: boolean;
+  rezervasyon_gelen?: number | null;
+  rezervasyon_turu?: string | null;
+  rezervasyon_birim_fiyat?: number | null;
+  rezervasyon_toplam_saniye?: number | null;
+  createdAt: Date | string;
+  updatedAt?: Date | string;
 }

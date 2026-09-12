@@ -221,13 +221,13 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
             </div>
             <div>
               <h3 className="text-base font-bold text-white flex items-center gap-2">
-                Personel & Yetki Yönetim Masası
+                Grup Üyeleri & Yetki Yönetim Masası
                 <span className="text-[10px] uppercase font-mono font-bold px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30">
                   Süper Admin
                 </span>
               </h3>
               <p className="text-xs text-slate-400">
-                Ekip üyelerini ekleyin, rol ve aylık satış hedeflerini düzenleyin.
+                Grup üyelerini ekleyin, rol ve aylık satış hedeflerini düzenleyin.
               </p>
             </div>
           </div>
@@ -254,7 +254,7 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
               }`}
             >
               <Users className="w-4 h-4" />
-              <span>Personel Listesi ({userList.length})</span>
+              <span>Grup Üyeleri Listesi ({userList.length})</span>
             </button>
 
             <button
@@ -267,7 +267,7 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
               }`}
             >
               <UserPlus className="w-4 h-4" />
-              <span>+ Yeni Personel / Temsilci Ekle</span>
+              <span>+ Yeni Grup Üyesi / Temsilci Ekle</span>
             </button>
 
             {activeTab === 'edit' && (
@@ -276,7 +276,7 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
                 className="px-4 py-2 text-xs font-bold rounded-t-lg border-b-2 border-amber-600 text-amber-700 bg-white shadow-2xs flex items-center gap-2"
               >
                 <Edit2 className="w-3.5 h-3.5" />
-                <span>Personel Düzenle ({editingUser?.name})</span>
+                <span>Üye Düzenle ({editingUser?.name})</span>
               </button>
             )}
           </div>
@@ -306,7 +306,7 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
               {isLoading ? (
                 <div className="py-12 flex flex-col items-center justify-center text-slate-400 gap-2">
                   <Loader2 className="w-6 h-6 animate-spin text-sky-600" />
-                  <span className="text-xs">Personeller yükleniyor...</span>
+                  <span className="text-xs">Grup üyeleri yükleniyor...</span>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden bg-white shadow-xs">
@@ -389,7 +389,7 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
                               type="button"
                               onClick={() => handleDeleteUser(u.id, u.name)}
                               className="p-1.5 rounded-lg border border-slate-200 text-slate-400 hover:text-rose-600 hover:border-rose-300 hover:bg-rose-50 transition cursor-pointer"
-                              title="Personeli Sil"
+                              title="Üyeyi Sil"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
@@ -459,9 +459,9 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
                     onChange={(e: any) => setNewRole(e.target.value)}
                     className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-sky-500 shadow-2xs font-semibold"
                   >
-                    <option value="SALES_REP">Satış Temsilcisi (Yalnız Kendi Portföyü)</option>
-                    <option value="SALES_MANAGER">Satış Yöneticisi (Ekip & Satış İzleme)</option>
-                    <option value="ADMIN">Süper Admin (Tüm Yetkiler & Personel Masası)</option>
+                    <option value="SALES_REP">Satış Temsilcisi (Çalışma Raporu ve Portföy Yönetimi)</option>
+                    <option value="SALES_MANAGER">Satış Yöneticisi (İzleme & Takip)</option>
+                    <option value="ADMIN">Süper Admin (Tüm Yetkiler, Rapor Alma & Grup Yönetimi)</option>
                   </select>
                 </div>
 
@@ -515,7 +515,7 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
                   ) : (
                     <>
                       <Check className="w-3.5 h-3.5" />
-                      <span>Personeli Kaydet</span>
+                      <span>Üyeyi Kaydet</span>
                     </>
                   )}
                 </button>

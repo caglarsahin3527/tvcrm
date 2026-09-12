@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "TV CRM | Bi Kanal & Sıfır TV Reklam Satış Masası",
-  description: "İki televizyon kanalının reklam satış operasyonlarını yöneten ultra sade ve mobil uyumlu Web CRM",
+  title: "B! KANAL | Marka ve Büyüme Merkezi - Reklam Satış Grup Direktörlüğü",
+  description: "Bi Kanal & Sıfır TV Reklam Satış Operasyonları, Finansal Grafikler ve Canlı Analitik Masası",
 };
 
 export const viewport: Viewport = {

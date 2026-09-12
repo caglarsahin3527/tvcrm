@@ -16,9 +16,10 @@ model User {
   role      String   // "SALES_REP", "SALES_MANAGER", "ADMIN"
   target    Float    @default(500000) // Aylık Satış Hedefi (TL)
   phone     String?  @default("")
-  avatar    String?  @default("")
-  clients   Client[]
-  createdAt DateTime @default(now())
+  avatar      String?      @default("")
+  clients     Client[]
+  workReports WorkReport[]
+  createdAt   DateTime     @default(now())
 }
 
 model Client {
@@ -49,4 +50,30 @@ model Deal {
   not                    String    @default("")
   createdAt              DateTime  @default(now())
   updatedAt              DateTime  @updatedAt
+}
+
+model WorkReport {
+  id                        String    @id @default(uuid())
+  user_id                   String
+  user                      User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  tarih                     DateTime  @default(now())
+  kurum_adi                 String
+  kurum_turu                String    // "Marka", "Ajans", "KOBİ", "Kamu"
+  yetkili                   String
+  iletisim_turu             String    // "Telefon", "E-posta", "Yüzyüze Toplantı", "Dijital Toplantı", "Kurumsal Ziyaret"
+  gorusme_amaci             String    @default("") // Kiminle ne amaçla görüşüldüğü
+  teklif_verildi            Boolean   @default(false)
+  teklif_tutari             Float?    @default(0)
+  teklif_ihtimal            String?   @default("") // "%10", "%25", "%50", "%75", "%90", "%100"
+  satis_yapildi             Boolean   @default(false)
+  satis_turu                String?   @default("") // "Spot Reklam", "Alt Bant Reklam", "Sponsorluk"
+  satis_tutari              Float?    @default(0)
+  kurumsal_ziyaret          Boolean   @default(false)
+  rezervasyon_var           Boolean   @default(false)
+  rezervasyon_gelen         Int?      @default(0)  // 1-100 arası rakam
+  rezervasyon_turu          String?   @default("") // "Spot", "Alt Bant", "Sponsorluk", "Kamu Spotu"
+  rezervasyon_birim_fiyat   Float?    @default(0)
+  rezervasyon_toplam_saniye Int?      @default(0)
+  createdAt                 DateTime  @default(now())
+  updatedAt                 DateTime  @updatedAt
 }

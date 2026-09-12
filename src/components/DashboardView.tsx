@@ -259,7 +259,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       const repRealized = repDeals
         .filter((d) => ['SATIŞ', 'YAYIN', 'TAHSİLAT'].includes(d.asama))
         .reduce((sum, d) => sum + (d.teklif_tutari || 0), 0);
-      const repRate = rep.target > 0 ? (repRealized / rep.target) * 100 : 0;
+      const repTarget = rep.target ?? 500000;
+      const repRate = repTarget > 0 ? (repRealized / repTarget) * 100 : 0;
 
       return {
         id: rep.id,
@@ -268,7 +269,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         pipeline: repPipeline,
         offer: repOffer,
         realized: repRealized,
-        target: rep.target,
+        target: repTarget,
         rate: repRate,
         dealCount: repDeals.length,
       };
@@ -374,23 +375,28 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </button>
           </div>
 
-          <div className="h-6 w-px bg-slate-200 hidden sm:block" />
-
-          {/* Export Buttons */}
-          <button
-            onClick={handleExportExcel}
-            className="flex items-center gap-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer shadow-2xs"
-          >
-            <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
-            <span>Excel (.xlsx)</span>
-          </button>
-          <button
-            onClick={handleExportCsv}
-            className="flex items-center gap-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer shadow-2xs"
-          >
-            <FileText className="w-3.5 h-3.5 text-slate-500" />
-            <span>CSV</span>
-          </button>
+          {/* Export Buttons - Only Super Admin (Feedback #7) */}
+          {currentUser?.role === 'ADMIN' && (
+            <>
+              <div className="h-6 w-px bg-slate-200 hidden sm:block" />
+              <button
+                onClick={handleExportExcel}
+                className="flex items-center gap-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer shadow-2xs"
+                title="Excel Formatında İndir"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Excel (.xlsx)</span>
+              </button>
+              <button
+                onClick={handleExportCsv}
+                className="flex items-center gap-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer shadow-2xs"
+                title="CSV Formatında İndir"
+              >
+                <FileText className="w-3.5 h-3.5 text-slate-500" />
+                <span>CSV</span>
+              </button>
+            </>
+          )}
         </div>
       </div>
 

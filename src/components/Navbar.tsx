@@ -2,16 +2,15 @@
 
 import React from 'react';
 import { User } from '@/types';
+import { BiKanalLogo } from '@/components/BiKanalLogo';
 import { 
-  Tv, 
   Kanban, 
   Users, 
   BarChart3, 
   Plus, 
   ShieldCheck, 
   LogOut,
-  UserCheck,
-  UserPlus
+  FileSpreadsheet
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -20,6 +19,7 @@ interface NavbarProps {
   setActiveTab: (tab: 'pipeline' | 'clients' | 'dashboard') => void;
   onOpenAddClient: () => void;
   onOpenAdminUsers?: () => void;
+  onOpenWorkReport?: () => void;
   onLogout: () => void;
 }
 
@@ -29,9 +29,10 @@ export const Navbar: React.FC<NavbarProps> = ({
   setActiveTab,
   onOpenAddClient,
   onOpenAdminUsers,
+  onOpenWorkReport,
   onLogout,
 }) => {
-  const getRoleBadge = (role: string) => {
+  const getRoleBadge = (role?: string) => {
     switch (role) {
       case 'SUPER_ADMIN':
       case 'ADMIN':
@@ -44,42 +45,42 @@ export const Navbar: React.FC<NavbarProps> = ({
   };
 
   const isSuperAdmin = currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPER_ADMIN';
-  const roleInfo = currentUser ? getRoleBadge(currentUser.role) : null;
+  const roleInfo = currentUser ? getRoleBadge(currentUser.role) : getRoleBadge('ADMIN');
 
   return (
-    <header className="bg-white/95 border-b border-slate-200/90 sticky top-0 z-40 text-slate-900 backdrop-blur-md shadow-xs">
+    <header className="bg-white/95 border-b border-slate-200/90 sticky top-0 z-40 text-slate-900 backdrop-blur-md shadow-2xs">
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
         
         {/* DESKTOP & TABLET VIEW (sm+) */}
-        <div className="hidden sm:flex items-center justify-between h-16 gap-3 sm:gap-6">
-          {/* Brand & Broadcast Channels */}
-          <div className="flex items-center gap-3 shrink-0">
-            <div className="w-9 h-9 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-white shadow-sm">
-              <Tv className="w-5 h-5 text-sky-400" />
+        <div className="hidden sm:flex items-center justify-between h-16 gap-2 lg:gap-4">
+          
+          {/* Brand, Department & Quick Report Button */}
+          <div className="flex items-center gap-2.5 lg:gap-3 shrink-0">
+            {/* 3D B! KANAL Logo */}
+            <div className="flex items-center">
+              <BiKanalLogo size="sm" />
             </div>
             
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-extrabold text-base tracking-tight text-slate-900 font-mono">
-                  TV<span className="text-sky-600">CRM</span>
-                </span>
-                
-                {/* Broadcast Channels Live Indicators */}
-                <div className="flex items-center gap-1.5 ml-1">
-                  <span className="inline-flex items-center gap-1.5 text-[10px] font-mono uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-sky-50 text-sky-700 border border-sky-200">
-                    <span className="w-1.5 h-1.5 rounded-full bg-sky-500 animate-pulse" />
-                    Bi Kanal
-                  </span>
-                  <span className="inline-flex items-center gap-1.5 text-[10px] font-mono uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200">
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                    Sıfır TV
-                  </span>
-                </div>
-              </div>
-              <p className="text-[11px] text-slate-500 font-medium tracking-wide">
-                Reklam Satış & Yayın Masası
-              </p>
+            {/* Department Frame */}
+            <div className="border border-slate-300/90 bg-white/80 rounded-lg px-2.5 py-1 flex flex-col justify-center shadow-2xs">
+              <span className="text-[10.5px] font-bold text-slate-800 tracking-wider uppercase font-mono leading-tight">
+                MARKA VE BÜYÜME MERKEZİ
+              </span>
+              <span className="text-[9.5px] text-slate-500 font-medium tracking-tight leading-tight">
+                Reklam Satış Grup Direktörlüğü
+              </span>
             </div>
+
+            {/* Çalışma Raporu Action Button */}
+            <button
+              type="button"
+              onClick={onOpenWorkReport}
+              className="flex items-center gap-1.5 bg-sky-50 hover:bg-sky-100 text-sky-800 font-bold px-3 py-1.5 rounded-lg text-xs border border-sky-200/90 shadow-2xs transition active:scale-98 cursor-pointer"
+              title="Günlük ve Dönemsel Çalışma Raporu"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5 text-sky-600" />
+              <span>Çalışma Raporu</span>
+            </button>
           </div>
 
           {/* Desktop Navigation Tabs */}
@@ -87,7 +88,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               type="button"
               onClick={() => setActiveTab('dashboard')}
-              className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                 activeTab === 'dashboard'
                   ? 'bg-white text-slate-900 shadow-sm border border-slate-200/90 font-bold'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
@@ -100,7 +101,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               type="button"
               onClick={() => setActiveTab('clients')}
-              className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                 activeTab === 'clients'
                   ? 'bg-white text-slate-900 shadow-sm border border-slate-200/90 font-bold'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
@@ -113,7 +114,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               type="button"
               onClick={() => setActiveTab('pipeline')}
-              className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                 activeTab === 'pipeline'
                   ? 'bg-white text-slate-900 shadow-sm border border-slate-200/90 font-bold'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
@@ -125,18 +126,18 @@ export const Navbar: React.FC<NavbarProps> = ({
           </nav>
 
           {/* Right Area: Admin Actions, Quick Add & Logged-In User Profile */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
             
-            {/* Super Admin Special Personnel Management Button */}
-            {isSuperAdmin && onOpenAdminUsers && (
+            {/* Super Admin Special Group Members Management Button */}
+            {(isSuperAdmin || !currentUser) && onOpenAdminUsers && (
               <button
                 type="button"
                 onClick={onOpenAdminUsers}
                 className="flex items-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-white font-bold px-3 py-1.5 rounded-lg text-xs tracking-tight transition shadow-xs cursor-pointer"
-                title="Personel ve Rol Yönetim Masası"
+                title="Grup Üyeleri ve Yetki Masası"
               >
                 <ShieldCheck className="w-4 h-4 text-rose-400" />
-                <span>Personel Masası</span>
+                <span>Grup Üyeleri</span>
               </button>
             )}
 
@@ -147,30 +148,32 @@ export const Navbar: React.FC<NavbarProps> = ({
               className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3.5 py-1.5 rounded-lg text-xs tracking-tight transition-all active:scale-95 shadow-sm shadow-emerald-600/20 cursor-pointer shrink-0"
             >
               <Plus className="w-4 h-4 stroke-[3]" />
-              <span>Hızlı Müşteri Ekle</span>
+              <span>Yeni Müşteri Ekle</span>
             </button>
 
             {/* Authenticated User Badge & Logout */}
             <div className="flex items-center gap-2.5 pl-2 border-l border-slate-200">
               <div className="flex items-center gap-2">
                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-black shadow-2xs ${
-                  isSuperAdmin 
+                  isSuperAdmin || !currentUser
                     ? 'bg-rose-100 text-rose-700 border border-rose-200' 
                     : currentUser?.role === 'SALES_MANAGER'
                     ? 'bg-sky-100 text-sky-700 border border-sky-200'
                     : 'bg-emerald-100 text-emerald-700 border border-emerald-200'
                 }`}>
-                  {currentUser?.name ? currentUser.name.substring(0, 2).toUpperCase() : 'U'}
+                  {currentUser?.name 
+                    ? currentUser.name.substring(0, 2).toUpperCase() 
+                    : 'AY'}
                 </div>
 
-                <div className="text-left leading-tight hidden lg:block">
+                <div className="text-left leading-tight hidden xl:block">
                   <div className="text-xs font-bold text-slate-800 flex items-center gap-1">
-                    {currentUser?.name || 'Kullanıcı'}
+                    {currentUser?.name || 'Ayşe Yıldız (Genel Müdür)'}
                   </div>
                   <div className={`text-[10px] font-mono font-semibold ${
-                    isSuperAdmin ? 'text-rose-600' : currentUser?.role === 'SALES_MANAGER' ? 'text-sky-600' : 'text-emerald-600'
+                    isSuperAdmin || !currentUser ? 'text-rose-600' : currentUser?.role === 'SALES_MANAGER' ? 'text-sky-600' : 'text-emerald-600'
                   }`}>
-                    {roleInfo?.label || 'Giriş Yapıldı'}
+                    {roleInfo?.label || 'Süper Admin (Genel Müdür)'}
                   </div>
                 </div>
               </div>
@@ -192,27 +195,39 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* MOBILE VIEW (< sm) */}
         <div className="sm:hidden py-2 space-y-2 select-none">
           
-          {/* Mobile Row 1: Brand, User Info, Admin Button, Add & Logout */}
+          {/* Mobile Row 1: Brand, Department, Admin Button, Add & Logout */}
           <div className="flex items-center justify-between gap-1.5">
             
-            {/* Brand Logo */}
-            <div className="flex items-center gap-1.5 shrink-0">
-              <div className="w-7 h-7 rounded-lg bg-slate-900 flex items-center justify-center text-white shadow-xs">
-                <Tv className="w-3.5 h-3.5 text-sky-400" />
+            {/* Brand Logo & Title */}
+            <div className="flex items-center gap-2 shrink-0">
+              <BiKanalLogo size="sm" showText={false} />
+              <div className="flex flex-col">
+                <span className="text-[10px] font-bold text-slate-900 tracking-tight font-mono leading-none">
+                  MARKA & BÜYÜME
+                </span>
+                <span className="text-[8px] text-slate-500 leading-tight">
+                  Satış Direktörlüğü
+                </span>
               </div>
-              <span className="font-extrabold text-sm tracking-tight text-slate-900 font-mono">
-                TV<span className="text-sky-600">CRM</span>
-              </span>
             </div>
 
             {/* Mobile Actions */}
-            <div className="flex items-center gap-1.5">
-              {isSuperAdmin && onOpenAdminUsers && (
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={onOpenWorkReport}
+                className="px-2 py-1 bg-sky-50 text-sky-800 border border-sky-200 rounded-lg text-[10px] font-bold"
+                title="Çalışma Raporu"
+              >
+                Rapor
+              </button>
+
+              {(isSuperAdmin || !currentUser) && onOpenAdminUsers && (
                 <button
                   type="button"
                   onClick={onOpenAdminUsers}
                   className="p-1.5 bg-slate-900 text-rose-400 rounded-lg border border-slate-800 text-xs"
-                  title="Personel Masası"
+                  title="Grup Üyeleri"
                 >
                   <ShieldCheck className="w-3.5 h-3.5" />
                 </button>
@@ -226,10 +241,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <Plus className="w-3.5 h-3.5 stroke-[3]" />
                 <span>Ekle</span>
               </button>
-
-              <div className="text-[11px] font-bold text-slate-700 max-w-[80px] truncate">
-                {currentUser?.name?.split(' ')[0]}
-              </div>
 
               <button
                 type="button"
@@ -290,3 +301,4 @@ export const Navbar: React.FC<NavbarProps> = ({
     </header>
   );
 };
+

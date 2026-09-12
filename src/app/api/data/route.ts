@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
       dateFilter = { gte: start, lte: end };
     }
 
-    const [users, deals, clients] = await Promise.all([
+    const [users, deals, clients, workReports] = await Promise.all([
       prisma.user.findMany({ orderBy: { name: 'asc' } }),
       prisma.deal.findMany({
         where: {
@@ -78,6 +78,19 @@ export async function GET(request: NextRequest) {
         },
         orderBy: { createdAt: 'desc' },
       }),
+      prisma.workReport.findMany({
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              role: true,
+            },
+          },
+        },
+        orderBy: { tarih: 'desc' },
+      }),
     ]);
 
     return NextResponse.json({
@@ -85,6 +98,7 @@ export async function GET(request: NextRequest) {
       users,
       deals,
       clients,
+      workReports,
     });
   } catch (error: any) {
     console.error('API /api/data error:', error);

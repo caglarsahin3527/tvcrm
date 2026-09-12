@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useCallback, useTransition } from 'react';
-import { User, Deal, Client } from '@/types';
+import { User, Deal, Client, WorkReport } from '@/types';
 import { Navbar } from '@/components/Navbar';
 import { AlertBanner } from '@/components/AlertBanner';
 import { FilterBar } from '@/components/FilterBar';
@@ -9,6 +9,7 @@ import { QuickAddClientModal } from '@/components/QuickAddClientModal';
 import { QuickAddDealModal } from '@/components/QuickAddDealModal';
 import { UpdateFollowUpModal } from '@/components/UpdateFollowUpModal';
 import { AdminUsersModal } from '@/components/AdminUsersModal';
+import { WorkReportModal } from '@/components/WorkReportModal';
 import { Loader2 } from 'lucide-react';
 
 import { KanbanBoard } from '@/components/KanbanBoard';
@@ -19,6 +20,7 @@ interface AppContainerProps {
   initialUsers: User[];
   initialDeals: Deal[];
   initialClients: Client[];
+  initialWorkReports?: WorkReport[];
   sessionUser: User;
 }
 
@@ -26,12 +28,14 @@ export const AppContainer: React.FC<AppContainerProps> = ({
   initialUsers,
   initialDeals,
   initialClients,
+  initialWorkReports = [],
   sessionUser,
 }) => {
   const [users, setUsers] = useState<User[]>(initialUsers || []);
   const [currentUser, setCurrentUser] = useState<User>(sessionUser);
   const [deals, setDeals] = useState<Deal[]>(initialDeals || []);
   const [clients, setClients] = useState<Client[]>(initialClients || []);
+  const [workReports, setWorkReports] = useState<WorkReport[]>(initialWorkReports || []);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isPending, startTransition] = useTransition();
 
@@ -49,9 +53,10 @@ export const AppContainer: React.FC<AppContainerProps> = ({
   const [isAddDealOpen, setIsAddDealOpen] = useState(false);
   const [isFollowUpOpen, setIsFollowUpOpen] = useState(false);
   const [isAdminUsersOpen, setIsAdminUsersOpen] = useState(false);
+  const [isWorkReportOpen, setIsWorkReportOpen] = useState(false);
   const [selectedClientForAction, setSelectedClientForAction] = useState<Client | null>(null);
 
-  // Fetch updated deals and clients using reliable API route with fallback
+  // Fetch updated deals, clients and work reports
   const refreshData = useCallback(async () => {
     setIsRefreshing(true);
     try {
@@ -71,6 +76,7 @@ export const AppContainer: React.FC<AppContainerProps> = ({
             if (json.deals) setDeals(json.deals);
             if (json.clients) setClients(json.clients);
             if (json.users && json.users.length > 0) setUsers(json.users);
+            if (json.workReports) setWorkReports(json.workReports);
           });
         }
       }
@@ -120,6 +126,7 @@ export const AppContainer: React.FC<AppContainerProps> = ({
         setActiveTab={setActiveTab}
         onOpenAddClient={() => setIsAddClientOpen(true)}
         onOpenAdminUsers={() => setIsAdminUsersOpen(true)}
+        onOpenWorkReport={() => setIsWorkReportOpen(true)}
         onLogout={handleLogout}
       />
 
@@ -173,6 +180,7 @@ export const AppContainer: React.FC<AppContainerProps> = ({
           {activeTab === 'pipeline' && (
             <KanbanBoard
               deals={deals}
+              currentUser={currentUser}
               onRefresh={refreshData}
               onOpenFollowUpModal={handleOpenFollowUp}
               onOpenAddDealModal={handleOpenAddDeal}
@@ -230,6 +238,16 @@ export const AppContainer: React.FC<AppContainerProps> = ({
         onClose={() => setIsAdminUsersOpen(false)}
         currentUser={currentUser}
         onUsersUpdated={refreshData}
+      />
+
+      {/* Work Report Modal */}
+      <WorkReportModal
+        isOpen={isWorkReportOpen}
+        onClose={() => setIsWorkReportOpen(false)}
+        users={users}
+        currentUser={currentUser}
+        workReports={workReports}
+        onRefresh={refreshData}
       />
     </div>
   );
