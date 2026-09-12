@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
-import { getSessionUser } from '@/lib/auth';
+import { cookies } from 'next/headers';
+import { getSessionUser, AUTH_COOKIE_NAME } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { AppContainer } from '@/components/AppContainer';
 
@@ -8,8 +9,10 @@ export const dynamic = 'force-dynamic';
 export default async function HomePage() {
   const sessionUser = await getSessionUser();
 
-  // If no authenticated session, instantly redirect to /login
+  // If no authenticated session, clear stale cookie and redirect to /login
   if (!sessionUser) {
+    const cookieStore = await cookies();
+    cookieStore.delete(AUTH_COOKIE_NAME);
     redirect('/login');
   }
 
