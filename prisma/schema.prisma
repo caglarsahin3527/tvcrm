@@ -59,9 +59,15 @@ model WorkReport {
   tarih                     DateTime  @default(now())
   kurum_adi                 String
   kurum_turu                String    // "Marka", "Ajans", "KOBİ", "Kamu"
+  musteri_durumu            String    @default("Yeni Müşteri") // "Yeni Müşteri", "Mevcut"
   yetkili                   String
+  yetkili_telefon           String    @default("") // Yetkilinin telefon numarası
+  yetkili_eposta            String    @default("") // Yetkilinin e-posta adresi
   iletisim_turu             String    // "Telefon", "E-posta", "Yüzyüze Toplantı", "Dijital Toplantı", "Kurumsal Ziyaret"
+  reklam_turu               String    @default("Reklam") // "Reklam", "Barter"
+  tv_kanali                 String    @default("Bi Kanal") // "Bi Kanal", "Sıfır TV"
   gorusme_amaci             String    @default("") // Kiminle ne amaçla görüşüldüğü
+  sonuc                     String    @default("") // Görüşme sonucu
   teklif_verildi            Boolean   @default(false)
   teklif_tutari             Float?    @default(0)
   teklif_ihtimal            String?   @default("") // "%10", "%25", "%50", "%75", "%90", "%100"

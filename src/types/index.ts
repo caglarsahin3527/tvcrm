@@ -81,6 +81,10 @@ export type WorkReportSaleType = 'Spot Reklam' | 'Alt Bant Reklam' | 'Sponsorluk
 
 export type WorkReportReservationType = 'Spot' | 'Alt Bant' | 'Sponsorluk' | 'Kamu Spotu';
 
+export type WorkReportCustomerStatus = 'Yeni Müşteri' | 'Mevcut';
+
+export type WorkReportAdType = 'Reklam' | 'Barter';
+
 export interface WorkReport {
   id: string;
   user_id: string;
@@ -88,9 +92,15 @@ export interface WorkReport {
   tarih: Date | string;
   kurum_adi: string;
   kurum_turu: string;
+  musteri_durumu: string;
   yetkili: string;
+  yetkili_telefon: string;
+  yetkili_eposta: string;
   iletisim_turu: string;
+  reklam_turu: string;
+  tv_kanali: string;
   gorusme_amaci: string;
+  sonuc: string;
   teklif_verildi: boolean;
   teklif_tutari?: number | null;
   teklif_ihtimal?: string | null;

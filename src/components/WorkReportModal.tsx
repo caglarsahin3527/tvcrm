@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { User, WorkReport, WorkReportOrgType, WorkReportContactType, WorkReportSaleType, WorkReportReservationType } from '@/types';
+import { User, WorkReport, WorkReportOrgType, WorkReportContactType, WorkReportSaleType, WorkReportReservationType, WorkReportCustomerStatus, WorkReportAdType } from '@/types';
 import { formatCurrency, formatDate } from '@/lib/formatters';
 import { 
   X, 
@@ -78,9 +78,15 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
   const [assignedUserId, setAssignedUserId] = useState(currentUser ? currentUser.id : users[0]?.id || '');
   const [kurumAdi, setKurumAdi] = useState('');
   const [kurumTuru, setKurumTuru] = useState<WorkReportOrgType>('Marka');
+  const [musteriDurumu, setMusteriDurumu] = useState<WorkReportCustomerStatus>('Yeni Müşteri');
   const [yetkili, setYetkili] = useState('');
+  const [yetkiliTelefon, setYetkiliTelefon] = useState('');
+  const [yetkiliEposta, setYetkiliEposta] = useState('');
   const [iletisimTuru, setIletisimTuru] = useState<WorkReportContactType>('Telefon');
+  const [reklamTuru, setReklamTuru] = useState<WorkReportAdType>('Reklam');
+  const [tvKanali, setTvKanali] = useState<'Bi Kanal' | 'Sıfır TV'>('Bi Kanal');
   const [gorusmeAmaci, setGorusmeAmaci] = useState('');
+  const [sonuc, setSonuc] = useState('');
 
   // Optional Field Toggles
   const [teklifVerildi, setTeklifVerildi] = useState(false);
@@ -104,9 +110,15 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
     setTarih(new Date().toISOString().split('T')[0]);
     setKurumAdi('');
     setKurumTuru('Marka');
+    setMusteriDurumu('Yeni Müşteri');
     setYetkili('');
+    setYetkiliTelefon('');
+    setYetkiliEposta('');
     setIletisimTuru('Telefon');
+    setReklamTuru('Reklam');
+    setTvKanali('Bi Kanal');
     setGorusmeAmaci('');
+    setSonuc('');
     setTeklifVerildi(false);
     setTeklifTutari('');
     setTeklifIhtimal('%50');
@@ -220,9 +232,15 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
         user_id: isSuperAdmin ? assignedUserId : currentUser?.id,
         kurum_adi: kurumAdi,
         kurum_turu: kurumTuru,
+        musteri_durumu: musteriDurumu,
         yetkili,
+        yetkili_telefon: yetkiliTelefon,
+        yetkili_eposta: yetkiliEposta,
         iletisim_turu: iletisimTuru,
+        reklam_turu: reklamTuru,
+        tv_kanali: tvKanali,
         gorusme_amaci: gorusmeAmaci,
+        sonuc,
         teklif_verildi: teklifVerildi,
         teklif_tutari: teklifVerildi ? Number(teklifTutari) || 0 : 0,
         teklif_ihtimal: teklifVerildi ? teklifIhtimal : '',
@@ -707,14 +725,18 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                     <thead className="bg-slate-100/80 text-slate-600 border-b border-slate-200 text-[10px] uppercase font-mono font-bold">
                       <tr>
                         <th className="py-2.5 px-3 whitespace-nowrap">Tarih</th>
-                        <th className="py-2.5 px-3 whitespace-nowrap">Grup Üyesi</th>
-                        <th className="py-2.5 px-3 whitespace-nowrap">Kurum & Tür</th>
+                        <th className="py-2.5 px-3 whitespace-nowrap">Personel</th>
+                        <th className="py-2.5 px-3 whitespace-nowrap">Kurum</th>
+                        <th className="py-2.5 px-3 whitespace-nowrap">Yeni/Mevcut</th>
+                        <th className="py-2.5 px-3 whitespace-nowrap">Tür</th>
                         <th className="py-2.5 px-3 whitespace-nowrap">Yetkili</th>
+                        <th className="py-2.5 px-3 whitespace-nowrap">Telefon</th>
+                        <th className="py-2.5 px-3 whitespace-nowrap">E-posta</th>
                         <th className="py-2.5 px-3 whitespace-nowrap">İletişim</th>
-                        <th className="py-2.5 px-3">Görüşme Amacı & Notlar</th>
-                        <th className="py-2.5 px-3 whitespace-nowrap">Teklif & İhtimal</th>
-                        <th className="py-2.5 px-3 whitespace-nowrap">Satış & Tür</th>
-                        <th className="py-2.5 px-3 whitespace-nowrap">Rezervasyon</th>
+                        <th className="py-2.5 px-3 whitespace-nowrap">Reklam/Barter</th>
+                        <th className="py-2.5 px-3 whitespace-nowrap">TV</th>
+                        <th className="py-2.5 px-3 whitespace-nowrap">Tutar (₺)</th>
+                        <th className="py-2.5 px-3">Sonuç</th>
                         <th className="py-2.5 px-3 text-right no-print">İşlem</th>
                       </tr>
                     </thead>
@@ -731,22 +753,47 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                               {formatDate(report.tarih)}
                             </td>
 
-                            {/* Grup Üyesi */}
-                            <td className="py-2.5 px-3 font-semibold text-slate-900 whitespace-nowrap">
+                            {/* Personel */}
+                            <td className="py-2.5 px-3 font-semibold text-slate-900 whitespace-nowrap text-[11px]">
                               {report.user?.name || getRepName(report.user_id)}
                             </td>
 
-                            {/* Kurum & Tür */}
+                            {/* Kurum */}
                             <td className="py-2.5 px-3 whitespace-nowrap">
-                              <div className="font-bold text-slate-900">{report.kurum_adi}</div>
-                              <span className="text-[9px] font-mono uppercase px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 border border-slate-200 inline-block mt-0.5">
+                              <div className="font-bold text-slate-900 text-[11px]">{report.kurum_adi}</div>
+                            </td>
+
+                            {/* Yeni / Mevcut */}
+                            <td className="py-2.5 px-3 whitespace-nowrap">
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                                report.musteri_durumu === 'Yeni Müşteri'
+                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                  : 'bg-slate-100 text-slate-600 border-slate-200'
+                              }`}>
+                                {report.musteri_durumu || 'Yeni Müşteri'}
+                              </span>
+                            </td>
+
+                            {/* Kurum Türü (Marka/Ajans/KOBİ/Kamu) */}
+                            <td className="py-2.5 px-3 whitespace-nowrap">
+                              <span className="text-[9px] font-mono uppercase px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200 font-bold">
                                 {report.kurum_turu}
                               </span>
                             </td>
 
                             {/* Yetkili */}
-                            <td className="py-2.5 px-3 text-slate-800 whitespace-nowrap">
+                            <td className="py-2.5 px-3 text-slate-800 whitespace-nowrap text-[11px]">
                               {report.yetkili}
+                            </td>
+
+                            {/* Telefon */}
+                            <td className="py-2.5 px-3 font-mono text-[10px] text-slate-600 whitespace-nowrap">
+                              {report.yetkili_telefon || '-'}
+                            </td>
+
+                            {/* E-posta */}
+                            <td className="py-2.5 px-3 text-[10px] text-slate-600 whitespace-nowrap max-w-[160px] truncate">
+                              {report.yetkili_eposta || '-'}
                             </td>
 
                             {/* İletişim Türü */}
@@ -760,63 +807,40 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                               }`}>
                                 {report.iletisim_turu}
                               </span>
-                              {report.kurumsal_ziyaret && (
-                                <span className="block text-[9px] text-purple-700 font-mono font-bold mt-0.5">
-                                  ✓ Kurumsal Ziyaret
-                                </span>
+                            </td>
+
+                            {/* Reklam / Barter */}
+                            <td className="py-2.5 px-3 whitespace-nowrap">
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                                report.reklam_turu === 'Barter'
+                                  ? 'bg-amber-50 text-amber-800 border-amber-200'
+                                  : 'bg-sky-50 text-sky-700 border-sky-200'
+                              }`}>
+                                {report.reklam_turu || 'Reklam'}
+                              </span>
+                            </td>
+
+                            {/* TV Kanalı */}
+                            <td className="py-2.5 px-3 whitespace-nowrap text-[10px] font-bold text-slate-700">
+                              {report.tv_kanali || 'Bi Kanal'}
+                            </td>
+
+                            {/* Tutar (₺) */}
+                            <td className="py-2.5 px-3 whitespace-nowrap font-mono text-[11px]">
+                              {(report.teklif_tutari && report.teklif_tutari > 0) ? (
+                                <span className="font-bold text-sky-700">{formatCurrency(report.teklif_tutari)}</span>
+                              ) : (report.satis_tutari && report.satis_tutari > 0) ? (
+                                <span className="font-bold text-emerald-700">{formatCurrency(report.satis_tutari)}</span>
+                              ) : (
+                                <span className="text-slate-400">-</span>
                               )}
                             </td>
 
-                            {/* Görüşme Amacı & Notlar */}
-                            <td className="py-2.5 px-3 text-slate-700 max-w-xs text-xs">
-                              <p className="line-clamp-2" title={report.gorusme_amaci}>
-                                {report.gorusme_amaci || '-'}
+                            {/* Sonuç */}
+                            <td className="py-2.5 px-3 text-slate-700 max-w-[200px] text-[11px]">
+                              <p className="line-clamp-2" title={report.sonuc || report.gorusme_amaci}>
+                                {report.sonuc || report.gorusme_amaci || '-'}
                               </p>
-                            </td>
-
-                            {/* Teklif & İhtimal */}
-                            <td className="py-2.5 px-3 whitespace-nowrap font-mono text-[11px]">
-                              {report.teklif_verildi ? (
-                                <div>
-                                  <span className="font-bold text-sky-700 block">
-                                    {formatCurrency(report.teklif_tutari || 0)}
-                                  </span>
-                                  <span className="text-[10px] font-bold text-slate-600 bg-sky-50 px-1.5 py-0.2 rounded border border-sky-200 inline-block">
-                                    İhtimal: {report.teklif_ihtimal || '%50'}
-                                  </span>
-                                </div>
-                              ) : (
-                                <span className="text-slate-400">-</span>
-                              )}
-                            </td>
-
-                            {/* Satış & Tür */}
-                            <td className="py-2.5 px-3 whitespace-nowrap font-mono text-[11px]">
-                              {report.satis_yapildi ? (
-                                <div>
-                                  <span className="font-bold text-emerald-700 block">
-                                    {formatCurrency(report.satis_tutari || 0)}
-                                  </span>
-                                  <span className="text-[10px] text-emerald-800 font-semibold">
-                                    {report.satis_turu}
-                                  </span>
-                                </div>
-                              ) : (
-                                <span className="text-slate-400">-</span>
-                              )}
-                            </td>
-
-                            {/* Rezervasyon */}
-                            <td className="py-2.5 px-3 whitespace-nowrap font-mono text-[10px]">
-                              {report.rezervasyon_var ? (
-                                <div className="space-y-0.5 text-slate-700">
-                                  <div><strong className="text-amber-800">{report.rezervasyon_gelen} Adet</strong> ({report.rezervasyon_turu})</div>
-                                  <div>Birim: {formatCurrency(report.rezervasyon_birim_fiyat || 0)}</div>
-                                  <div>Toplam: <strong>{report.rezervasyon_toplam_saniye} sn</strong></div>
-                                </div>
-                              ) : (
-                                <span className="text-slate-400">-</span>
-                              )}
                             </td>
 
                             {/* İşlemler (No-Print) */}
@@ -843,7 +867,7 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
 
                       {filteredReports.length === 0 && (
                         <tr>
-                          <td colSpan={10} className="text-center py-10 text-slate-400 font-mono text-xs">
+                          <td colSpan={14} className="text-center py-10 text-slate-400 font-mono text-xs">
                             SEÇİLEN KRİTERLERE UYGUN ÇALIŞMA RAPORU KAYDI BULUNAMADI
                           </td>
                         </tr>
@@ -986,8 +1010,23 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                   </select>
                 </div>
 
+                {/* 4.5. Müşteri Durumu (Yeni/Mevcut) */}
+                <div className="space-y-1">
+                  <label className="text-[11px] font-mono uppercase text-slate-700 font-bold">
+                    Müşteri Durumu *
+                  </label>
+                  <select
+                    value={musteriDurumu}
+                    onChange={(e) => setMusteriDurumu(e.target.value as WorkReportCustomerStatus)}
+                    className="w-full text-xs px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-sky-500 shadow-2xs font-semibold cursor-pointer"
+                  >
+                    <option value="Yeni Müşteri">Yeni Müşteri</option>
+                    <option value="Mevcut">Mevcut</option>
+                  </select>
+                </div>
+
                 {/* 5. Yetkili */}
-                <div className="space-y-1 sm:col-span-2">
+                <div className="space-y-1">
                   <label className="text-[11px] font-mono uppercase text-slate-700 font-bold flex items-center gap-1">
                     <UserCheck className="w-3.5 h-3.5 text-sky-600" />
                     Görüşülen Yetkili Kişi *
@@ -995,9 +1034,39 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                   <input
                     type="text"
                     required
-                    placeholder="Örn: Ahmet Bey (Pazarlama Direktörü), Zeynep Hanım (Medya Planlama)"
+                    placeholder="Örn: Ahmet Bey (Pazarlama)"
                     value={yetkili}
                     onChange={(e) => setYetkili(e.target.value)}
+                    className="w-full text-xs px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-sky-500 shadow-2xs"
+                  />
+                </div>
+
+                {/* 5.1 Yetkili Telefon */}
+                <div className="space-y-1">
+                  <label className="text-[11px] font-mono uppercase text-slate-700 font-bold flex items-center gap-1">
+                    <Phone className="w-3.5 h-3.5 text-emerald-600" />
+                    Yetkili Telefon
+                  </label>
+                  <input
+                    type="tel"
+                    placeholder="Örn: 0555 555 5555"
+                    value={yetkiliTelefon}
+                    onChange={(e) => setYetkiliTelefon(e.target.value)}
+                    className="w-full text-xs px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-sky-500 shadow-2xs"
+                  />
+                </div>
+
+                {/* 5.2 Yetkili E-posta */}
+                <div className="space-y-1">
+                  <label className="text-[11px] font-mono uppercase text-slate-700 font-bold flex items-center gap-1">
+                    <Mail className="w-3.5 h-3.5 text-indigo-600" />
+                    Yetkili E-posta
+                  </label>
+                  <input
+                    type="email"
+                    placeholder="Örn: ahmet@sirket.com"
+                    value={yetkiliEposta}
+                    onChange={(e) => setYetkiliEposta(e.target.value)}
                     className="w-full text-xs px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-sky-500 shadow-2xs"
                   />
                 </div>
@@ -1036,6 +1105,37 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                   </div>
                 </div>
 
+                {/* 6.1 Reklam Türü ve TV Kanalı */}
+                <div className="grid grid-cols-2 gap-3 sm:col-span-2">
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-mono uppercase text-slate-700 font-bold">
+                      Reklam / Barter *
+                    </label>
+                    <select
+                      value={reklamTuru}
+                      onChange={(e) => setReklamTuru(e.target.value as WorkReportAdType)}
+                      className="w-full text-xs px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-sky-500 shadow-2xs font-semibold cursor-pointer"
+                    >
+                      <option value="Reklam">Reklam</option>
+                      <option value="Barter">Barter</option>
+                    </select>
+                  </div>
+                  
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-mono uppercase text-slate-700 font-bold">
+                      TV Kanalı *
+                    </label>
+                    <select
+                      value={tvKanali}
+                      onChange={(e) => setTvKanali(e.target.value as 'Bi Kanal' | 'Sıfır TV')}
+                      className="w-full text-xs px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-sky-500 shadow-2xs font-semibold cursor-pointer"
+                    >
+                      <option value="Bi Kanal">Bi Kanal</option>
+                      <option value="Sıfır TV">Sıfır TV</option>
+                    </select>
+                  </div>
+                </div>
+
                 {/* 7. Kiminle Ne Amaçla Görüşüldü */}
                 <div className="space-y-1 sm:col-span-2">
                   <label className="text-[11px] font-mono uppercase text-slate-700 font-bold">
@@ -1047,6 +1147,20 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                     value={gorusmeAmaci}
                     onChange={(e) => setGorusmeAmaci(e.target.value)}
                     className="w-full text-xs px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-sky-500 shadow-2xs resize-none"
+                  />
+                </div>
+
+                {/* 8. Sonuç */}
+                <div className="space-y-1 sm:col-span-2">
+                  <label className="text-[11px] font-mono uppercase text-slate-700 font-bold">
+                    Sonuç
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Örn: Teklif İstendi, Randevu İstendi, Görüşme Devam Ediyor..."
+                    value={sonuc}
+                    onChange={(e) => setSonuc(e.target.value)}
+                    className="w-full text-xs px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-sky-500 shadow-2xs"
                   />
                 </div>
 
