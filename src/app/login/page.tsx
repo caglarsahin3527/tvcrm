@@ -4,66 +4,7 @@ import React, { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Lock, Mail, Eye, EyeOff, ArrowRight, Loader2 } from 'lucide-react';
 
-function BiKanalLogo() {
-  return (
-    <div className="flex flex-col items-center select-none">
-      {/* 3D Box Logo */}
-      <div className="relative">
-        <svg width="76" height="56" viewBox="0 0 76 56" fill="none" xmlns="http://www.w3.org/2000/svg" className="drop-shadow-md">
-          <defs>
-            <linearGradient id="boxGradFront" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#FF7A3D" />
-              <stop offset="60%" stopColor="#F54A00" />
-              <stop offset="100%" stopColor="#D83600" />
-            </linearGradient>
-            <linearGradient id="boxGradTop" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#FFA070" />
-              <stop offset="100%" stopColor="#FF7A3D" />
-            </linearGradient>
-            <linearGradient id="boxGradSide" x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stopColor="#BA2E00" />
-              <stop offset="100%" stopColor="#8A2000" />
-            </linearGradient>
-            <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-              <feDropShadow dx="0" dy="4" stdDeviation="4" floodColor="#f54a00" floodOpacity="0.25" />
-            </filter>
-          </defs>
-
-          {/* 3D Isometric / Slanted Box */}
-          <g filter="url(#glow)">
-            {/* Top bevel */}
-            <path d="M 22 10 L 32 4 L 58 4 L 48 10 Z" fill="url(#boxGradTop)" />
-            {/* Right dark side */}
-            <path d="M 48 10 L 58 4 L 58 38 L 48 44 Z" fill="url(#boxGradSide)" />
-            {/* Front main face */}
-            <rect x="18" y="10" width="30" height="34" rx="4" fill="url(#boxGradFront)" />
-            {/* Subtle inner reflection */}
-            <path d="M 20 12 L 46 12 L 46 18 L 20 22 Z" fill="#ffffff" fillOpacity="0.22" rx="2" />
-            
-            {/* B! Text */}
-            <text
-              x="33"
-              y="35"
-              fill="#ffffff"
-              fontSize="24"
-              fontWeight="900"
-              fontFamily="system-ui, -apple-system, sans-serif"
-              textAnchor="middle"
-              className="drop-shadow-xs"
-            >
-              B!
-            </text>
-          </g>
-        </svg>
-      </div>
-
-      {/* KANAL Text Below */}
-      <span className="text-[11px] font-black tracking-[0.22em] text-slate-800 -mt-1 uppercase font-sans">
-        KANAL
-      </span>
-    </div>
-  );
-}
+import { BiKanalLogo } from '@/components/BiKanalLogo';
 
 function LoginForm() {
   const router = useRouter();
@@ -123,7 +64,7 @@ function LoginForm() {
         <div className="flex flex-col items-center text-center mb-6">
           
           {/* B! KANAL 3D Logo */}
-          <BiKanalLogo />
+          <BiKanalLogo size="md" />
 
           {/* Department Header Badge */}
           <div className="mt-4 border border-sky-200/90 bg-sky-50/70 rounded-2xl px-6 py-2.5 text-center shadow-2xs">
