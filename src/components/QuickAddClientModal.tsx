@@ -32,14 +32,14 @@ export const QuickAddClientModal: React.FC<QuickAddClientModalProps> = ({
     currentUser ? currentUser.id : users[0]?.id || ''
   );
 
-  // Synchronize rep ID when currentUser or users list is loaded/updated
+  // Synchronize rep ID ONLY when modal opens or when users list changes initially
   React.useEffect(() => {
-    if (currentUser) {
-      setSatisTemsilcisiId(currentUser.id);
-    } else if (users.length > 0 && !satisTemsilcisiId) {
-      setSatisTemsilcisiId(users[0].id);
+    if (isOpen) {
+      if (currentUser?.role === 'SALES_REP' || !satisTemsilcisiId) {
+        setSatisTemsilcisiId(currentUser ? currentUser.id : users[0]?.id || '');
+      }
     }
-  }, [currentUser, users, isOpen, satisTemsilcisiId]);
+  }, [isOpen]);
   
   const defaultFollowUp = new Date();
   defaultFollowUp.setDate(defaultFollowUp.getDate() + 1);

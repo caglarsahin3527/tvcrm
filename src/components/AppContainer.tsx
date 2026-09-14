@@ -56,19 +56,118 @@ export const AppContainer: React.FC<AppContainerProps> = ({
   const [isWorkReportOpen, setIsWorkReportOpen] = useState(false);
   const [selectedClientForAction, setSelectedClientForAction] = useState<Client | null>(null);
 
+  // Helper for checking date within time range
+  const isDateInTimeRange = (dateVal: string | Date | undefined | null, range: string): boolean => {
+    if (!dateVal || range === 'all') return true;
+    const d = new Date(dateVal);
+    if (isNaN(d.getTime())) return true;
+    const now = new Date();
+
+    if (range === 'today') {
+      const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+      return d >= start && d <= end;
+    }
+    if (range === 'this_week') {
+      const day = now.getDay() || 7;
+      const start = new Date(now);
+      start.setDate(now.getDate() - day + 1);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(start);
+      end.setDate(start.getDate() + 6);
+      end.setHours(23, 59, 59, 999);
+      return d >= start && d <= end;
+    }
+    if (range === 'this_month') {
+      const start = new Date(now.getFullYear(), now.getMonth(), 1);
+      const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+      return d >= start && d <= end;
+    }
+    if (range === 'this_quarter') {
+      const quarterMonth = Math.floor(now.getMonth() / 3) * 3;
+      const start = new Date(now.getFullYear(), quarterMonth, 1);
+      const end = new Date(now.getFullYear(), quarterMonth + 3, 0, 23, 59, 59, 999);
+      return d >= start && d <= end;
+    }
+    return true;
+  };
+
+  // Filtered Deals calculation
+  const filteredDeals = React.useMemo(() => {
+    return deals.filter((deal) => {
+      // 1. Channel Filter
+      if (selectedChannel !== 'all' && deal.kanal !== selectedChannel) {
+        return false;
+      }
+      // 2. Representative Filter
+      const repId = deal.musteri?.satis_temsilcisi_id || deal.musteri?.satis_temsilcisi?.id;
+      if (currentUser?.role === 'SALES_REP') {
+        if (repId !== currentUser.id) return false;
+      } else if (selectedRep !== 'all' && repId !== selectedRep) {
+        return false;
+      }
+      // 3. Customer Type Filter
+      if (selectedCustomerType !== 'all' && deal.musteri?.musteri_tipi !== selectedCustomerType) {
+        return false;
+      }
+      // 4. Time Range Filter
+      if (selectedTimeRange !== 'all') {
+        if (!isDateInTimeRange(deal.createdAt, selectedTimeRange)) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [deals, selectedChannel, selectedRep, selectedCustomerType, selectedTimeRange, currentUser]);
+
+  // Filtered Clients calculation
+  const filteredClients = React.useMemo(() => {
+    return clients
+      .filter((client) => {
+        // 1. Representative Filter
+        if (currentUser?.role === 'SALES_REP') {
+          if (client.satis_temsilcisi_id !== currentUser.id) return false;
+        } else if (selectedRep !== 'all' && client.satis_temsilcisi_id !== selectedRep) {
+          return false;
+        }
+
+        // 2. Customer Type Filter
+        if (selectedCustomerType !== 'all' && client.musteri_tipi !== selectedCustomerType) {
+          return false;
+        }
+
+        // 3. Channel Filter (Include if channel is 'all' OR if client has deals in that channel)
+        if (selectedChannel !== 'all') {
+          const hasChannelDeal = (client.deals || []).some((d) => d.kanal === selectedChannel);
+          if (!hasChannelDeal) return false;
+        }
+
+        // 4. Time Range Filter
+        if (selectedTimeRange !== 'all') {
+          const inCreated = isDateInTimeRange(client.createdAt, selectedTimeRange);
+          const inFollowUp = isDateInTimeRange(client.sonraki_takip_tarihi, selectedTimeRange);
+          const inDeals = (client.deals || []).some((d) => isDateInTimeRange(d.createdAt, selectedTimeRange));
+          if (!inCreated && !inFollowUp && !inDeals) return false;
+        }
+
+        return true;
+      })
+      .map((client) => {
+        if (selectedChannel !== 'all') {
+          return {
+            ...client,
+            deals: (client.deals || []).filter((d) => d.kanal === selectedChannel),
+          };
+        }
+        return client;
+      });
+  }, [clients, selectedChannel, selectedRep, selectedCustomerType, selectedTimeRange, currentUser]);
+
   // Fetch updated deals, clients and work reports
   const refreshData = useCallback(async () => {
     setIsRefreshing(true);
     try {
-      const params = new URLSearchParams();
-      if (currentUser?.id) params.set('currentUserId', currentUser.id);
-      if (currentUser?.role) params.set('currentUserRole', currentUser.role);
-      if (selectedRep) params.set('selectedRepId', selectedRep);
-      if (selectedChannel) params.set('kanal', selectedChannel);
-      if (selectedCustomerType) params.set('musteriTipi', selectedCustomerType);
-      if (selectedTimeRange) params.set('timeRange', selectedTimeRange);
-
-      const res = await fetch(`/api/data?${params.toString()}`, { cache: 'no-store' });
+      const res = await fetch('/api/data', { cache: 'no-store' });
       if (res.ok) {
         const json = await res.json();
         if (json.success) {
@@ -85,7 +184,7 @@ export const AppContainer: React.FC<AppContainerProps> = ({
     } finally {
       setIsRefreshing(false);
     }
-  }, [currentUser, selectedRep, selectedChannel, selectedCustomerType, selectedTimeRange]);
+  }, []);
 
   const handleLogout = async () => {
     try {
@@ -102,9 +201,6 @@ export const AppContainer: React.FC<AppContainerProps> = ({
     setSelectedTimeRange('all');
     setSelectedRep('all');
     setSelectedCustomerType('all');
-    setTimeout(() => {
-      refreshData();
-    }, 50);
   };
 
   const handleOpenFollowUp = (client: any) => {
@@ -136,7 +232,7 @@ export const AppContainer: React.FC<AppContainerProps> = ({
         {/* Alert & Reminder Banner */}
         <AlertBanner
           currentUser={currentUser}
-          deals={deals}
+          deals={filteredDeals}
           onOpenFollowUpModal={handleOpenFollowUp}
         />
 
@@ -145,25 +241,13 @@ export const AppContainer: React.FC<AppContainerProps> = ({
           users={users}
           currentUser={currentUser}
           selectedChannel={selectedChannel}
-          setSelectedChannel={(ch) => {
-            setSelectedChannel(ch);
-            setTimeout(refreshData, 50);
-          }}
+          setSelectedChannel={setSelectedChannel}
           selectedTimeRange={selectedTimeRange}
-          setSelectedTimeRange={(tr) => {
-            setSelectedTimeRange(tr);
-            setTimeout(refreshData, 50);
-          }}
+          setSelectedTimeRange={setSelectedTimeRange}
           selectedRep={selectedRep}
-          setSelectedRep={(rep) => {
-            setSelectedRep(rep);
-            setTimeout(refreshData, 50);
-          }}
+          setSelectedRep={setSelectedRep}
           selectedCustomerType={selectedCustomerType}
-          setSelectedCustomerType={(ct) => {
-            setSelectedCustomerType(ct);
-            setTimeout(refreshData, 50);
-          }}
+          setSelectedCustomerType={setSelectedCustomerType}
           onReset={handleResetFilters}
         />
 
@@ -179,7 +263,7 @@ export const AppContainer: React.FC<AppContainerProps> = ({
         <div className="transition-opacity duration-150">
           {activeTab === 'pipeline' && (
             <KanbanBoard
-              deals={deals}
+              deals={filteredDeals}
               currentUser={currentUser}
               onRefresh={refreshData}
               onOpenFollowUpModal={handleOpenFollowUp}
@@ -189,7 +273,7 @@ export const AppContainer: React.FC<AppContainerProps> = ({
 
           {activeTab === 'clients' && (
             <ClientsView
-              clients={clients}
+              clients={filteredClients}
               currentUser={currentUser}
               onRefresh={refreshData}
               onOpenAddClient={() => setIsAddClientOpen(true)}
@@ -200,9 +284,9 @@ export const AppContainer: React.FC<AppContainerProps> = ({
 
           {activeTab === 'dashboard' && (
             <DashboardView
-              deals={deals}
+              deals={filteredDeals}
               users={users}
-              clients={clients}
+              clients={filteredClients}
               currentUser={currentUser}
             />
           )}

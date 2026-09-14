@@ -35,13 +35,15 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
   const [search, setSearch] = useState('');
 
   const filteredClients = clients.filter((c) => {
-    const q = search.toLowerCase();
+    const q = search.trim().toLowerCase();
+    if (!q) return true;
     return (
-      c.firma_adi.toLowerCase().includes(q) ||
-      c.yetkili_kisi.toLowerCase().includes(q) ||
-      c.telefon.includes(q) ||
+      (c.firma_adi && c.firma_adi.toLowerCase().includes(q)) ||
+      (c.yetkili_kisi && c.yetkili_kisi.toLowerCase().includes(q)) ||
+      (c.telefon && c.telefon.includes(q)) ||
       (c.eposta && c.eposta.toLowerCase().includes(q)) ||
-      c.musteri_tipi.toLowerCase().includes(q)
+      (c.musteri_tipi && c.musteri_tipi.toLowerCase().includes(q)) ||
+      (c.satis_temsilcisi?.name && c.satis_temsilcisi.name.toLowerCase().includes(q))
     );
   });
 
