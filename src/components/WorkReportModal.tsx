@@ -753,7 +753,7 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                 }`}
               >
                 <Plus className="w-4 h-4 text-emerald-600 stroke-[3]" />
-                <span>+ Yeni Görüşme / Çalışma Kaydet</span>
+                <span>Yeni Görüşme / Çalışma Kaydet</span>
               </button>
             )}
           </div>
