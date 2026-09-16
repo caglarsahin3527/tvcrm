@@ -430,7 +430,7 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
                     type="email"
                     value={newEmail}
                     onChange={(e) => setNewEmail(e.target.value)}
-                    placeholder="burak@tvcrm.com"
+                    placeholder="ornek@bikanal.com"
                     required
                     className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 shadow-2xs"
                   />

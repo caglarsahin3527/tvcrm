@@ -17,19 +17,16 @@ function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
-  const handleLogin = async (e?: React.FormEvent, customEmail?: string, customPass?: string) => {
-    if (e) e.preventDefault();
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
     setErrorMessage('');
     setIsLoading(true);
-
-    const targetEmail = customEmail || email;
-    const targetPass = customPass || password;
 
     try {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: targetEmail, password: targetPass }),
+        body: JSON.stringify({ email, password }),
       });
 
       const data = await res.json();
@@ -47,12 +44,6 @@ function LoginForm() {
       setErrorMessage('Bağlantı hatası oluştu. Lütfen tekrar deneyin.');
       setIsLoading(false);
     }
-  };
-
-  const handleQuickLogin = (quickEmail: string, quickPass: string) => {
-    setEmail(quickEmail);
-    setPassword(quickPass);
-    handleLogin(undefined, quickEmail, quickPass);
   };
 
   return (
@@ -124,7 +115,7 @@ function LoginForm() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="ornek@tvcrm.com"
+                  placeholder="ornek@bikanal.com"
                   required
                   autoComplete="email"
                   className="w-full bg-white border border-slate-200 rounded-xl pl-10 pr-3.5 py-2.5 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition shadow-2xs"
@@ -180,32 +171,6 @@ function LoginForm() {
               )}
             </button>
           </form>
-
-          {/* Quick Demo Accounts Selection */}
-          <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-center gap-2 text-[10px] text-slate-400">
-            <span>Hızlı Test:</span>
-            <button
-              type="button"
-              onClick={() => handleQuickLogin('admin@tvcrm.com', 'admin123')}
-              className="px-2 py-0.5 rounded-md bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 transition cursor-pointer"
-            >
-              Admin
-            </button>
-            <button
-              type="button"
-              onClick={() => handleQuickLogin('mehmet@tvcrm.com', 'manager123')}
-              className="px-2 py-0.5 rounded-md bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 transition cursor-pointer"
-            >
-              Yönetici
-            </button>
-            <button
-              type="button"
-              onClick={() => handleQuickLogin('ahmet@tvcrm.com', 'rep123')}
-              className="px-2 py-0.5 rounded-md bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 transition cursor-pointer"
-            >
-              Temsilci
-            </button>
-          </div>
 
         </div>
 

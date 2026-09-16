@@ -10,6 +10,7 @@ import { QuickAddDealModal } from '@/components/QuickAddDealModal';
 import { UpdateFollowUpModal } from '@/components/UpdateFollowUpModal';
 import { AdminUsersModal } from '@/components/AdminUsersModal';
 import { WorkReportModal } from '@/components/WorkReportModal';
+import { ProfileModal } from '@/components/ProfileModal';
 import { Loader2 } from 'lucide-react';
 
 import { KanbanBoard } from '@/components/KanbanBoard';
@@ -54,6 +55,7 @@ export const AppContainer: React.FC<AppContainerProps> = ({
   const [isFollowUpOpen, setIsFollowUpOpen] = useState(false);
   const [isAdminUsersOpen, setIsAdminUsersOpen] = useState(false);
   const [isWorkReportOpen, setIsWorkReportOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [selectedClientForAction, setSelectedClientForAction] = useState<Client | null>(null);
 
   // Helper for checking date within time range
@@ -223,6 +225,7 @@ export const AppContainer: React.FC<AppContainerProps> = ({
         onOpenAddClient={() => setIsAddClientOpen(true)}
         onOpenAdminUsers={() => setIsAdminUsersOpen(true)}
         onOpenWorkReport={() => setIsWorkReportOpen(true)}
+        onOpenProfile={() => setIsProfileOpen(true)}
         onLogout={handleLogout}
       />
 
@@ -332,6 +335,17 @@ export const AppContainer: React.FC<AppContainerProps> = ({
         currentUser={currentUser}
         workReports={workReports}
         onRefresh={refreshData}
+      />
+
+      {/* User Profile & Password Change Modal */}
+      <ProfileModal
+        isOpen={isProfileOpen}
+        onClose={() => setIsProfileOpen(false)}
+        currentUser={currentUser}
+        onProfileUpdated={(updatedUser) => {
+          setCurrentUser(updatedUser);
+          refreshData();
+        }}
       />
     </div>
   );

@@ -20,6 +20,7 @@ interface NavbarProps {
   onOpenAddClient: () => void;
   onOpenAdminUsers?: () => void;
   onOpenWorkReport?: () => void;
+  onOpenProfile?: () => void;
   onLogout: () => void;
 }
 
@@ -30,6 +31,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenAddClient,
   onOpenAdminUsers,
   onOpenWorkReport,
+  onOpenProfile,
   onLogout,
 }) => {
   const getRoleBadge = (role?: string) => {
@@ -153,8 +155,13 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             {/* Authenticated User Badge & Logout */}
             <div className="flex items-center gap-2.5 pl-2 border-l border-slate-200">
-              <div className="flex items-center gap-2">
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-black shadow-2xs ${
+              <button
+                type="button"
+                onClick={onOpenProfile}
+                className="flex items-center gap-2 hover:bg-slate-100 p-1 rounded-xl transition cursor-pointer group text-left"
+                title="Profil ve Şifre Ayarları"
+              >
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-black shadow-2xs group-hover:scale-105 transition-transform ${
                   isSuperAdmin || !currentUser
                     ? 'bg-rose-100 text-rose-700 border border-rose-200' 
                     : currentUser?.role === 'SALES_MANAGER'
@@ -167,7 +174,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </div>
 
                 <div className="text-left leading-tight hidden xl:block">
-                  <div className="text-xs font-bold text-slate-800 flex items-center gap-1">
+                  <div className="text-xs font-bold text-slate-800 flex items-center gap-1 group-hover:text-slate-950">
                     {currentUser?.name || 'Ayşe Yıldız (Genel Müdür)'}
                   </div>
                   <div className={`text-[10px] font-mono font-semibold ${
@@ -176,7 +183,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     {roleInfo?.label || 'Süper Admin (Genel Müdür)'}
                   </div>
                 </div>
-              </div>
+              </button>
 
               {/* Logout Button */}
               <button
@@ -240,6 +247,15 @@ export const Navbar: React.FC<NavbarProps> = ({
               >
                 <Plus className="w-3.5 h-3.5 stroke-[3]" />
                 <span>Ekle</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={onOpenProfile}
+                className="p-1.5 text-slate-600 hover:text-slate-900 rounded-lg border border-slate-200 font-bold text-xs"
+                title="Profil"
+              >
+                {currentUser?.name ? currentUser.name.substring(0, 2).toUpperCase() : 'PR'}
               </button>
 
               <button

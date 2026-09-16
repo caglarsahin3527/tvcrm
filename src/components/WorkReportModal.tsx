@@ -1034,7 +1034,7 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                   <input
                     type="text"
                     required
-                    placeholder="Örn: Ahmet Bey (Pazarlama)"
+                    placeholder="Örn: Yetkili Kişi Adı Soyadı"
                     value={yetkili}
                     onChange={(e) => setYetkili(e.target.value)}
                     className="w-full text-xs px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-sky-500 shadow-2xs"
@@ -1049,7 +1049,7 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                   </label>
                   <input
                     type="tel"
-                    placeholder="Örn: 0555 555 5555"
+                    placeholder="Örn: 0555 000 0000"
                     value={yetkiliTelefon}
                     onChange={(e) => setYetkiliTelefon(e.target.value)}
                     className="w-full text-xs px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-sky-500 shadow-2xs"
@@ -1064,7 +1064,7 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                   </label>
                   <input
                     type="email"
-                    placeholder="Örn: ahmet@sirket.com"
+                    placeholder="Örn: yetkili@firma.com"
                     value={yetkiliEposta}
                     onChange={(e) => setYetkiliEposta(e.target.value)}
                     className="w-full text-xs px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-sky-500 shadow-2xs"

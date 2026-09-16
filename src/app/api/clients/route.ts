@@ -1,20 +1,30 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getSessionUser } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   try {
+    const sessionUser = await getSessionUser();
+    if (!sessionUser) {
+      return NextResponse.json({ success: false, error: 'Oturum açılmalıdır.' }, { status: 401 });
+    }
+
+    // Role check: Managers cannot create clients (monitoring only)
+    if (sessionUser.role === 'SALES_MANAGER') {
+      return NextResponse.json(
+        { success: false, error: 'İzleyen yöneticiler müşteri kaydı oluşturamaz.' },
+        { status: 403 }
+      );
+    }
+
     const data = await request.json();
 
+    // If sales rep, enforce rep ID to be current user
     let repId = data.satis_temsilcisi_id;
-    if (!repId) {
-      const defaultUser = (await prisma.user.findFirst({
-        where: { role: 'SALES_REP' },
-      })) || (await prisma.user.findFirst());
-      if (defaultUser) {
-        repId = defaultUser.id;
-      }
+    if (sessionUser.role === 'SALES_REP' || !repId) {
+      repId = sessionUser.id;
     }
 
     const followUpDate = data.sonraki_takip_tarihi
@@ -50,6 +60,7 @@ export async function POST(request: NextRequest) {
       },
       include: {
         deals: true,
+        satis_temsilcisi: true,
       },
     });
 
@@ -65,7 +76,39 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    const sessionUser = await getSessionUser();
+    if (!sessionUser) {
+      return NextResponse.json({ success: false, error: 'Oturum açılmalıdır.' }, { status: 401 });
+    }
+
     const { clientId, nextFollowUpDate } = await request.json();
+    if (!clientId) {
+      return NextResponse.json({ success: false, error: 'Müşteri ID gereklidir.' }, { status: 400 });
+    }
+
+    const existingClient = await prisma.client.findUnique({
+      where: { id: clientId },
+    });
+
+    if (!existingClient) {
+      return NextResponse.json({ success: false, error: 'Müşteri bulunamadı.' }, { status: 404 });
+    }
+
+    // Role check: If rep, ensure client belongs to rep
+    if (sessionUser.role === 'SALES_REP' && existingClient.satis_temsilcisi_id !== sessionUser.id) {
+      return NextResponse.json(
+        { success: false, error: 'Yalnızca kendi müşterilerinizin takip tarihini güncelleyebilirsiniz.' },
+        { status: 403 }
+      );
+    }
+
+    if (sessionUser.role === 'SALES_MANAGER') {
+      return NextResponse.json(
+        { success: false, error: 'İzleyen yöneticiler müşteri kayıtlarını güncelleyemez.' },
+        { status: 403 }
+      );
+    }
+
     const updated = await prisma.client.update({
       where: { id: clientId },
       data: {
@@ -84,9 +127,23 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
+    const sessionUser = await getSessionUser();
+    if (!sessionUser) {
+      return NextResponse.json({ success: false, error: 'Oturum açılmalıdır.' }, { status: 401 });
+    }
+
+    // Only Admin can delete clients
+    if (sessionUser.role !== 'ADMIN' && sessionUser.role !== 'SUPER_ADMIN') {
+      return NextResponse.json(
+        { success: false, error: 'Müşteri kaydını silmek için Admin yetkisi gereklidir.' },
+        { status: 403 }
+      );
+    }
+
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
     if (!id) throw new Error('Client ID missing');
+
     await prisma.client.delete({ where: { id } });
     return NextResponse.json({ success: true });
   } catch (error: any) {
