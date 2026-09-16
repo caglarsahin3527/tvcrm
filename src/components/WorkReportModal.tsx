@@ -635,7 +635,7 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
         @media print {
           @page {
             size: A4 landscape;
-            margin: 6mm;
+            margin: 5mm 7mm;
           }
           body * {
             visibility: hidden;
@@ -651,7 +651,16 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
             width: 100%;
             background: white !important;
             color: black !important;
-            font-size: 8.5pt;
+            font-size: 8pt;
+            padding: 0 !important;
+            margin: 0 !important;
+          }
+          #print-work-report-area table {
+            font-size: 7.5pt !important;
+          }
+          #print-work-report-area th,
+          #print-work-report-area td {
+            padding: 2px 4px !important;
           }
           .no-print {
             display: none !important;
@@ -1164,87 +1173,89 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
 
           {/* TAB 2: YÖNETİCİ FAALİYET ÖZETİ (A4 YATAY MATRİS RAPORU) */}
           {activeTab === 'matrix' && (
-            <div className="space-y-4">
+            <div className="space-y-2.5">
               
               {/* PRINT HEADER FOR MATRIX VIEW */}
-              <div className="border-b-2 border-slate-900 pb-3 mb-3">
+              <div className="border-b-2 border-slate-900 pb-2 mb-2">
                 <div className="flex justify-between items-start">
                   <div>
-                    <h1 className="text-base sm:text-lg font-black tracking-tight font-mono text-slate-900">
-                      B! KANAL & SIFIR TV - REKLAM SATIŞ YÖNETİCİ FAALİYET ÖZET MATRİSİ
+                    <h1 className="text-sm sm:text-base font-black tracking-tight font-mono text-slate-900">
+                      B! KANAL & SIFIR TV - REKLAM SATIŞ DİREKTÖRLÜĞÜ FAALİYET RAPORU
                     </h1>
-                    <p className="text-xs text-slate-600 font-semibold mt-0.5">
+                    <p className="text-[11px] text-slate-600 font-semibold mt-0.5">
                       Marka ve Büyüme Merkezi • Reklam Satış Grup Direktörlüğü Faaliyet İcmali
                     </p>
                   </div>
-                  <div className="text-right text-xs font-mono">
+                  <div className="text-right text-[11px] font-mono">
                     <div><strong>Tarih:</strong> {new Date().toLocaleDateString('tr-TR')}</div>
                     <div><strong>Zaman Dilimi:</strong> {timeRange === 'today' ? 'Bugün' : timeRange === 'this_week' ? 'Bu Hafta' : timeRange === 'this_month' ? 'Bu Ay' : 'Tüm Dönem'}</div>
                   </div>
                 </div>
               </div>
 
-              {/* PERSONEL BAZLI KONSOLİDE FAALİYET VE SATIŞ MATRİSİ */}
+              {/* PERSONEL BAZLI KONSOLİDE FAALİYET VE SATIŞ MATRİSİ (COMPACT DESIGN FOR 9-10+ PEOPLE) */}
               <div className="bg-white border border-slate-300 rounded-xl overflow-hidden shadow-xs">
-                <table className="w-full text-left text-xs font-sans">
-                  <thead className="bg-slate-900 text-white text-[10.5px] uppercase font-mono font-bold">
+                <table className="w-full text-left text-[11px] font-sans">
+                  <thead className="bg-slate-900 text-white text-[9.5px] uppercase font-mono font-bold">
                     <tr>
-                      <th className="py-2.5 px-3">Grup Üyesi (Personel)</th>
-                      <th className="py-2.5 px-2.5 text-center">Telefon</th>
-                      <th className="py-2.5 px-2.5 text-center">Dijital</th>
-                      <th className="py-2.5 px-2.5 text-center">Yüzyüze</th>
-                      <th className="py-2.5 px-2.5 text-center">Kurumsal Ziy.</th>
-                      <th className="py-2.5 px-2.5 text-center bg-slate-800 text-amber-300">Toplam Temas</th>
-                      <th className="py-2.5 px-3 text-right">Teklif (Adet / ₺)</th>
-                      <th className="py-2.5 px-3 text-right text-emerald-300">Satış (Adet / ₺)</th>
-                      <th className="py-2.5 px-3 text-right text-sky-300">Rezervasyon (sn)</th>
+                      <th className="py-1.5 px-2.5">Grup Üyesi (Personel)</th>
+                      <th className="py-1.5 px-2 text-center">Telefon</th>
+                      <th className="py-1.5 px-2 text-center">Dijital</th>
+                      <th className="py-1.5 px-2 text-center">Yüzyüze</th>
+                      <th className="py-1.5 px-2 text-center">Kurumsal Ziy.</th>
+                      <th className="py-1.5 px-2 text-center bg-slate-800 text-amber-300">Toplam Temas</th>
+                      <th className="py-1.5 px-2.5 text-right">Teklif (Adet / ₺)</th>
+                      <th className="py-1.5 px-2.5 text-right text-emerald-300">Satış (Adet / ₺)</th>
+                      <th className="py-1.5 px-2.5 text-right text-sky-300">Rezervasyon (sn)</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200">
                     {executiveMatrix.map((row) => (
                       <tr key={row.user.id} className="hover:bg-slate-50 transition-colors">
-                        <td className="py-2.5 px-3">
-                          <div className="font-bold text-slate-900 text-xs">{row.user.name}</div>
-                          <div className="text-[9.5px] text-slate-500 font-mono">
-                            {row.user.role === 'SALES_MANAGER' ? 'Satış Yöneticisi' : row.user.role === 'ADMIN' ? 'Genel Müdür' : 'Satış Temsilcisi'}
+                        <td className="py-1.5 px-2.5">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-bold text-slate-900 text-xs">{row.user.name}</span>
+                            <span className="text-[9px] text-slate-500 font-mono font-normal">
+                              ({row.user.role === 'SALES_MANAGER' ? 'Satış Yöneticisi' : row.user.role === 'ADMIN' ? 'Genel Müdür' : 'Satış Temsilcisi'})
+                            </span>
                           </div>
                         </td>
-                        <td className="py-2.5 px-2.5 text-center font-mono font-bold text-slate-700">{row.telCount}</td>
-                        <td className="py-2.5 px-2.5 text-center font-mono font-bold text-slate-700">{row.dijitalCount}</td>
-                        <td className="py-2.5 px-2.5 text-center font-mono font-bold text-slate-700">{row.yuzyuzeCount}</td>
-                        <td className="py-2.5 px-2.5 text-center font-mono font-bold text-purple-700">{row.ziyaretCount}</td>
-                        <td className="py-2.5 px-2.5 text-center font-mono font-black text-slate-900 bg-slate-50">{row.totalActivities}</td>
-                        <td className="py-2.5 px-3 text-right font-mono">
+                        <td className="py-1.5 px-2 text-center font-mono font-bold text-slate-700">{row.telCount}</td>
+                        <td className="py-1.5 px-2 text-center font-mono font-bold text-slate-700">{row.dijitalCount}</td>
+                        <td className="py-1.5 px-2 text-center font-mono font-bold text-slate-700">{row.yuzyuzeCount}</td>
+                        <td className="py-1.5 px-2 text-center font-mono font-bold text-purple-700">{row.ziyaretCount}</td>
+                        <td className="py-1.5 px-2 text-center font-mono font-black text-slate-900 bg-slate-50">{row.totalActivities}</td>
+                        <td className="py-1.5 px-2.5 text-right font-mono">
                           <span className="font-bold text-sky-700">{formatCurrency(row.teklifSum)}</span>
-                          <span className="text-[10px] text-slate-400 ml-1">({row.teklifCount})</span>
+                          <span className="text-[9.5px] text-slate-400 ml-1">({row.teklifCount})</span>
                         </td>
-                        <td className="py-2.5 px-3 text-right font-mono">
+                        <td className="py-1.5 px-2.5 text-right font-mono">
                           <span className="font-black text-emerald-700">{formatCurrency(row.satisSum)}</span>
-                          <span className="text-[10px] text-emerald-600 ml-1">({row.satisCount})</span>
+                          <span className="text-[9.5px] text-emerald-600 ml-1">({row.satisCount})</span>
                         </td>
-                        <td className="py-2.5 px-3 text-right font-mono">
+                        <td className="py-1.5 px-2.5 text-right font-mono">
                           <span className="font-bold text-amber-800">{row.rezSaniye} sn</span>
-                          <span className="text-[10px] text-slate-500 ml-1">({row.rezCount} ad.)</span>
+                          <span className="text-[9.5px] text-slate-500 ml-1">({row.rezCount} ad.)</span>
                         </td>
                       </tr>
                     ))}
 
                     {/* DİP TOPLAM (GRAND TOTAL ROW) */}
-                    <tr className="bg-slate-100 font-mono text-xs font-black border-t-2 border-slate-900 text-slate-900">
-                      <td className="py-3 px-3 uppercase tracking-wider">GENEL DİP TOPLAM:</td>
-                      <td className="py-3 px-2.5 text-center text-slate-900">{matrixTotals.telCount}</td>
-                      <td className="py-3 px-2.5 text-center text-slate-900">{matrixTotals.dijitalCount}</td>
-                      <td className="py-3 px-2.5 text-center text-slate-900">{matrixTotals.yuzyuzeCount}</td>
-                      <td className="py-3 px-2.5 text-center text-purple-900">{matrixTotals.ziyaretCount}</td>
-                      <td className="py-3 px-2.5 text-center bg-slate-200 text-slate-950 font-black">{matrixTotals.totalActivities}</td>
-                      <td className="py-3 px-3 text-right text-sky-800">
-                        {formatCurrency(matrixTotals.teklifSum)} <span className="text-[10px] font-normal">({matrixTotals.teklifCount})</span>
+                    <tr className="bg-slate-100 font-mono text-[11px] font-black border-t-2 border-slate-900 text-slate-900">
+                      <td className="py-2 px-2.5 uppercase tracking-wider">GENEL DİP TOPLAM:</td>
+                      <td className="py-2 px-2 text-center text-slate-900">{matrixTotals.telCount}</td>
+                      <td className="py-2 px-2 text-center text-slate-900">{matrixTotals.dijitalCount}</td>
+                      <td className="py-2 px-2 text-center text-slate-900">{matrixTotals.yuzyuzeCount}</td>
+                      <td className="py-2 px-2 text-center text-purple-900">{matrixTotals.ziyaretCount}</td>
+                      <td className="py-2 px-2 text-center bg-slate-200 text-slate-950 font-black">{matrixTotals.totalActivities}</td>
+                      <td className="py-2 px-2.5 text-right text-sky-800">
+                        {formatCurrency(matrixTotals.teklifSum)} <span className="text-[9.5px] font-normal">({matrixTotals.teklifCount})</span>
                       </td>
-                      <td className="py-3 px-3 text-right text-emerald-800">
-                        {formatCurrency(matrixTotals.satisSum)} <span className="text-[10px] font-normal">({matrixTotals.satisCount})</span>
+                      <td className="py-2 px-2.5 text-right text-emerald-800">
+                        {formatCurrency(matrixTotals.satisSum)} <span className="text-[9.5px] font-normal">({matrixTotals.satisCount})</span>
                       </td>
-                      <td className="py-3 px-3 text-right text-amber-900">
-                        {matrixTotals.rezSaniye} sn <span className="text-[10px] font-normal">({matrixTotals.rezCount})</span>
+                      <td className="py-2 px-2.5 text-right text-amber-900">
+                        {matrixTotals.rezSaniye} sn <span className="text-[9.5px] font-normal">({matrixTotals.rezCount})</span>
                       </td>
                     </tr>
                   </tbody>
@@ -1252,57 +1263,57 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
               </div>
 
               {/* TV REKLAM KUŞAK & REZERVASYON DAĞILIMI ANALİZ KUTULARI */}
-              <div className="grid grid-cols-3 gap-3 pt-2">
-                <div className="border border-slate-200 bg-slate-50 p-3 rounded-xl">
-                  <span className="text-[10px] font-mono font-bold uppercase text-slate-500 block">Kuşak Rezervasyon Özeti</span>
-                  <div className="text-sm font-mono font-bold text-slate-800 mt-1">
+              <div className="grid grid-cols-3 gap-2.5 pt-1">
+                <div className="border border-slate-200 bg-slate-50 px-3 py-1.5 rounded-lg">
+                  <span className="text-[9.5px] font-mono font-bold uppercase text-slate-500 block">Kuşak Rezervasyon Özeti</span>
+                  <div className="text-xs font-mono font-bold text-slate-800 mt-0.5">
                     Toplam Kuşak: <strong className="text-amber-800">{matrixTotals.rezSaniye} sn</strong> ({matrixTotals.rezCount} Adet)
                   </div>
-                  <div className="text-[10.5px] text-slate-600 font-mono mt-0.5">
-                    OPT Saniyesi: {matrixTotals.rezOptSaniye} sn | PT Saniyesi: {matrixTotals.rezPtSaniye} sn
+                  <div className="text-[10px] text-slate-600 font-mono mt-0.5">
+                    OPT: {matrixTotals.rezOptSaniye} sn | PT: {matrixTotals.rezPtSaniye} sn
                   </div>
                 </div>
 
-                <div className="border border-emerald-200 bg-emerald-50/50 p-3 rounded-xl">
-                  <span className="text-[10px] font-mono font-bold uppercase text-emerald-800 block">Kapanan Ciro & Başarı</span>
-                  <div className="text-sm font-mono font-bold text-emerald-800 mt-1">
+                <div className="border border-emerald-200 bg-emerald-50/50 px-3 py-1.5 rounded-lg">
+                  <span className="text-[9.5px] font-mono font-bold uppercase text-emerald-800 block">Kapanan Ciro & Başarı</span>
+                  <div className="text-xs font-mono font-bold text-emerald-800 mt-0.5">
                     Toplam Satış: {formatCurrency(matrixTotals.satisSum)}
                   </div>
-                  <div className="text-[10.5px] text-emerald-700 font-mono mt-0.5">
+                  <div className="text-[10px] text-emerald-700 font-mono mt-0.5">
                     {matrixTotals.satisCount} Başarılı Anlaşma
                   </div>
                 </div>
 
-                <div className="border border-sky-200 bg-sky-50/50 p-3 rounded-xl">
-                  <span className="text-[10px] font-mono font-bold uppercase text-sky-800 block">Görüşülen & Teklif Portföyü</span>
-                  <div className="text-sm font-mono font-bold text-sky-800 mt-1">
+                <div className="border border-sky-200 bg-sky-50/50 px-3 py-1.5 rounded-lg">
+                  <span className="text-[9.5px] font-mono font-bold uppercase text-sky-800 block">Görüşülen & Teklif Portföyü</span>
+                  <div className="text-xs font-mono font-bold text-sky-800 mt-0.5">
                     Teklif Havuzu: {formatCurrency(matrixTotals.teklifSum)}
                   </div>
-                  <div className="text-[10.5px] text-sky-700 font-mono mt-0.5">
+                  <div className="text-[10px] text-sky-700 font-mono mt-0.5">
                     {matrixTotals.totalActivities} Toplam Görüşme Teması
                   </div>
                 </div>
               </div>
 
               {/* PRINT FOOTER / SIGNATURE BLOCK (Visible on matrix print) */}
-              <div className="grid grid-cols-3 gap-8 pt-8 mt-4 border-t border-slate-300 text-center font-mono text-xs">
+              <div className="grid grid-cols-3 gap-6 pt-3 mt-2 border-t border-slate-300 text-center font-mono text-[11px]">
                 <div>
                   <div className="font-bold text-slate-900">Raporu Hazırlayan</div>
-                  <div className="text-slate-600 mt-1">{currentUser?.name || 'Sistem Kullanıcısı'}</div>
-                  <div className="mt-8 border-b border-slate-400 w-32 mx-auto"></div>
-                  <div className="text-[10px] text-slate-400 mt-1">İmza</div>
+                  <div className="text-slate-600 text-[10px] mt-0.5">{currentUser?.name || 'Sistem Kullanıcısı'}</div>
+                  <div className="mt-4 border-b border-slate-400 w-28 mx-auto"></div>
+                  <div className="text-[9px] text-slate-400 mt-0.5">İmza</div>
                 </div>
                 <div>
                   <div className="font-bold text-slate-900">Reklam Satış Grup Direktörü</div>
-                  <div className="text-slate-600 mt-1">İnceleme & Kontrol</div>
-                  <div className="mt-8 border-b border-slate-400 w-32 mx-auto"></div>
-                  <div className="text-[10px] text-slate-400 mt-1">İmza</div>
+                  <div className="text-slate-600 text-[10px] mt-0.5">İnceleme & Kontrol</div>
+                  <div className="mt-4 border-b border-slate-400 w-28 mx-auto"></div>
+                  <div className="text-[9px] text-slate-400 mt-0.5">İmza</div>
                 </div>
                 <div>
                   <div className="font-bold text-slate-900">Genel Müdür Onayı</div>
-                  <div className="text-slate-600 mt-1">Süper Admin / Yönetim</div>
-                  <div className="mt-8 border-b border-slate-400 w-32 mx-auto"></div>
-                  <div className="text-[10px] text-slate-400 mt-1">Onay & Mühür</div>
+                  <div className="text-slate-600 text-[10px] mt-0.5">Süper Admin / Yönetim</div>
+                  <div className="mt-4 border-b border-slate-400 w-28 mx-auto"></div>
+                  <div className="text-[9px] text-slate-400 mt-0.5">Onay & Mühür</div>
                 </div>
               </div>
 
@@ -1723,7 +1734,7 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                         className="rounded border-slate-300 text-amber-600 focus:ring-0 w-4 h-4 cursor-pointer"
                       />
                       <span className="text-xs font-bold text-slate-800">
-                        Rezervasyon Kuşak Kaydı
+                        Rezervasyon Kaydı
                       </span>
                     </label>
 
@@ -1820,13 +1831,13 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                             {/* OPT Gündüz Kuşağı */}
                             <div>
-                              <label className="text-[10px] font-mono uppercase text-amber-800 font-bold">OPT Saniyesi (Gündüz)</label>
+                              <label className="text-[10px] font-mono uppercase text-amber-800 font-bold">OPT</label>
                               <input
                                 type="number"
                                 placeholder="20"
                                 value={rezervasyonOptSaniye}
                                 onChange={(e) => setRezervasyonOptSaniye(e.target.value)}
-                                className="w-full text-xs px-2 py-1.5 bg-white border border-amber-300 rounded-lg text-slate-900 font-mono font-bold focus:outline-none"
+                                className="w-full text-xs px-2.5 py-1.5 bg-white border border-amber-300 rounded-lg text-slate-900 font-mono font-bold focus:outline-none"
                               />
                             </div>
 
@@ -1837,19 +1848,30 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                                 placeholder="35"
                                 value={rezervasyonOptFiyat}
                                 onChange={(e) => setRezervasyonOptFiyat(e.target.value)}
-                                className="w-full text-xs px-2 py-1.5 bg-white border border-amber-300 rounded-lg text-slate-900 font-mono font-bold focus:outline-none"
+                                className="w-full text-xs px-2.5 py-1.5 bg-white border border-amber-300 rounded-lg text-slate-900 font-mono font-bold focus:outline-none"
                               />
                             </div>
 
                             {/* PT Akşam Kuşağı */}
                             <div>
-                              <label className="text-[10px] font-mono uppercase text-amber-800 font-bold">PT Saniyesi (Akşam)</label>
+                              <label className="text-[10px] font-mono uppercase text-amber-800 font-bold">PT</label>
                               <input
                                 type="number"
                                 placeholder="10"
                                 value={rezervasyonPtSaniye}
                                 onChange={(e) => setRezervasyonPtSaniye(e.target.value)}
-                                className="w-full text-xs px-2 py-1.5 bg-white border border-amber-300 rounded-lg text-slate-900 font-mono font-bold focus:outline-none"
+                                className="w-full text-xs px-2.5 py-1.5 bg-white border border-amber-300 rounded-lg text-slate-900 font-mono font-bold focus:outline-none"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="text-[10px] font-mono uppercase text-amber-800 font-bold">PT Birim Fiyat (₺)</label>
+                              <input
+                                type="number"
+                                placeholder="50"
+                                value={rezervasyonPtFiyat}
+                                onChange={(e) => setRezervasyonPtFiyat(e.target.value)}
+                                className="w-full text-xs px-2.5 py-1.5 bg-white border border-amber-300 rounded-lg text-slate-900 font-mono font-bold focus:outline-none"
                               />
                             </div>
 
