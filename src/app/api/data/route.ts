@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getSessionUser } from '@/lib/auth';
+import { getSessionUserFast } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
-    const sessionUser = await getSessionUser();
+    const sessionUser = await getSessionUserFast();
     const searchParams = request.nextUrl.searchParams;
     const selectedRepId = searchParams.get('selectedRepId') || undefined;
     const kanal = searchParams.get('kanal') || undefined;

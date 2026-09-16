@@ -1,12 +1,12 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getSessionUser } from '@/lib/auth';
+import { getSessionUserFast } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   try {
-    const sessionUser = await getSessionUser();
+    const sessionUser = await getSessionUserFast();
     if (!sessionUser) {
       return NextResponse.json({ success: false, error: 'Oturum açılmalıdır.' }, { status: 401 });
     }
@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const sessionUser = await getSessionUser();
+    const sessionUser = await getSessionUserFast();
     if (!sessionUser) {
       return NextResponse.json({ success: false, error: 'Oturum açılmalıdır.' }, { status: 401 });
     }
@@ -117,7 +117,7 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const sessionUser = await getSessionUser();
+    const sessionUser = await getSessionUserFast();
     if (!sessionUser) {
       return NextResponse.json({ success: false, error: 'Oturum açılmalıdır.' }, { status: 401 });
     }

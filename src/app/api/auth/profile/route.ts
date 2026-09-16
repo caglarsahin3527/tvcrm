@@ -1,12 +1,12 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getSessionUser, hashPassword, verifyPassword } from '@/lib/auth';
+import { getSessionUserFast, hashPassword, verifyPassword } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
 export async function PUT(request: NextRequest) {
   try {
-    const sessionUser = await getSessionUser();
+    const sessionUser = await getSessionUserFast();
     if (!sessionUser) {
       return NextResponse.json({ success: false, error: 'Oturum açılmalıdır.' }, { status: 401 });
     }

@@ -1,4 +1,4 @@
-import crypto from 'crypto';
+﻿import crypto from 'crypto';
 import { cookies } from 'next/headers';
 import { prisma } from './prisma';
 
@@ -71,9 +71,9 @@ export function verifySessionToken(token: string): SessionPayload | null {
 }
 
 /**
- * Get current session user from cookies (for Server Actions & Route Handlers)
+ * Fast session extraction without database query (0ms latency, HMAC-SHA256 verified)
  */
-export async function getSessionUser() {
+export async function getSessionUserFast(): Promise<{ id: string; email: string; name: string; role: string } | null> {
   const cookieStore = await cookies();
   const token = cookieStore.get(AUTH_COOKIE_NAME)?.value;
   if (!token) return null;
@@ -81,9 +81,24 @@ export async function getSessionUser() {
   const session = verifySessionToken(token);
   if (!session) return null;
 
+  return {
+    id: session.userId,
+    email: session.email,
+    name: session.name,
+    role: session.role,
+  };
+}
+
+/**
+ * Get full session user from database (with phone, target, avatar)
+ */
+export async function getSessionUser() {
+  const fast = await getSessionUserFast();
+  if (!fast) return null;
+
   try {
     const user = await prisma.user.findUnique({
-      where: { id: session.userId },
+      where: { id: fast.id },
       select: {
         id: true,
         name: true,
