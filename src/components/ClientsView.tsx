@@ -87,7 +87,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
             />
           </div>
 
-          {currentUser?.role !== 'SALES_MANAGER' && (
+          {currentUser?.role !== 'VIEWER' && (
             <button
               onClick={onOpenAddClient}
               className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3.5 py-2 rounded-xl text-xs transition cursor-pointer shrink-0 shadow-sm shadow-emerald-600/20"

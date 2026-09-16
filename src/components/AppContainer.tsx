@@ -301,6 +301,7 @@ export const AppContainer: React.FC<AppContainerProps> = ({
         isOpen={isAddClientOpen}
         onClose={() => setIsAddClientOpen(false)}
         users={users}
+        clients={clients}
         currentUser={currentUser}
         onSuccess={refreshData}
       />
@@ -332,6 +333,7 @@ export const AppContainer: React.FC<AppContainerProps> = ({
         isOpen={isWorkReportOpen}
         onClose={() => setIsWorkReportOpen(false)}
         users={users}
+        clients={clients}
         currentUser={currentUser}
         workReports={workReports}
         onRefresh={refreshData}

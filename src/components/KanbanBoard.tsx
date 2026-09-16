@@ -37,7 +37,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   const [localDeals, setLocalDeals] = useState<Deal[]>(deals);
   const [selectedMobileStage, setSelectedMobileStage] = useState<string>('all');
 
-  const isManager = currentUser?.role === 'SALES_MANAGER';
+  const isReadOnly = currentUser?.role === 'VIEWER';
 
   useEffect(() => {
     setMounted(true);
@@ -48,8 +48,8 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   }, [deals]);
 
   const handleDragEnd = async (result: DropResult) => {
-    if (isManager) {
-      alert('İzleyen yöneticiler fırsat aşamalarına müdahale edemez.');
+    if (isReadOnly) {
+      alert('İzleme / Misafir modunda fırsat aşamalarına müdahale edilemez.');
       return;
     }
 
@@ -382,7 +382,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                                   </a>
 
                                   {/* 4. Takip Güncelle */}
-                                  {client && !isManager && (
+                                  {client && !isReadOnly && (
                                     <button
                                       onClick={() => onOpenFollowUpModal(client)}
                                       className="p-1.5 bg-slate-50 hover:bg-amber-50 border border-slate-200 rounded-md text-slate-600 hover:text-amber-700 transition cursor-pointer shadow-2xs"
@@ -393,7 +393,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                                   )}
 
                                   {/* 5. Teklif Ekle */}
-                                  {client && !isManager && (
+                                  {client && !isReadOnly && (
                                     <button
                                       onClick={() => onOpenAddDealModal(client)}
                                       className="p-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-md text-slate-600 hover:text-slate-900 transition cursor-pointer shadow-2xs"
@@ -405,7 +405,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                                 </div>
 
                                 {/* 6. Satışı Kapat */}
-                                {deal.asama !== 'SATIŞ' && deal.asama !== 'TAHSİLAT' && !isManager && (
+                                {deal.asama !== 'SATIŞ' && deal.asama !== 'TAHSİLAT' && !isReadOnly && (
                                   <button
                                     onClick={() => handleQuickCloseSale(deal)}
                                     className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-md font-mono font-bold text-[10px] flex items-center gap-1 transition cursor-pointer shadow-2xs"

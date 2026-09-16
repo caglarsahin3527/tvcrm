@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSessionUserFast } from '@/lib/auth';
+import { toTurkishUpper, toCleanEmail } from '@/lib/formatters';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,19 +12,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Oturum açılmalıdır.' }, { status: 401 });
     }
 
-    // Role check: Managers cannot create clients (monitoring only)
-    if (sessionUser.role === 'SALES_MANAGER') {
+    // Role check: VIEWER cannot create clients
+    if (sessionUser.role === 'VIEWER') {
       return NextResponse.json(
-        { success: false, error: 'İzleyen yöneticiler müşteri kaydı oluşturamaz.' },
+        { success: false, error: 'İzleme modundaki hesapların müşteri kaydı oluşturma yetkisi yoktur.' },
         { status: 403 }
       );
     }
 
     const data = await request.json();
 
-    // If sales rep, enforce rep ID to be current user
+    // If not Admin, enforce rep ID to be current user
     let repId = data.satis_temsilcisi_id;
-    if (sessionUser.role === 'SALES_REP' || !repId) {
+    if (sessionUser.role !== 'ADMIN' || !repId) {
       repId = sessionUser.id;
     }
 
@@ -33,30 +34,28 @@ export async function POST(request: NextRequest) {
 
     const client = await prisma.client.create({
       data: {
-        firma_adi: data.firma_adi,
-        yetkili_kisi: data.yetkili_kisi,
+        firma_adi: toTurkishUpper(data.firma_adi),
+        yetkili_kisi: toTurkishUpper(data.yetkili_kisi),
         telefon: data.telefon,
-        eposta: data.eposta || '',
+        eposta: toCleanEmail(data.eposta),
         musteri_tipi: data.musteri_tipi || 'Kurumsal',
         satis_temsilcisi_id: repId,
         sonraki_takip_tarihi: isNaN(followUpDate.getTime()) ? new Date() : followUpDate,
-        deals: data.has_deal
-          ? {
-              create: {
-                kanal: data.kanal || 'Bi Kanal',
-                teklif_tutari: Number(data.teklif_tutari) || 0,
-                yayin_donemi: data.yayin_donemi || '',
-                tahmini_kapanis_tarihi:
-                  data.tahmini_kapanis_tarihi &&
-                  !isNaN(new Date(data.tahmini_kapanis_tarihi).getTime())
-                    ? new Date(data.tahmini_kapanis_tarihi)
-                    : null,
-                ihtimal_derecesi: data.ihtimal_derecesi || 'Orta',
-                asama: data.asama || 'YENİ LEAD',
-                not: data.not || '',
-              },
-            }
-          : undefined,
+        deals: {
+          create: {
+            kanal: data.kanal || 'Bi Kanal',
+            teklif_tutari: Number(data.teklif_tutari) || 0,
+            yayin_donemi: data.yayin_donemi || '',
+            tahmini_kapanis_tarihi:
+              data.tahmini_kapanis_tarihi &&
+              !isNaN(new Date(data.tahmini_kapanis_tarihi).getTime())
+                ? new Date(data.tahmini_kapanis_tarihi)
+                : null,
+            ihtimal_derecesi: data.ihtimal_derecesi || 'Orta',
+            asama: data.asama || 'YENİ LEAD',
+            not: data.not || 'Yeni Müşteri Kaydı',
+          },
+        },
       },
       include: {
         deals: true,
@@ -81,6 +80,13 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Oturum açılmalıdır.' }, { status: 401 });
     }
 
+    if (sessionUser.role === 'VIEWER') {
+      return NextResponse.json(
+        { success: false, error: 'İzleme modundaki hesapların müşteri güncelleme yetkisi yoktur.' },
+        { status: 403 }
+      );
+    }
+
     const { clientId, nextFollowUpDate } = await request.json();
     if (!clientId) {
       return NextResponse.json({ success: false, error: 'Müşteri ID gereklidir.' }, { status: 400 });
@@ -94,17 +100,10 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Müşteri bulunamadı.' }, { status: 404 });
     }
 
-    // Role check: If rep, ensure client belongs to rep
+    // Role check: If rep, ensure client belongs to rep (Admins and Managers can update)
     if (sessionUser.role === 'SALES_REP' && existingClient.satis_temsilcisi_id !== sessionUser.id) {
       return NextResponse.json(
         { success: false, error: 'Yalnızca kendi müşterilerinizin takip tarihini güncelleyebilirsiniz.' },
-        { status: 403 }
-      );
-    }
-
-    if (sessionUser.role === 'SALES_MANAGER') {
-      return NextResponse.json(
-        { success: false, error: 'İzleyen yöneticiler müşteri kayıtlarını güncelleyemez.' },
         { status: 403 }
       );
     }

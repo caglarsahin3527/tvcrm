@@ -11,17 +11,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Oturum açılmalıdır.' }, { status: 401 });
     }
 
-    // Role check: Managers cannot create deals (monitoring only)
-    if (sessionUser.role === 'SALES_MANAGER') {
+    // Role check: VIEWER cannot create deals
+    if (sessionUser.role === 'VIEWER') {
       return NextResponse.json(
-        { success: false, error: 'İzleyen yöneticiler fırsat/teklif ekleyemez.' },
+        { success: false, error: 'İzleme modundaki hesapların fırsat/teklif ekleme yetkisi yoktur.' },
         { status: 403 }
       );
     }
 
     const data = await request.json();
 
-    // Check client ownership for reps
+    // Check client ownership for reps (Admins & Managers can create deals for any client)
     if (sessionUser.role === 'SALES_REP') {
       const client = await prisma.client.findUnique({
         where: { id: data.musteri_id },
@@ -69,10 +69,10 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Oturum açılmalıdır.' }, { status: 401 });
     }
 
-    // Role check: Managers cannot edit deals (monitoring only)
-    if (sessionUser.role === 'SALES_MANAGER') {
+    // Role check: VIEWER cannot edit deals
+    if (sessionUser.role === 'VIEWER') {
       return NextResponse.json(
-        { success: false, error: 'İzleyen yöneticiler fırsat aşamalarını değiştiremez.' },
+        { success: false, error: 'İzleme modundaki hesapların fırsat aşamalarını değiştirme yetkisi yoktur.' },
         { status: 403 }
       );
     }
@@ -114,6 +114,7 @@ export async function PUT(request: NextRequest) {
     );
   }
 }
+
 
 export async function DELETE(request: NextRequest) {
   try {

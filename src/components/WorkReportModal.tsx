@@ -1,8 +1,18 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
-import { User, WorkReport, WorkReportOrgType, WorkReportContactType, WorkReportSaleType, WorkReportReservationType, WorkReportCustomerStatus, WorkReportAdType } from '@/types';
-import { formatCurrency, formatDate } from '@/lib/formatters';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { 
+  User, 
+  Client,
+  WorkReport, 
+  WorkReportOrgType, 
+  WorkReportContactType, 
+  WorkReportSaleType, 
+  WorkReportReservationType, 
+  WorkReportCustomerStatus, 
+  WorkReportAdType 
+} from '@/types';
+import { formatCurrency, formatDate, toTurkishUpper, toCleanEmail, exportToExcel } from '@/lib/formatters';
 import { 
   X, 
   Printer, 
@@ -31,14 +41,17 @@ import {
   BarChart3,
   Percent,
   Layers,
-  FileCheck
+  FileCheck,
+  Table,
+  Calculator,
+  ChevronDown
 } from 'lucide-react';
-import { exportToExcel, exportToCsv } from '@/lib/formatters';
 
 interface WorkReportModalProps {
   isOpen: boolean;
   onClose: () => void;
   users: User[];
+  clients?: Client[];
   currentUser: User | null;
   workReports?: WorkReport[];
   onRefresh?: () => void;
@@ -48,12 +61,12 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
   isOpen,
   onClose,
   users,
+  clients = [],
   currentUser,
   workReports = [],
   onRefresh,
 }) => {
-  const [activeTab, setActiveTab] = useState<'reports' | 'new_entry'>('reports');
-  const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<'reports' | 'matrix' | 'new_entry'>('reports');
   const [submitting, setSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
@@ -61,7 +74,7 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
   // Role Checks
   const isSuperAdmin = currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPER_ADMIN';
   const isManager = currentUser?.role === 'SALES_MANAGER';
-  const isRep = currentUser?.role === 'SALES_REP';
+  const isViewer = currentUser?.role === 'VIEWER';
 
   // --- FILTERS STATE ---
   const [timeRange, setTimeRange] = useState<'today' | 'this_week' | 'this_month' | 'all' | 'custom'>('all');
@@ -99,15 +112,86 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
 
   const [kurumsalZiyaret, setKurumsalZiyaret] = useState(false);
 
+  // TV Reklam Rezervasyon Kuşak Fiyatlama (PT / OPT / Tek Fiyat)
   const [rezervasyonVar, setRezervasyonVar] = useState(false);
   const [rezervasyonGelen, setRezervasyonGelen] = useState('1');
   const [rezervasyonTuru, setRezervasyonTuru] = useState<WorkReportReservationType>('Spot');
-  const [rezervasyonBirimFiyat, setRezervasyonBirimFiyat] = useState('');
+  const [rezervasyonFiyatTipi, setRezervasyonFiyatTipi] = useState<'TEK_FIYAT' | 'PT_OPT'>('TEK_FIYAT');
+  
+  // Tek Fiyat Mode
+  const [rezervasyonBirimFiyat, setRezervasyonBirimFiyat] = useState('40');
   const [rezervasyonToplamSaniye, setRezervasyonToplamSaniye] = useState('30');
+
+  // PT / OPT Kuşak Mode
+  const [rezervasyonOptSaniye, setRezervasyonOptSaniye] = useState('20');
+  const [rezervasyonOptFiyat, setRezervasyonOptFiyat] = useState('35');
+  const [rezervasyonPtSaniye, setRezervasyonPtSaniye] = useState('10');
+  const [rezervasyonPtFiyat, setRezervasyonPtFiyat] = useState('50');
+
+  // Autocomplete state
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const autocompleteRef = useRef<HTMLDivElement>(null);
+
+  // Close suggestions when clicked outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (autocompleteRef.current && !autocompleteRef.current.contains(event.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Distinct company suggestions from clients and past work reports
+  const companySuggestions = useMemo(() => {
+    const map = new Map<string, { name: string; yetkili: string; telefon: string; eposta: string; tip: WorkReportOrgType }>();
+    
+    // Add from clients
+    clients.forEach((c) => {
+      if (c.firma_adi && !map.has(c.firma_adi.toUpperCase())) {
+        let mappedTip: WorkReportOrgType = 'Marka';
+        if (c.musteri_tipi === 'Ajans') mappedTip = 'Ajans';
+        else if (c.musteri_tipi === 'Kamu') mappedTip = 'Kamu';
+        else if (c.musteri_tipi === 'KOBİ') mappedTip = 'KOBİ';
+
+        map.set(c.firma_adi.toUpperCase(), {
+          name: c.firma_adi,
+          yetkili: c.yetkili_kisi || '',
+          telefon: c.telefon || '',
+          eposta: c.eposta || '',
+          tip: mappedTip,
+        });
+      }
+    });
+
+    // Add from previous work reports
+    workReports.forEach((r) => {
+      if (r.kurum_adi && !map.has(r.kurum_adi.toUpperCase())) {
+        map.set(r.kurum_adi.toUpperCase(), {
+          name: r.kurum_adi,
+          yetkili: r.yetkili || '',
+          telefon: r.yetkili_telefon || '',
+          eposta: r.yetkili_eposta || '',
+          tip: (r.kurum_turu as WorkReportOrgType) || 'Marka',
+        });
+      }
+    });
+
+    return Array.from(map.values());
+  }, [clients, workReports]);
+
+  // Filtered suggestions based on user input
+  const filteredSuggestions = useMemo(() => {
+    if (!kurumAdi.trim() || kurumAdi.length < 1) return [];
+    const q = kurumAdi.toLowerCase();
+    return companySuggestions.filter((item) => item.name.toLowerCase().includes(q)).slice(0, 6);
+  }, [kurumAdi, companySuggestions]);
 
   // Reset Form
   const resetForm = () => {
     setTarih(new Date().toISOString().split('T')[0]);
+    setAssignedUserId(currentUser ? currentUser.id : users[0]?.id || '');
     setKurumAdi('');
     setKurumTuru('Marka');
     setMusteriDurumu('Yeni Müşteri');
@@ -129,18 +213,76 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
     setRezervasyonVar(false);
     setRezervasyonGelen('1');
     setRezervasyonTuru('Spot');
-    setRezervasyonBirimFiyat('');
+    setRezervasyonFiyatTipi('TEK_FIYAT');
+    setRezervasyonBirimFiyat('40');
     setRezervasyonToplamSaniye('30');
+    setRezervasyonOptSaniye('20');
+    setRezervasyonOptFiyat('35');
+    setRezervasyonPtSaniye('10');
+    setRezervasyonPtFiyat('50');
     setErrorMessage('');
     setSuccessMessage('');
   };
 
   // Synchronize current user on open
-  React.useEffect(() => {
-    if (currentUser) {
-      setAssignedUserId(currentUser.id);
+  useEffect(() => {
+    if (isOpen && currentUser) {
+      if (!isSuperAdmin) {
+        setAssignedUserId(currentUser.id);
+      }
     }
-  }, [currentUser, isOpen]);
+  }, [currentUser, isOpen, isSuperAdmin]);
+
+  // Calculations for Reservation Totals
+  const calculatedReservation = useMemo(() => {
+    if (rezervasyonFiyatTipi === 'PT_OPT') {
+      const optSn = Number(rezervasyonOptSaniye) || 0;
+      const optPrice = Number(rezervasyonOptFiyat) || 0;
+      const ptSn = Number(rezervasyonPtSaniye) || 0;
+      const ptPrice = Number(rezervasyonPtFiyat) || 0;
+
+      const totalSn = optSn + ptSn;
+      const totalAmount = (optSn * optPrice) + (ptSn * ptPrice);
+      const avgUnitPrice = totalSn > 0 ? totalAmount / totalSn : 0;
+
+      return {
+        totalSaniye: totalSn,
+        totalAmount,
+        unitPrice: Math.round(avgUnitPrice * 100) / 100,
+        optAmount: optSn * optPrice,
+        ptAmount: ptSn * ptPrice,
+      };
+    } else {
+      const sn = Number(rezervasyonToplamSaniye) || 0;
+      const price = Number(rezervasyonBirimFiyat) || 0;
+      return {
+        totalSaniye: sn,
+        totalAmount: sn * price,
+        unitPrice: price,
+        optAmount: 0,
+        ptAmount: 0,
+      };
+    }
+  }, [
+    rezervasyonFiyatTipi, 
+    rezervasyonBirimFiyat, 
+    rezervasyonToplamSaniye, 
+    rezervasyonOptSaniye, 
+    rezervasyonOptFiyat, 
+    rezervasyonPtSaniye, 
+    rezervasyonPtFiyat
+  ]);
+
+  // Handle selecting an autocomplete suggestion
+  const handleSelectSuggestion = (item: typeof companySuggestions[0]) => {
+    setKurumAdi(toTurkishUpper(item.name));
+    if (item.yetkili) setYetkili(toTurkishUpper(item.yetkili));
+    if (item.telefon) setYetkiliTelefon(item.telefon);
+    if (item.eposta) setYetkiliEposta(toCleanEmail(item.eposta));
+    if (item.tip) setKurumTuru(item.tip);
+    setMusteriDurumu('Mevcut');
+    setShowSuggestions(false);
+  };
 
   // Filtered Reports Calculation
   const filteredReports = useMemo(() => {
@@ -209,10 +351,99 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
   const totalSatisTutari = satisReports.reduce((sum, r) => sum + (r.satis_tutari || 0), 0);
 
   const rezervasyonReports = filteredReports.filter((r) => r.rezervasyon_var);
-  const totalRezervasyonAdet = rezervasyonReports.reduce((sum, r) => sum + (r.rezervasyon_gelen || 0), 0);
+  const totalRezervasyonAdet = rezervasyonReports.reduce((sum, r) => sum + (r.rezervasyon_gelen || 1), 0);
   const totalRezervasyonSaniye = rezervasyonReports.reduce((sum, r) => sum + (r.rezervasyon_toplam_saniye || 0), 0);
 
   const kurumsalZiyaretCount = filteredReports.filter((r) => r.kurumsal_ziyaret || r.iletisim_turu === 'Kurumsal Ziyaret').length;
+
+  // --- EXECUTIVE SUMMARY MATRIX (Personel Bazlı Matris Tablosu) ---
+  const executiveMatrix = useMemo(() => {
+    // Filter by selected user if specific user selected, else list all team members with activity
+    const targetUsers = selectedUserFilter !== 'all' 
+      ? users.filter((u) => u.id === selectedUserFilter)
+      : users;
+
+    return targetUsers.map((u) => {
+      const userReports = filteredReports.filter((r) => r.user_id === u.id);
+
+      const telCount = userReports.filter((r) => r.iletisim_turu === 'Telefon').length;
+      const dijitalCount = userReports.filter((r) => r.iletisim_turu === 'Dijital Toplantı').length;
+      const yuzyuzeCount = userReports.filter((r) => r.iletisim_turu === 'Yüzyüze Toplantı').length;
+      const ziyaretCount = userReports.filter((r) => r.kurumsal_ziyaret || r.iletisim_turu === 'Kurumsal Ziyaret').length;
+      const emailCount = userReports.filter((r) => r.iletisim_turu === 'E-posta').length;
+      const totalActivities = userReports.length;
+
+      const userTeklif = userReports.filter((r) => r.teklif_verildi);
+      const teklifCount = userTeklif.length;
+      const teklifSum = userTeklif.reduce((sum, r) => sum + (r.teklif_tutari || 0), 0);
+
+      const userSatis = userReports.filter((r) => r.satis_yapildi);
+      const satisCount = userSatis.length;
+      const satisSum = userSatis.reduce((sum, r) => sum + (r.satis_tutari || 0), 0);
+
+      const userRez = userReports.filter((r) => r.rezervasyon_var);
+      const rezCount = userRez.reduce((sum, r) => sum + (r.rezervasyon_gelen || 1), 0);
+      const rezSaniye = userRez.reduce((sum, r) => sum + (r.rezervasyon_toplam_saniye || 0), 0);
+      const rezOptSaniye = userRez.reduce((sum, r) => sum + (r.rezervasyon_opt_saniye || 0), 0);
+      const rezPtSaniye = userRez.reduce((sum, r) => sum + (r.rezervasyon_pt_saniye || 0), 0);
+
+      return {
+        user: u,
+        telCount,
+        dijitalCount,
+        yuzyuzeCount,
+        ziyaretCount,
+        emailCount,
+        totalActivities,
+        teklifCount,
+        teklifSum,
+        satisCount,
+        satisSum,
+        rezCount,
+        rezSaniye,
+        rezOptSaniye,
+        rezPtSaniye,
+      };
+    });
+  }, [users, filteredReports, selectedUserFilter]);
+
+  // Matrix Grand Totals
+  const matrixTotals = useMemo(() => {
+    return executiveMatrix.reduce(
+      (acc, row) => ({
+        telCount: acc.telCount + row.telCount,
+        dijitalCount: acc.dijitalCount + row.dijitalCount,
+        yuzyuzeCount: acc.yuzyuzeCount + row.yuzyuzeCount,
+        ziyaretCount: acc.ziyaretCount + row.ziyaretCount,
+        emailCount: acc.emailCount + row.emailCount,
+        totalActivities: acc.totalActivities + row.totalActivities,
+        teklifCount: acc.teklifCount + row.teklifCount,
+        teklifSum: acc.teklifSum + row.teklifSum,
+        satisCount: acc.satisCount + row.satisCount,
+        satisSum: acc.satisSum + row.satisSum,
+        rezCount: acc.rezCount + row.rezCount,
+        rezSaniye: acc.rezSaniye + row.rezSaniye,
+        rezOptSaniye: acc.rezOptSaniye + row.rezOptSaniye,
+        rezPtSaniye: acc.rezPtSaniye + row.rezPtSaniye,
+      }),
+      {
+        telCount: 0,
+        dijitalCount: 0,
+        yuzyuzeCount: 0,
+        ziyaretCount: 0,
+        emailCount: 0,
+        totalActivities: 0,
+        teklifCount: 0,
+        teklifSum: 0,
+        satisCount: 0,
+        satisSum: 0,
+        rezCount: 0,
+        rezSaniye: 0,
+        rezOptSaniye: 0,
+        rezPtSaniye: 0,
+      }
+    );
+  }, [executiveMatrix]);
 
   // Handle Form Submission
   const handleSubmitReport = async (e: React.FormEvent) => {
@@ -222,20 +453,27 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
       return;
     }
 
+    if (isViewer) {
+      setErrorMessage('İzleme modundaki hesapların çalışma raporu ekleme yetkisi yoktur.');
+      return;
+    }
+
     setSubmitting(true);
     setErrorMessage('');
     setSuccessMessage('');
 
     try {
+      const effectiveUserId = isSuperAdmin ? assignedUserId : currentUser?.id;
+
       const payload = {
         tarih,
-        user_id: isSuperAdmin ? assignedUserId : currentUser?.id,
-        kurum_adi: kurumAdi,
+        user_id: effectiveUserId,
+        kurum_adi: toTurkishUpper(kurumAdi),
         kurum_turu: kurumTuru,
         musteri_durumu: musteriDurumu,
-        yetkili,
+        yetkili: toTurkishUpper(yetkili),
         yetkili_telefon: yetkiliTelefon,
-        yetkili_eposta: yetkiliEposta,
+        yetkili_eposta: toCleanEmail(yetkiliEposta),
         iletisim_turu: iletisimTuru,
         reklam_turu: reklamTuru,
         tv_kanali: tvKanali,
@@ -249,10 +487,15 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
         satis_tutari: satisYapildi ? Number(satisTutari) || 0 : 0,
         kurumsal_ziyaret: kurumsalZiyaret || iletisimTuru === 'Kurumsal Ziyaret',
         rezervasyon_var: rezervasyonVar,
-        rezervasyon_gelen: rezervasyonVar ? Number(rezervasyonGelen) || 0 : 0,
+        rezervasyon_gelen: rezervasyonVar ? Number(rezervasyonGelen) || 1 : 0,
         rezervasyon_turu: rezervasyonVar ? rezervasyonTuru : '',
-        rezervasyon_birim_fiyat: rezervasyonVar ? Number(rezervasyonBirimFiyat) || 0 : 0,
-        rezervasyon_toplam_saniye: rezervasyonVar ? Number(rezervasyonToplamSaniye) || 0 : 0,
+        rezervasyon_fiyat_tipi: rezervasyonVar ? rezervasyonFiyatTipi : 'TEK_FIYAT',
+        rezervasyon_opt_saniye: rezervasyonVar && rezervasyonFiyatTipi === 'PT_OPT' ? Number(rezervasyonOptSaniye) || 0 : 0,
+        rezervasyon_opt_fiyat: rezervasyonVar && rezervasyonFiyatTipi === 'PT_OPT' ? Number(rezervasyonOptFiyat) || 0 : 0,
+        rezervasyon_pt_saniye: rezervasyonVar && rezervasyonFiyatTipi === 'PT_OPT' ? Number(rezervasyonPtSaniye) || 0 : 0,
+        rezervasyon_pt_fiyat: rezervasyonVar && rezervasyonFiyatTipi === 'PT_OPT' ? Number(rezervasyonPtFiyat) || 0 : 0,
+        rezervasyon_birim_fiyat: rezervasyonVar ? calculatedReservation.unitPrice : 0,
+        rezervasyon_toplam_saniye: rezervasyonVar ? calculatedReservation.totalSaniye : 0,
       };
 
       const res = await fetch('/api/work-reports', {
@@ -274,7 +517,7 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
       setTimeout(() => {
         setActiveTab('reports');
         setSuccessMessage('');
-      }, 1000);
+      }, 900);
     } catch (err: any) {
       console.error(err);
       setErrorMessage('Kayıt sırasında bağlantı hatası oluştu.');
@@ -285,7 +528,11 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
 
   // Handle Delete Report (With strict role & ownership check)
   const handleDeleteReport = async (report: WorkReport) => {
-    // Only creator or super admin can delete
+    if (isViewer) {
+      alert('İzleme modundaki hesapların çalışma raporu silme yetkisi yoktur.');
+      return;
+    }
+
     if (!isSuperAdmin && report.user_id !== currentUser?.id) {
       alert('Yalnızca kendi girdiğiniz çalışma raporlarını silebilirsiniz.');
       return;
@@ -308,19 +555,32 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
     }
   };
 
-  // Handle Print (Landscape A4) - Strictly for Super Admin
+  // Handle Print (Landscape A4)
   const handlePrint = () => {
-    if (!isSuperAdmin) {
-      alert('Rapor alma ve yazdırma yetkisi yalnızca Süper Admin (Genel Müdür) hesabına aittir.');
-      return;
-    }
     window.print();
   };
 
-  // Handle Excel Export - Strictly for Super Admin
+  // Handle Excel Export
   const handleExportExcel = () => {
-    if (!isSuperAdmin) {
-      alert('Rapor alma ve dışa aktarma yetkisi yalnızca Süper Admin hesabına aittir.');
+    if (activeTab === 'matrix') {
+      const matrixRows = executiveMatrix.map((r) => ({
+        'Grup Üyesi': r.user.name,
+        'Rol': r.user.role === 'SALES_MANAGER' ? 'Satış Yöneticisi' : 'Satış Temsilcisi',
+        'Telefon': r.telCount,
+        'Dijital Toplantı': r.dijitalCount,
+        'Yüzyüze Toplantı': r.yuzyuzeCount,
+        'Kurumsal Ziyaret': r.ziyaretCount,
+        'E-posta': r.emailCount,
+        'Toplam Temas': r.totalActivities,
+        'Teklif (Adet)': r.teklifCount,
+        'Teklif Tutarı (TL)': r.teklifSum,
+        'Satış (Adet)': r.satisCount,
+        'Satış Tutarı (TL)': r.satisSum,
+        'Rezervasyon (Adet)': r.rezCount,
+        'Rezervasyon Kuşak Saniyesi': r.rezSaniye,
+      }));
+
+      exportToExcel(matrixRows, `TVCRM_Yonetici_Faaliyet_Ozeti_${new Date().toISOString().split('T')[0]}`);
       return;
     }
 
@@ -329,9 +589,15 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
       'Grup Üyesi': r.user?.name || '',
       'Kurum': r.kurum_adi,
       'Kurum Türü': r.kurum_turu,
+      'Müşteri Durumu': r.musteri_durumu || 'Yeni Müşteri',
       'Yetkili': r.yetkili,
+      'Telefon': r.yetkili_telefon || '-',
+      'E-posta': r.yetkili_eposta || '-',
       'İletişim Türü': r.iletisim_turu,
+      'Reklam Türü': r.reklam_turu || 'Reklam',
+      'TV Kanalı': r.tv_kanali || 'Bi Kanal',
       'Görüşme Amacı & Not': r.gorusme_amaci,
+      'Sonuç': r.sonuc || '-',
       'Teklif Verildi': r.teklif_verildi ? 'Evet' : 'Hayır',
       'Teklif Tutarı (TL)': r.teklif_tutari || 0,
       'Teklif İhtimal': r.teklif_ihtimal || '-',
@@ -340,8 +606,13 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
       'Satış Tutarı (TL)': r.satis_tutari || 0,
       'Kurumsal Ziyaret': r.kurumsal_ziyaret ? 'Evet' : 'Hayır',
       'Rezervasyon': r.rezervasyon_var ? 'Evet' : 'Hayır',
-      'Rezervasyon Gelen (1-100)': r.rezervasyon_gelen || 0,
+      'Rezervasyon Gelen': r.rezervasyon_gelen || 0,
       'Rezervasyon Türü': r.rezervasyon_turu || '-',
+      'Fiyat Tipi': r.rezervasyon_fiyat_tipi || 'TEK_FIYAT',
+      'OPT Saniye': r.rezervasyon_opt_saniye || 0,
+      'OPT Birim Fiyat (TL)': r.rezervasyon_opt_fiyat || 0,
+      'PT Saniye': r.rezervasyon_pt_saniye || 0,
+      'PT Birim Fiyat (TL)': r.rezervasyon_pt_fiyat || 0,
       'Birim Fiyat (TL)': r.rezervasyon_birim_fiyat || 0,
       'Toplam Saniye': r.rezervasyon_toplam_saniye || 0,
     }));
@@ -364,7 +635,7 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
         @media print {
           @page {
             size: A4 landscape;
-            margin: 8mm;
+            margin: 6mm;
           }
           body * {
             visibility: hidden;
@@ -380,7 +651,7 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
             width: 100%;
             background: white !important;
             color: black !important;
-            font-size: 9pt;
+            font-size: 8.5pt;
           }
           .no-print {
             display: none !important;
@@ -404,45 +675,35 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                 </span>
               </div>
               <p className="text-xs text-slate-300 font-medium mt-0.5">
-                Grup Üyeleri Günlük, Haftalık ve Dönemsel Faaliyet, Teklif ve Rezervasyon Kayıtları
+                Grup Üyeleri Günlük, Haftalık ve Dönemsel Faaliyet, Teklif, Satış ve PT/OPT Rezervasyon Kayıtları
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Super Admin Rapor Alma Butonları */}
-            {isSuperAdmin ? (
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={handleExportExcel}
-                  className="flex items-center gap-1 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-emerald-400 rounded-lg text-xs font-semibold transition border border-slate-700 cursor-pointer"
-                  title="Excel Formatında İndir"
-                >
-                  <FileSpreadsheet className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Excel</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={handlePrint}
-                  className="flex items-center gap-1 px-3 py-1.5 bg-sky-600 hover:bg-sky-500 text-white rounded-lg text-xs font-bold transition shadow-xs cursor-pointer"
-                  title="Yatay A4 Yazdır / PDF İndir"
-                >
-                  <Printer className="w-3.5 h-3.5" />
-                  <span>Yatay A4 Yazdır</span>
-                </button>
-              </div>
-            ) : (
-              <div className="flex items-center gap-1 px-2.5 py-1 bg-slate-800 text-slate-400 rounded-lg text-[11px] border border-slate-700">
-                <Lock className="w-3 h-3 text-amber-400" />
-                <span>Rapor İndirme: Süper Admin Yetkisinde</span>
-              </div>
-            )}
+            <button
+              type="button"
+              onClick={handleExportExcel}
+              className="flex items-center gap-1 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-emerald-400 rounded-lg text-xs font-semibold transition border border-slate-700 cursor-pointer"
+              title="Excel Formatında İndir"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Excel</span>
+            </button>
+            <button
+              type="button"
+              onClick={handlePrint}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-sky-600 hover:bg-sky-500 text-white rounded-lg text-xs font-bold transition shadow-xs cursor-pointer"
+              title="Yatay A4 Yazdır / PDF İndir"
+            >
+              <Printer className="w-3.5 h-3.5" />
+              <span>Yatay A4 Yazdır</span>
+            </button>
 
             <button
               type="button"
               onClick={onClose}
-              className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition cursor-pointer"
+              className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition cursor-pointer ml-1"
             >
               <X className="w-5 h-5" />
             </button>
@@ -450,40 +711,57 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
         </div>
 
         {/* Tab Navigation (No-Print) */}
-        <div className="px-5 pt-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between no-print">
+        <div className="px-5 pt-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between no-print flex-wrap gap-2">
           <div className="flex gap-2">
+            {/* Tab 1: Detaylı Rapor Listesi */}
             <button
               type="button"
               onClick={() => setActiveTab('reports')}
-              className={`px-4 py-2 text-xs font-bold rounded-t-lg transition flex items-center gap-2 cursor-pointer border-b-2 ${
+              className={`px-3.5 py-2 text-xs font-bold rounded-t-lg transition flex items-center gap-1.5 cursor-pointer border-b-2 ${
                 activeTab === 'reports'
                   ? 'border-sky-600 text-sky-700 bg-white shadow-2xs'
                   : 'border-transparent text-slate-600 hover:text-slate-900'
               }`}
             >
               <BarChart3 className="w-4 h-4 text-sky-600" />
-              <span>Çalışma Raporları & Analiz ({filteredReports.length})</span>
+              <span>Faaliyet Kayıtları ({filteredReports.length})</span>
             </button>
 
-            {!isManager && (
+            {/* Tab 2: Yönetici Faaliyet Özeti (A4 Matris) */}
+            <button
+              type="button"
+              onClick={() => setActiveTab('matrix')}
+              className={`px-3.5 py-2 text-xs font-bold rounded-t-lg transition flex items-center gap-1.5 cursor-pointer border-b-2 ${
+                activeTab === 'matrix'
+                  ? 'border-indigo-600 text-indigo-700 bg-white shadow-2xs'
+                  : 'border-transparent text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Table className="w-4 h-4 text-indigo-600" />
+              <span>Yönetici Özeti (A4 Matris)</span>
+            </button>
+
+            {/* Tab 3: Yeni Çalışma Kaydet (Available for rep, manager, admin; hidden for viewer) */}
+            {!isViewer && (
               <button
                 type="button"
                 onClick={() => { setActiveTab('new_entry'); resetForm(); }}
-                className={`px-4 py-2 text-xs font-bold rounded-t-lg transition flex items-center gap-2 cursor-pointer border-b-2 ${
+                className={`px-3.5 py-2 text-xs font-bold rounded-t-lg transition flex items-center gap-1.5 cursor-pointer border-b-2 ${
                   activeTab === 'new_entry'
                     ? 'border-emerald-600 text-emerald-700 bg-white shadow-2xs'
                     : 'border-transparent text-slate-600 hover:text-slate-900'
                 }`}
               >
-                <Plus className="w-4 h-4 text-emerald-600" />
+                <Plus className="w-4 h-4 text-emerald-600 stroke-[3]" />
                 <span>+ Yeni Görüşme / Çalışma Kaydet</span>
               </button>
             )}
           </div>
 
-          {isManager && (
-            <span className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-md font-medium">
-              İzleme Modu: Yöneticiler çalışmaları izler, kayıt ekleyemez veya silemez.
+          {isViewer && (
+            <span className="text-[11px] text-purple-700 bg-purple-50 border border-purple-200 px-2.5 py-1 rounded-md font-medium flex items-center gap-1">
+              <Lock className="w-3 h-3 text-purple-600" />
+              İzleme Modu: Misafir/Yönetim hesabı salt okunur moddadır.
             </span>
           )}
         </div>
@@ -525,7 +803,7 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                         timeRange === 'today' ? 'bg-sky-600 text-white font-bold' : 'text-slate-600 hover:text-slate-900'
                       }`}
                     >
-                      Bugün (Anlık/Günlük)
+                      Bugün
                     </button>
                     <button
                       type="button"
@@ -597,10 +875,10 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                   </div>
                 </div>
 
-                {/* Second Filter Row: Grup Üyesi (İsim İsim), Kurum Türü, İletişim Türü */}
+                {/* Second Filter Row: Grup Üyesi, Kurum Türü, İletişim Türü */}
                 <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-200/80 text-xs">
                   
-                  {/* Grup Üyesi (İsim İsim Seçimi) */}
+                  {/* Grup Üyesi */}
                   <div className="flex items-center bg-white border border-slate-200 rounded-lg px-2.5 py-1">
                     <Users className="w-3.5 h-3.5 text-sky-600 mr-1.5" />
                     <span className="text-slate-500 text-[11px] mr-1">Grup Üyesi:</span>
@@ -612,7 +890,7 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                       <option value="all">Tüm Grup Üyeleri (Genel)</option>
                       {users.map((u) => (
                         <option key={u.id} value={u.id}>
-                          {u.name} ({u.role === 'SALES_MANAGER' ? 'Yönetici' : 'Temsilci'})
+                          {u.name} ({u.role === 'SALES_MANAGER' ? 'Yönetici' : u.role === 'ADMIN' ? 'Admin' : 'Temsilci'})
                         </option>
                       ))}
                     </select>
@@ -675,12 +953,12 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                 </div>
               </div>
 
-              {/* KPI KONSOLU (Özet İstatistikler) */}
+              {/* KPI KONSOLU */}
               <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
                 <div className="bg-slate-50 border border-slate-200 p-3 rounded-xl">
-                  <span className="text-[10px] font-mono uppercase font-bold text-slate-500">Toplam Görüşme</span>
+                  <span className="text-[10px] font-mono uppercase font-bold text-slate-500">Toplam Temas</span>
                   <div className="text-lg font-mono font-black text-slate-900 mt-1">{totalReportsCount} Kayıt</div>
-                  <div className="text-[10px] text-slate-500 font-mono mt-0.5">Faaliyet temas sayısı</div>
+                  <div className="text-[10px] text-slate-500 font-mono mt-0.5">Faaliyet sayısı</div>
                 </div>
 
                 <div className="bg-sky-50 border border-sky-200 p-3 rounded-xl">
@@ -704,7 +982,7 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                 <div className="bg-purple-50 border border-purple-200 p-3 rounded-xl col-span-2 sm:col-span-1">
                   <span className="text-[10px] font-mono uppercase font-bold text-purple-800">Kurumsal Ziyaret</span>
                   <div className="text-lg font-mono font-black text-purple-900 mt-1">{kurumsalZiyaretCount} Ziyaret</div>
-                  <div className="text-[10px] text-purple-700 font-mono mt-0.5">Yüzyüze / Saha Teması</div>
+                  <div className="text-[10px] text-purple-700 font-mono mt-0.5">Saha / Yüzyüze</div>
                 </div>
               </div>
 
@@ -727,16 +1005,14 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                         <th className="py-2.5 px-3 whitespace-nowrap">Tarih</th>
                         <th className="py-2.5 px-3 whitespace-nowrap">Personel</th>
                         <th className="py-2.5 px-3 whitespace-nowrap">Kurum</th>
-                        <th className="py-2.5 px-3 whitespace-nowrap">Yeni/Mevcut</th>
+                        <th className="py-2.5 px-3 whitespace-nowrap">Durum</th>
                         <th className="py-2.5 px-3 whitespace-nowrap">Tür</th>
                         <th className="py-2.5 px-3 whitespace-nowrap">Yetkili</th>
-                        <th className="py-2.5 px-3 whitespace-nowrap">Telefon</th>
-                        <th className="py-2.5 px-3 whitespace-nowrap">E-posta</th>
                         <th className="py-2.5 px-3 whitespace-nowrap">İletişim</th>
-                        <th className="py-2.5 px-3 whitespace-nowrap">Reklam/Barter</th>
-                        <th className="py-2.5 px-3 whitespace-nowrap">TV</th>
+                        <th className="py-2.5 px-3 whitespace-nowrap">Kanal</th>
                         <th className="py-2.5 px-3 whitespace-nowrap">Tutar (₺)</th>
-                        <th className="py-2.5 px-3">Sonuç</th>
+                        <th className="py-2.5 px-3 whitespace-nowrap">Rezervasyon / Kuşak</th>
+                        <th className="py-2.5 px-3">Sonuç & Not</th>
                         <th className="py-2.5 px-3 text-right no-print">İşlem</th>
                       </tr>
                     </thead>
@@ -765,7 +1041,7 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
 
                             {/* Yeni / Mevcut */}
                             <td className="py-2.5 px-3 whitespace-nowrap">
-                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                              <span className={`text-[9.5px] font-bold px-2 py-0.5 rounded-full border ${
                                 report.musteri_durumu === 'Yeni Müşteri'
                                   ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                                   : 'bg-slate-100 text-slate-600 border-slate-200'
@@ -774,7 +1050,7 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                               </span>
                             </td>
 
-                            {/* Kurum Türü (Marka/Ajans/KOBİ/Kamu) */}
+                            {/* Kurum Türü */}
                             <td className="py-2.5 px-3 whitespace-nowrap">
                               <span className="text-[9px] font-mono uppercase px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200 font-bold">
                                 {report.kurum_turu}
@@ -783,17 +1059,10 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
 
                             {/* Yetkili */}
                             <td className="py-2.5 px-3 text-slate-800 whitespace-nowrap text-[11px]">
-                              {report.yetkili}
-                            </td>
-
-                            {/* Telefon */}
-                            <td className="py-2.5 px-3 font-mono text-[10px] text-slate-600 whitespace-nowrap">
-                              {report.yetkili_telefon || '-'}
-                            </td>
-
-                            {/* E-posta */}
-                            <td className="py-2.5 px-3 text-[10px] text-slate-600 whitespace-nowrap max-w-[160px] truncate">
-                              {report.yetkili_eposta || '-'}
+                              <div>{report.yetkili}</div>
+                              {report.yetkili_telefon && (
+                                <div className="text-[10px] text-slate-400 font-mono">{report.yetkili_telefon}</div>
+                              )}
                             </td>
 
                             {/* İletişim Türü */}
@@ -809,17 +1078,6 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                               </span>
                             </td>
 
-                            {/* Reklam / Barter */}
-                            <td className="py-2.5 px-3 whitespace-nowrap">
-                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                                report.reklam_turu === 'Barter'
-                                  ? 'bg-amber-50 text-amber-800 border-amber-200'
-                                  : 'bg-sky-50 text-sky-700 border-sky-200'
-                              }`}>
-                                {report.reklam_turu || 'Reklam'}
-                              </span>
-                            </td>
-
                             {/* TV Kanalı */}
                             <td className="py-2.5 px-3 whitespace-nowrap text-[10px] font-bold text-slate-700">
                               {report.tv_kanali || 'Bi Kanal'}
@@ -827,17 +1085,43 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
 
                             {/* Tutar (₺) */}
                             <td className="py-2.5 px-3 whitespace-nowrap font-mono text-[11px]">
-                              {(report.teklif_tutari && report.teklif_tutari > 0) ? (
-                                <span className="font-bold text-sky-700">{formatCurrency(report.teklif_tutari)}</span>
-                              ) : (report.satis_tutari && report.satis_tutari > 0) ? (
-                                <span className="font-bold text-emerald-700">{formatCurrency(report.satis_tutari)}</span>
+                              {(report.satis_yapildi && report.satis_tutari && report.satis_tutari > 0) ? (
+                                <div>
+                                  <span className="font-bold text-emerald-700">{formatCurrency(report.satis_tutari)}</span>
+                                  <div className="text-[9px] text-emerald-600 font-sans font-medium">Satış</div>
+                                </div>
+                              ) : (report.teklif_verildi && report.teklif_tutari && report.teklif_tutari > 0) ? (
+                                <div>
+                                  <span className="font-bold text-sky-700">{formatCurrency(report.teklif_tutari)}</span>
+                                  <div className="text-[9px] text-sky-600 font-sans font-medium">Teklif ({report.teklif_ihtimal || '%50'})</div>
+                                </div>
                               ) : (
                                 <span className="text-slate-400">-</span>
                               )}
                             </td>
 
-                            {/* Sonuç */}
-                            <td className="py-2.5 px-3 text-slate-700 max-w-[200px] text-[11px]">
+                            {/* Rezervasyon / Kuşak Detayı */}
+                            <td className="py-2.5 px-3 whitespace-nowrap text-[10px] font-mono">
+                              {report.rezervasyon_var ? (
+                                <div>
+                                  <div className="font-bold text-amber-800">
+                                    {report.rezervasyon_toplam_saniye} sn ({report.rezervasyon_turu || 'Spot'})
+                                  </div>
+                                  <div className="text-[9.5px] text-slate-500">
+                                    {report.rezervasyon_fiyat_tipi === 'PT_OPT' ? (
+                                      <span>OPT: {report.rezervasyon_opt_fiyat}₺ ({report.rezervasyon_opt_saniye}s) | PT: {report.rezervasyon_pt_fiyat}₺ ({report.rezervasyon_pt_saniye}s)</span>
+                                    ) : (
+                                      <span>Birim: {report.rezervasyon_birim_fiyat} ₺/sn</span>
+                                    )}
+                                  </div>
+                                </div>
+                              ) : (
+                                <span className="text-slate-400 font-sans">-</span>
+                              )}
+                            </td>
+
+                            {/* Sonuç & Not */}
+                            <td className="py-2.5 px-3 text-slate-700 max-w-[220px] text-[11px]">
                               <p className="line-clamp-2" title={report.sonuc || report.gorusme_amaci}>
                                 {report.sonuc || report.gorusme_amaci || '-'}
                               </p>
@@ -845,7 +1129,7 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
 
                             {/* İşlemler (No-Print) */}
                             <td className="py-2.5 px-3 text-right whitespace-nowrap no-print">
-                              {canDelete && !isManager ? (
+                              {canDelete && !isViewer ? (
                                 <button
                                   type="button"
                                   onClick={() => handleDeleteReport(report)}
@@ -855,9 +1139,7 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                                   <Trash2 className="w-3.5 h-3.5" />
                                 </button>
                               ) : (
-                                <span className="text-[10px] text-slate-400 italic" title="Yalnızca Görüntüleme">
-                                  İzleme
-                                </span>
+                                <span className="text-[10px] text-slate-400 italic">İzleme</span>
                               )}
                             </td>
 
@@ -867,7 +1149,7 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
 
                       {filteredReports.length === 0 && (
                         <tr>
-                          <td colSpan={14} className="text-center py-10 text-slate-400 font-mono text-xs">
+                          <td colSpan={12} className="text-center py-10 text-slate-400 font-mono text-xs">
                             SEÇİLEN KRİTERLERE UYGUN ÇALIŞMA RAPORU KAYDI BULUNAMADI
                           </td>
                         </tr>
@@ -877,8 +1159,133 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                 </div>
               </div>
 
-              {/* PRINT FOOTER / SIGNATURE BLOCK (Visible only on print/PDF) */}
-              <div className="hidden print:grid grid-cols-3 gap-8 pt-8 mt-6 border-t border-slate-300 text-center font-mono text-xs">
+            </div>
+          )}
+
+          {/* TAB 2: YÖNETİCİ FAALİYET ÖZETİ (A4 YATAY MATRİS RAPORU) */}
+          {activeTab === 'matrix' && (
+            <div className="space-y-4">
+              
+              {/* PRINT HEADER FOR MATRIX VIEW */}
+              <div className="border-b-2 border-slate-900 pb-3 mb-3">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h1 className="text-base sm:text-lg font-black tracking-tight font-mono text-slate-900">
+                      B! KANAL & SIFIR TV - REKLAM SATIŞ YÖNETİCİ FAALİYET ÖZET MATRİSİ
+                    </h1>
+                    <p className="text-xs text-slate-600 font-semibold mt-0.5">
+                      Marka ve Büyüme Merkezi • Reklam Satış Grup Direktörlüğü Faaliyet İcmali
+                    </p>
+                  </div>
+                  <div className="text-right text-xs font-mono">
+                    <div><strong>Tarih:</strong> {new Date().toLocaleDateString('tr-TR')}</div>
+                    <div><strong>Zaman Dilimi:</strong> {timeRange === 'today' ? 'Bugün' : timeRange === 'this_week' ? 'Bu Hafta' : timeRange === 'this_month' ? 'Bu Ay' : 'Tüm Dönem'}</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* PERSONEL BAZLI KONSOLİDE FAALİYET VE SATIŞ MATRİSİ */}
+              <div className="bg-white border border-slate-300 rounded-xl overflow-hidden shadow-xs">
+                <table className="w-full text-left text-xs font-sans">
+                  <thead className="bg-slate-900 text-white text-[10.5px] uppercase font-mono font-bold">
+                    <tr>
+                      <th className="py-2.5 px-3">Grup Üyesi (Personel)</th>
+                      <th className="py-2.5 px-2.5 text-center">Telefon</th>
+                      <th className="py-2.5 px-2.5 text-center">Dijital</th>
+                      <th className="py-2.5 px-2.5 text-center">Yüzyüze</th>
+                      <th className="py-2.5 px-2.5 text-center">Kurumsal Ziy.</th>
+                      <th className="py-2.5 px-2.5 text-center bg-slate-800 text-amber-300">Toplam Temas</th>
+                      <th className="py-2.5 px-3 text-right">Teklif (Adet / ₺)</th>
+                      <th className="py-2.5 px-3 text-right text-emerald-300">Satış (Adet / ₺)</th>
+                      <th className="py-2.5 px-3 text-right text-sky-300">Rezervasyon (sn)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200">
+                    {executiveMatrix.map((row) => (
+                      <tr key={row.user.id} className="hover:bg-slate-50 transition-colors">
+                        <td className="py-2.5 px-3">
+                          <div className="font-bold text-slate-900 text-xs">{row.user.name}</div>
+                          <div className="text-[9.5px] text-slate-500 font-mono">
+                            {row.user.role === 'SALES_MANAGER' ? 'Satış Yöneticisi' : row.user.role === 'ADMIN' ? 'Genel Müdür' : 'Satış Temsilcisi'}
+                          </div>
+                        </td>
+                        <td className="py-2.5 px-2.5 text-center font-mono font-bold text-slate-700">{row.telCount}</td>
+                        <td className="py-2.5 px-2.5 text-center font-mono font-bold text-slate-700">{row.dijitalCount}</td>
+                        <td className="py-2.5 px-2.5 text-center font-mono font-bold text-slate-700">{row.yuzyuzeCount}</td>
+                        <td className="py-2.5 px-2.5 text-center font-mono font-bold text-purple-700">{row.ziyaretCount}</td>
+                        <td className="py-2.5 px-2.5 text-center font-mono font-black text-slate-900 bg-slate-50">{row.totalActivities}</td>
+                        <td className="py-2.5 px-3 text-right font-mono">
+                          <span className="font-bold text-sky-700">{formatCurrency(row.teklifSum)}</span>
+                          <span className="text-[10px] text-slate-400 ml-1">({row.teklifCount})</span>
+                        </td>
+                        <td className="py-2.5 px-3 text-right font-mono">
+                          <span className="font-black text-emerald-700">{formatCurrency(row.satisSum)}</span>
+                          <span className="text-[10px] text-emerald-600 ml-1">({row.satisCount})</span>
+                        </td>
+                        <td className="py-2.5 px-3 text-right font-mono">
+                          <span className="font-bold text-amber-800">{row.rezSaniye} sn</span>
+                          <span className="text-[10px] text-slate-500 ml-1">({row.rezCount} ad.)</span>
+                        </td>
+                      </tr>
+                    ))}
+
+                    {/* DİP TOPLAM (GRAND TOTAL ROW) */}
+                    <tr className="bg-slate-100 font-mono text-xs font-black border-t-2 border-slate-900 text-slate-900">
+                      <td className="py-3 px-3 uppercase tracking-wider">GENEL DİP TOPLAM:</td>
+                      <td className="py-3 px-2.5 text-center text-slate-900">{matrixTotals.telCount}</td>
+                      <td className="py-3 px-2.5 text-center text-slate-900">{matrixTotals.dijitalCount}</td>
+                      <td className="py-3 px-2.5 text-center text-slate-900">{matrixTotals.yuzyuzeCount}</td>
+                      <td className="py-3 px-2.5 text-center text-purple-900">{matrixTotals.ziyaretCount}</td>
+                      <td className="py-3 px-2.5 text-center bg-slate-200 text-slate-950 font-black">{matrixTotals.totalActivities}</td>
+                      <td className="py-3 px-3 text-right text-sky-800">
+                        {formatCurrency(matrixTotals.teklifSum)} <span className="text-[10px] font-normal">({matrixTotals.teklifCount})</span>
+                      </td>
+                      <td className="py-3 px-3 text-right text-emerald-800">
+                        {formatCurrency(matrixTotals.satisSum)} <span className="text-[10px] font-normal">({matrixTotals.satisCount})</span>
+                      </td>
+                      <td className="py-3 px-3 text-right text-amber-900">
+                        {matrixTotals.rezSaniye} sn <span className="text-[10px] font-normal">({matrixTotals.rezCount})</span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              {/* TV REKLAM KUŞAK & REZERVASYON DAĞILIMI ANALİZ KUTULARI */}
+              <div className="grid grid-cols-3 gap-3 pt-2">
+                <div className="border border-slate-200 bg-slate-50 p-3 rounded-xl">
+                  <span className="text-[10px] font-mono font-bold uppercase text-slate-500 block">Kuşak Rezervasyon Özeti</span>
+                  <div className="text-sm font-mono font-bold text-slate-800 mt-1">
+                    Toplam Kuşak: <strong className="text-amber-800">{matrixTotals.rezSaniye} sn</strong> ({matrixTotals.rezCount} Adet)
+                  </div>
+                  <div className="text-[10.5px] text-slate-600 font-mono mt-0.5">
+                    OPT Saniyesi: {matrixTotals.rezOptSaniye} sn | PT Saniyesi: {matrixTotals.rezPtSaniye} sn
+                  </div>
+                </div>
+
+                <div className="border border-emerald-200 bg-emerald-50/50 p-3 rounded-xl">
+                  <span className="text-[10px] font-mono font-bold uppercase text-emerald-800 block">Kapanan Ciro & Başarı</span>
+                  <div className="text-sm font-mono font-bold text-emerald-800 mt-1">
+                    Toplam Satış: {formatCurrency(matrixTotals.satisSum)}
+                  </div>
+                  <div className="text-[10.5px] text-emerald-700 font-mono mt-0.5">
+                    {matrixTotals.satisCount} Başarılı Anlaşma
+                  </div>
+                </div>
+
+                <div className="border border-sky-200 bg-sky-50/50 p-3 rounded-xl">
+                  <span className="text-[10px] font-mono font-bold uppercase text-sky-800 block">Görüşülen & Teklif Portföyü</span>
+                  <div className="text-sm font-mono font-bold text-sky-800 mt-1">
+                    Teklif Havuzu: {formatCurrency(matrixTotals.teklifSum)}
+                  </div>
+                  <div className="text-[10.5px] text-sky-700 font-mono mt-0.5">
+                    {matrixTotals.totalActivities} Toplam Görüşme Teması
+                  </div>
+                </div>
+              </div>
+
+              {/* PRINT FOOTER / SIGNATURE BLOCK (Visible on matrix print) */}
+              <div className="grid grid-cols-3 gap-8 pt-8 mt-4 border-t border-slate-300 text-center font-mono text-xs">
                 <div>
                   <div className="font-bold text-slate-900">Raporu Hazırlayan</div>
                   <div className="text-slate-600 mt-1">{currentUser?.name || 'Sistem Kullanıcısı'}</div>
@@ -902,7 +1309,7 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
             </div>
           )}
 
-          {/* TAB 2: YENİ GÖRÜŞME / ÇALIŞMA RAPORU GİRİŞ FORMU */}
+          {/* TAB 3: YENİ GÖRÜŞME / ÇALIŞMA RAPORU GİRİŞ FORMU */}
           {activeTab === 'new_entry' && (
             <form onSubmit={handleSubmitReport} className="space-y-4 max-w-3xl mx-auto bg-slate-50 p-5 rounded-2xl border border-slate-200">
               
@@ -913,7 +1320,7 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                   </div>
                   <div>
                     <h3 className="font-mono font-bold text-sm text-slate-900">YENİ ÇALIŞMA RAPORU GİRİŞİ</h3>
-                    <p className="text-[10px] text-slate-500 font-mono">Yapılan görüşmeyi ve çıktıları kaydedin</p>
+                    <p className="text-[10px] text-slate-500 font-mono">Yapılan görüşmeyi, teklif, satış veya PT/OPT rezervasyonunu kaydedin</p>
                   </div>
                 </div>
                 <button
@@ -957,43 +1364,87 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                   />
                 </div>
 
-                {/* 2. Grup Üyesi / Temsilci (Admin için seçilebilir) */}
+                {/* 2. Grup Üyesi / Personel (Admin için seçilebilir, Temsilci ve Yönetici için kendi ID'sine kilitli) */}
                 <div className="space-y-1">
                   <label className="text-[11px] font-mono uppercase text-slate-700 font-bold flex items-center gap-1">
                     <Users className="w-3.5 h-3.5 text-sky-600" />
-                    Grup Üyesi / Temsilci *
+                    Grup Üyesi / Personel *
                   </label>
-                  <select
-                    disabled={!isSuperAdmin}
-                    value={assignedUserId}
-                    onChange={(e) => setAssignedUserId(e.target.value)}
-                    className="w-full text-xs px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-sky-500 shadow-2xs font-semibold disabled:opacity-75 cursor-pointer"
-                  >
-                    {users.map((u) => (
-                      <option key={u.id} value={u.id}>
-                        {u.name} ({u.role === 'SALES_MANAGER' ? 'Yönetici' : 'Satış Temsilcisi'})
-                      </option>
-                    ))}
-                  </select>
+                  {!isSuperAdmin ? (
+                    <div className="w-full text-xs px-3 py-2 bg-slate-100/90 border border-slate-200 rounded-lg text-slate-800 font-semibold flex items-center justify-between select-none">
+                      <span>{currentUser?.name || 'Giriş Yapan Kullanıcı'}</span>
+                      <span className="text-[10px] font-mono text-slate-500 uppercase bg-slate-200/80 px-2 py-0.5 rounded font-bold">Otomatik</span>
+                    </div>
+                  ) : (
+                    <select
+                      value={assignedUserId}
+                      onChange={(e) => setAssignedUserId(e.target.value)}
+                      className="w-full text-xs px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-sky-500 shadow-2xs font-semibold cursor-pointer"
+                    >
+                      {users.length > 0 ? (
+                        users.map((u) => (
+                          <option key={u.id} value={u.id}>
+                            {u.name} ({u.role === 'SALES_MANAGER' ? 'Yönetici' : u.role === 'ADMIN' ? 'Genel Müdür' : 'Satış Temsilcisi'})
+                          </option>
+                        ))
+                      ) : currentUser ? (
+                        <option value={currentUser.id}>{currentUser.name}</option>
+                      ) : null}
+                    </select>
+                  )}
                 </div>
 
-                {/* 3. Kurum Adı */}
-                <div className="space-y-1">
-                  <label className="text-[11px] font-mono uppercase text-slate-700 font-bold flex items-center gap-1">
-                    <Building2 className="w-3.5 h-3.5 text-sky-600" />
-                    Kurum / Firma Adı *
+                {/* 3. Kurum / Firma Adı - WITH AUTOCOMPLETE */}
+                <div className="space-y-1 relative" ref={autocompleteRef}>
+                  <label className="text-[11px] font-mono uppercase text-slate-700 font-bold flex items-center justify-between">
+                    <span className="flex items-center gap-1">
+                      <Building2 className="w-3.5 h-3.5 text-sky-600" />
+                      Kurum / Firma Adı *
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-normal">Otomatik tamamlama destekli</span>
                   </label>
                   <input
                     type="text"
                     required
-                    placeholder="Örn: Vestel, Eczacıbaşı, Çevre Bakanlığı"
+                    placeholder="Örn: ZİRAAT BANKASI, VESTEL..."
                     value={kurumAdi}
-                    onChange={(e) => setKurumAdi(e.target.value)}
-                    className="w-full text-xs px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-sky-500 shadow-2xs"
+                    onChange={(e) => {
+                      setKurumAdi(e.target.value);
+                      setShowSuggestions(true);
+                    }}
+                    onFocus={() => setShowSuggestions(true)}
+                    className="w-full text-xs px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-sky-500 shadow-2xs uppercase"
                   />
+
+                  {/* Suggestions Dropdown */}
+                  {showSuggestions && filteredSuggestions.length > 0 && (
+                    <div className="absolute top-full left-0 right-0 z-30 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden divide-y divide-slate-100 animate-in fade-in zoom-in-95 duration-100">
+                      <div className="px-3 py-1.5 bg-slate-50 text-[10px] font-mono font-bold text-slate-500 uppercase">
+                        Kayıtlı Kurumlar (Mükerrer kaydı önlemek için seçin):
+                      </div>
+                      {filteredSuggestions.map((item, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => handleSelectSuggestion(item)}
+                          className="w-full text-left px-3 py-2 hover:bg-sky-50 transition flex items-center justify-between text-xs cursor-pointer group"
+                        >
+                          <div>
+                            <span className="font-bold text-slate-900 group-hover:text-sky-700">{item.name}</span>
+                            {item.yetkili && (
+                              <span className="text-[10px] text-slate-500 ml-2 font-mono">• {item.yetkili}</span>
+                            )}
+                          </div>
+                          <span className="text-[9px] font-mono uppercase px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 font-bold border border-slate-200">
+                            {item.tip}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
-                {/* 4. Kurum Türü (Marka, Ajans, Kobi, Kamu) */}
+                {/* 4. Kurum Türü */}
                 <div className="space-y-1">
                   <label className="text-[11px] font-mono uppercase text-slate-700 font-bold">
                     Kurum Türü *
@@ -1010,7 +1461,7 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                   </select>
                 </div>
 
-                {/* 4.5. Müşteri Durumu (Yeni/Mevcut) */}
+                {/* 4.5. Müşteri Durumu */}
                 <div className="space-y-1">
                   <label className="text-[11px] font-mono uppercase text-slate-700 font-bold">
                     Müşteri Durumu *
@@ -1034,10 +1485,10 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                   <input
                     type="text"
                     required
-                    placeholder="Örn: Yetkili Kişi Adı Soyadı"
+                    placeholder="Örn: AHMET YILMAZ"
                     value={yetkili}
                     onChange={(e) => setYetkili(e.target.value)}
-                    className="w-full text-xs px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-sky-500 shadow-2xs"
+                    className="w-full text-xs px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-sky-500 shadow-2xs uppercase"
                   />
                 </div>
 
@@ -1049,7 +1500,7 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                   </label>
                   <input
                     type="tel"
-                    placeholder="Örn: 0555 000 0000"
+                    placeholder="0555 000 0000"
                     value={yetkiliTelefon}
                     onChange={(e) => setYetkiliTelefon(e.target.value)}
                     className="w-full text-xs px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-sky-500 shadow-2xs"
@@ -1060,18 +1511,18 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                 <div className="space-y-1">
                   <label className="text-[11px] font-mono uppercase text-slate-700 font-bold flex items-center gap-1">
                     <Mail className="w-3.5 h-3.5 text-indigo-600" />
-                    Yetkili E-posta
+                    Yetkili E-posta (Otomatik küçük harf)
                   </label>
                   <input
                     type="email"
-                    placeholder="Örn: yetkili@firma.com"
+                    placeholder="yetkili@firma.com"
                     value={yetkiliEposta}
                     onChange={(e) => setYetkiliEposta(e.target.value)}
-                    className="w-full text-xs px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-sky-500 shadow-2xs"
+                    className="w-full text-xs px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-sky-500 shadow-2xs lowercase"
                   />
                 </div>
 
-                {/* 6. İletişim Türü Seçici Butonları */}
+                {/* 6. İletişim Türü */}
                 <div className="space-y-1.5 sm:col-span-2">
                   <label className="text-[11px] font-mono uppercase text-slate-700 font-bold">
                     İletişim Türü Seçin *
@@ -1146,7 +1597,7 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                     placeholder="Kiminle ve ne amaçla görüşüldüğü, konuşulan detaylar, takip notları..."
                     value={gorusmeAmaci}
                     onChange={(e) => setGorusmeAmaci(e.target.value)}
-                    className="w-full text-xs px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-sky-500 shadow-2xs resize-none"
+                    className="w-full text-xs px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-sky-500 shadow-2xs resize-none uppercase"
                   />
                 </div>
 
@@ -1157,16 +1608,16 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                   </label>
                   <input
                     type="text"
-                    placeholder="Örn: Teklif İstendi, Randevu İstendi, Görüşme Devam Ediyor..."
+                    placeholder="Örn: TEKLİF İSTENDİ, GÖRÜŞME DEVAM EDİYOR..."
                     value={sonuc}
                     onChange={(e) => setSonuc(e.target.value)}
-                    className="w-full text-xs px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-sky-500 shadow-2xs"
+                    className="w-full text-xs px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-sky-500 shadow-2xs uppercase"
                   />
                 </div>
 
               </div>
 
-              {/* OPSİYONEL ALANLAR: TEKLİF, SATIŞ, KURUMSAL ZİYARET, REZERVASYON */}
+              {/* OPSİYONEL ALANLAR: TEKLİF, SATIŞ, REZERVASYON */}
               <div className="pt-2 border-t border-slate-200 space-y-3">
                 <span className="text-xs font-mono font-bold uppercase text-slate-500 block">
                   İşlem & Çıktı Detayları (Opsiyonel):
@@ -1261,69 +1712,171 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                   )}
                 </div>
 
-                {/* REZERVASYON BÖLÜMÜ */}
-                <div className="bg-white p-3.5 rounded-xl border border-slate-200 space-y-2.5">
-                  <label className="flex items-center gap-2 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={rezervasyonVar}
-                      onChange={(e) => setRezervasyonVar(e.target.checked)}
-                      className="rounded border-slate-300 text-amber-600 focus:ring-0 w-4 h-4 cursor-pointer"
-                    />
-                    <span className="text-xs font-bold text-slate-800">
-                      Rezervasyon Kaydı
-                    </span>
-                  </label>
+                {/* TV REKLAM REZERVASYONU BÖLÜMÜ (PT / OPT / TEK FİYAT DESTEKLİ) */}
+                <div className="bg-white p-3.5 rounded-xl border border-slate-200 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={rezervasyonVar}
+                        onChange={(e) => setRezervasyonVar(e.target.checked)}
+                        className="rounded border-slate-300 text-amber-600 focus:ring-0 w-4 h-4 cursor-pointer"
+                      />
+                      <span className="text-xs font-bold text-slate-800">
+                        Rezervasyon Kuşak Kaydı
+                      </span>
+                    </label>
+
+                    {rezervasyonVar && (
+                      <div className="flex items-center bg-slate-100 p-0.5 rounded-lg text-[11px] font-semibold">
+                        <button
+                          type="button"
+                          onClick={() => setRezervasyonFiyatTipi('TEK_FIYAT')}
+                          className={`px-2.5 py-1 rounded-md transition cursor-pointer ${
+                            rezervasyonFiyatTipi === 'TEK_FIYAT'
+                              ? 'bg-amber-600 text-white font-bold shadow-2xs'
+                              : 'text-slate-600 hover:text-slate-900'
+                          }`}
+                        >
+                          Tek Fiyat (40 ₺)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setRezervasyonFiyatTipi('PT_OPT')}
+                          className={`px-2.5 py-1 rounded-md transition cursor-pointer ${
+                            rezervasyonFiyatTipi === 'PT_OPT'
+                              ? 'bg-amber-600 text-white font-bold shadow-2xs'
+                              : 'text-slate-600 hover:text-slate-900'
+                          }`}
+                        >
+                          OPT (35 ₺) & PT (50 ₺)
+                        </button>
+                      </div>
+                    )}
+                  </div>
 
                   {rezervasyonVar && (
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-2 border-t border-slate-100">
-                      <div>
-                        <label className="text-[10px] font-mono uppercase text-slate-500 font-bold">Gelen (1-100)</label>
-                        <input
-                          type="number"
-                          min="1"
-                          max="100"
-                          value={rezervasyonGelen}
-                          onChange={(e) => setRezervasyonGelen(e.target.value)}
-                          className="w-full text-xs px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-mono font-bold focus:outline-none focus:border-sky-500"
-                        />
+                    <div className="space-y-3 pt-2 border-t border-slate-100">
+                      
+                      {/* Rezervasyon Adet ve Türü */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-[10px] font-mono uppercase text-slate-500 font-bold">Rezervasyon Adedi</label>
+                          <input
+                            type="number"
+                            min="1"
+                            max="100"
+                            value={rezervasyonGelen}
+                            onChange={(e) => setRezervasyonGelen(e.target.value)}
+                            className="w-full text-xs px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-mono font-bold focus:outline-none focus:border-sky-500"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-[10px] font-mono uppercase text-slate-500 font-bold">Rezervasyon Türü</label>
+                          <select
+                            value={rezervasyonTuru}
+                            onChange={(e) => setRezervasyonTuru(e.target.value as WorkReportReservationType)}
+                            className="w-full text-xs px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-sky-500 cursor-pointer"
+                          >
+                            <option value="Spot">Spot</option>
+                            <option value="Alt Bant">Alt Bant</option>
+                            <option value="Sponsorluk">Sponsorluk</option>
+                            <option value="Kamu Spotu">Kamu Spotu</option>
+                          </select>
+                        </div>
                       </div>
 
-                      <div>
-                        <label className="text-[10px] font-mono uppercase text-slate-500 font-bold">Tür</label>
-                        <select
-                          value={rezervasyonTuru}
-                          onChange={(e) => setRezervasyonTuru(e.target.value as WorkReportReservationType)}
-                          className="w-full text-xs px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-sky-500 cursor-pointer"
-                        >
-                          <option value="Spot">Spot</option>
-                          <option value="Alt Bant">Alt Bant</option>
-                          <option value="Sponsorluk">Sponsorluk</option>
-                          <option value="Kamu Spotu">Kamu Spotu</option>
-                        </select>
+                      {/* SEÇENEK 1: TEK FİYAT MODU */}
+                      {rezervasyonFiyatTipi === 'TEK_FIYAT' && (
+                        <div className="grid grid-cols-2 gap-3 bg-amber-50/50 p-3 rounded-xl border border-amber-200/80">
+                          <div>
+                            <label className="text-[10px] font-mono uppercase text-amber-800 font-bold">Tek Birim Fiyat (₺/sn)</label>
+                            <input
+                              type="number"
+                              placeholder="40"
+                              value={rezervasyonBirimFiyat}
+                              onChange={(e) => setRezervasyonBirimFiyat(e.target.value)}
+                              className="w-full text-xs px-2.5 py-1.5 bg-white border border-amber-300 rounded-lg text-slate-900 font-mono font-bold focus:outline-none focus:border-sky-500"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="text-[10px] font-mono uppercase text-amber-800 font-bold">Toplam Saniye</label>
+                            <input
+                              type="number"
+                              placeholder="30"
+                              value={rezervasyonToplamSaniye}
+                              onChange={(e) => setRezervasyonToplamSaniye(e.target.value)}
+                              className="w-full text-xs px-2.5 py-1.5 bg-white border border-amber-300 rounded-lg text-slate-900 font-mono font-bold focus:outline-none focus:border-sky-500"
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {/* SEÇENEK 2: PT / OPT AYRI KUŞAK MODU */}
+                      {rezervasyonFiyatTipi === 'PT_OPT' && (
+                        <div className="space-y-2.5 bg-amber-50/50 p-3 rounded-xl border border-amber-200/80">
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                            {/* OPT Gündüz Kuşağı */}
+                            <div>
+                              <label className="text-[10px] font-mono uppercase text-amber-800 font-bold">OPT Saniyesi (Gündüz)</label>
+                              <input
+                                type="number"
+                                placeholder="20"
+                                value={rezervasyonOptSaniye}
+                                onChange={(e) => setRezervasyonOptSaniye(e.target.value)}
+                                className="w-full text-xs px-2 py-1.5 bg-white border border-amber-300 rounded-lg text-slate-900 font-mono font-bold focus:outline-none"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="text-[10px] font-mono uppercase text-amber-800 font-bold">OPT Birim Fiyat (₺)</label>
+                              <input
+                                type="number"
+                                placeholder="35"
+                                value={rezervasyonOptFiyat}
+                                onChange={(e) => setRezervasyonOptFiyat(e.target.value)}
+                                className="w-full text-xs px-2 py-1.5 bg-white border border-amber-300 rounded-lg text-slate-900 font-mono font-bold focus:outline-none"
+                              />
+                            </div>
+
+                            {/* PT Akşam Kuşağı */}
+                            <div>
+                              <label className="text-[10px] font-mono uppercase text-amber-800 font-bold">PT Saniyesi (Akşam)</label>
+                              <input
+                                type="number"
+                                placeholder="10"
+                                value={rezervasyonPtSaniye}
+                                onChange={(e) => setRezervasyonPtSaniye(e.target.value)}
+                                className="w-full text-xs px-2 py-1.5 bg-white border border-amber-300 rounded-lg text-slate-900 font-mono font-bold focus:outline-none"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="text-[10px] font-mono uppercase text-amber-800 font-bold">PT Birim Fiyat (₺)</label>
+                              <input
+                                type="number"
+                                placeholder="50"
+                                value={rezervasyonPtFiyat}
+                                onChange={(e) => setRezervasyonPtFiyat(e.target.value)}
+                                className="w-full text-xs px-2 py-1.5 bg-white border border-amber-300 rounded-lg text-slate-900 font-mono font-bold focus:outline-none"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Otomatik Hesaplanan Rezervasyon Özeti */}
+                      <div className="flex flex-wrap items-center justify-between text-xs bg-slate-100 px-3 py-2 rounded-lg font-mono">
+                        <span className="text-slate-600 font-bold">
+                          Hesaplanan Kuşak: <strong className="text-slate-900">{calculatedReservation.totalSaniye} sn</strong> Toplam
+                        </span>
+                        <span className="text-amber-800 font-bold">
+                          Rezervasyon Tutarı: <strong className="text-emerald-700">{formatCurrency(calculatedReservation.totalAmount)}</strong>
+                        </span>
                       </div>
 
-                      <div>
-                        <label className="text-[10px] font-mono uppercase text-slate-500 font-bold">Birim Fiyat (₺)</label>
-                        <input
-                          type="number"
-                          placeholder="2500"
-                          value={rezervasyonBirimFiyat}
-                          onChange={(e) => setRezervasyonBirimFiyat(e.target.value)}
-                          className="w-full text-xs px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-mono focus:outline-none focus:border-sky-500"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="text-[10px] font-mono uppercase text-slate-500 font-bold">Toplam Saniye</label>
-                        <input
-                          type="number"
-                          placeholder="45"
-                          value={rezervasyonToplamSaniye}
-                          onChange={(e) => setRezervasyonToplamSaniye(e.target.value)}
-                          className="w-full text-xs px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-mono font-bold focus:outline-none focus:border-sky-500"
-                        />
-                      </div>
                     </div>
                   )}
                 </div>
@@ -1368,7 +1921,15 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
           <div className="text-[11px] font-mono text-slate-500">
             Aktif Kullanıcı: <strong className="text-slate-800">{currentUser?.name || 'Süper Admin'}</strong>
             <span className="mx-1.5">•</span>
-            Rol: <strong className="text-sky-700">{currentUser?.role === 'ADMIN' ? 'Süper Admin' : currentUser?.role === 'SALES_MANAGER' ? 'Satış Yöneticisi' : 'Satış Temsilcisi'}</strong>
+            Rol: <strong className="text-sky-700">
+              {currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPER_ADMIN' 
+                ? 'Süper Admin (Genel Müdür)' 
+                : currentUser?.role === 'SALES_MANAGER' 
+                ? 'Satış Yöneticisi' 
+                : currentUser?.role === 'VIEWER'
+                ? 'Yönetim Katı / Misafir'
+                : 'Satış Temsilcisi'}
+            </strong>
           </div>
           <button
             type="button"
@@ -1383,3 +1944,4 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
     </div>
   );
 };
+

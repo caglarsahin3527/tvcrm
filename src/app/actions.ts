@@ -152,21 +152,19 @@ export async function createClientAndDeal(data: {
         musteri_tipi: data.musteri_tipi || 'Kurumsal',
         satis_temsilcisi_id: repId,
         sonraki_takip_tarihi: isNaN(followUpDate.getTime()) ? new Date() : followUpDate,
-        deals: data.has_deal
-          ? {
-              create: {
-                kanal: data.kanal || 'Bi Kanal',
-                teklif_tutari: Number(data.teklif_tutari) || 0,
-                yayin_donemi: data.yayin_donemi || '',
-                tahmini_kapanis_tarihi: data.tahmini_kapanis_tarihi && !isNaN(new Date(data.tahmini_kapanis_tarihi).getTime())
-                  ? new Date(data.tahmini_kapanis_tarihi)
-                  : null,
-                ihtimal_derecesi: data.ihtimal_derecesi || 'Orta',
-                asama: data.asama || 'YENİ LEAD',
-                not: data.not || '',
-              },
-            }
-          : undefined,
+        deals: {
+          create: {
+            kanal: data.kanal || 'Bi Kanal',
+            teklif_tutari: Number(data.teklif_tutari) || 0,
+            yayin_donemi: data.yayin_donemi || '',
+            tahmini_kapanis_tarihi: data.tahmini_kapanis_tarihi && !isNaN(new Date(data.tahmini_kapanis_tarihi).getTime())
+              ? new Date(data.tahmini_kapanis_tarihi)
+              : null,
+            ihtimal_derecesi: data.ihtimal_derecesi || 'Orta',
+            asama: data.asama || 'YENİ LEAD',
+            not: data.not || 'Yeni Müşteri Kaydı',
+          },
+        },
       },
       include: {
         deals: true,
@@ -344,8 +342,8 @@ export async function getWorkReports(filters?: {
 export async function createWorkReport(data: any) {
   const sessionUser = await getSessionUser();
   if (!sessionUser) throw new Error('Oturum açılmalıdır.');
-  if (sessionUser.role === 'SALES_MANAGER') {
-    throw new Error('İzleyen yöneticiler çalışma raporu ekleyemez.');
+  if (sessionUser.role === 'VIEWER') {
+    throw new Error('İzleme / Misafir yetkisinde çalışma raporu eklenemez.');
   }
 
   const effectiveUserId = (sessionUser.role === 'ADMIN' && data.user_id) ? data.user_id : sessionUser.id;
@@ -372,6 +370,11 @@ export async function createWorkReport(data: any) {
       rezervasyon_turu: data.rezervasyon_var ? data.rezervasyon_turu || '' : '',
       rezervasyon_birim_fiyat: data.rezervasyon_var ? Number(data.rezervasyon_birim_fiyat) || 0 : 0,
       rezervasyon_toplam_saniye: data.rezervasyon_var ? Number(data.rezervasyon_toplam_saniye) || 0 : 0,
+      rezervasyon_fiyat_tipi: data.rezervasyon_var ? data.rezervasyon_fiyat_tipi || 'TEK' : null,
+      rezervasyon_opt_saniye: data.rezervasyon_var ? Number(data.rezervasyon_opt_saniye) || 0 : 0,
+      rezervasyon_opt_fiyat: data.rezervasyon_var ? Number(data.rezervasyon_opt_fiyat) || 0 : 0,
+      rezervasyon_pt_saniye: data.rezervasyon_var ? Number(data.rezervasyon_pt_saniye) || 0 : 0,
+      rezervasyon_pt_fiyat: data.rezervasyon_var ? Number(data.rezervasyon_pt_fiyat) || 0 : 0,
     },
     include: {
       user: true,

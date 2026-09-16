@@ -1,4 +1,4 @@
-export type UserRole = 'SALES_REP' | 'SALES_MANAGER' | 'ADMIN';
+export type UserRole = 'SALES_REP' | 'SALES_MANAGER' | 'ADMIN' | 'VIEWER';
 
 export type CustomerType = 'Kamu' | 'Kurumsal' | 'KOBİ' | 'Ajans' | 'Diğer';
 
@@ -111,8 +111,14 @@ export interface WorkReport {
   rezervasyon_var: boolean;
   rezervasyon_gelen?: number | null;
   rezervasyon_turu?: string | null;
+  rezervasyon_fiyat_tipi?: 'TEK_FIYAT' | 'PT_OPT' | string | null;
+  rezervasyon_opt_saniye?: number | null;
+  rezervasyon_opt_fiyat?: number | null;
+  rezervasyon_pt_saniye?: number | null;
+  rezervasyon_pt_fiyat?: number | null;
   rezervasyon_birim_fiyat?: number | null;
   rezervasyon_toplam_saniye?: number | null;
   createdAt: Date | string;
   updatedAt?: Date | string;
 }
+

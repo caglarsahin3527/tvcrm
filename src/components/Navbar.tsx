@@ -41,12 +41,15 @@ export const Navbar: React.FC<NavbarProps> = ({
         return { label: 'Süper Admin (Genel Müdür)', color: 'text-rose-700 bg-rose-50 border-rose-200' };
       case 'SALES_MANAGER':
         return { label: 'Satış Yöneticisi', color: 'text-sky-700 bg-sky-50 border-sky-200' };
+      case 'VIEWER':
+        return { label: 'Yönetim Katı / Misafir', color: 'text-purple-700 bg-purple-50 border-purple-200' };
       default:
         return { label: 'Satış Temsilcisi', color: 'text-emerald-700 bg-emerald-50 border-emerald-200' };
     }
   };
 
   const isSuperAdmin = currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPER_ADMIN';
+  const isViewer = currentUser?.role === 'VIEWER';
   const roleInfo = currentUser ? getRoleBadge(currentUser.role) : getRoleBadge('ADMIN');
 
   return (
@@ -144,14 +147,16 @@ export const Navbar: React.FC<NavbarProps> = ({
             )}
 
             {/* Quick Add Client Button */}
-            <button
-              type="button"
-              onClick={onOpenAddClient}
-              className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3.5 py-1.5 rounded-lg text-xs tracking-tight transition-all active:scale-95 shadow-sm shadow-emerald-600/20 cursor-pointer shrink-0"
-            >
-              <Plus className="w-4 h-4 stroke-[3]" />
-              <span>Yeni Müşteri Ekle</span>
-            </button>
+            {!isViewer && (
+              <button
+                type="button"
+                onClick={onOpenAddClient}
+                className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3.5 py-1.5 rounded-lg text-xs tracking-tight transition-all active:scale-95 shadow-sm shadow-emerald-600/20 cursor-pointer shrink-0"
+              >
+                <Plus className="w-4 h-4 stroke-[3]" />
+                <span>Yeni Müşteri Ekle</span>
+              </button>
+            )}
 
             {/* Authenticated User Badge & Logout */}
             <div className="flex items-center gap-2.5 pl-2 border-l border-slate-200">
@@ -240,14 +245,16 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </button>
               )}
 
-              <button
-                type="button"
-                onClick={onOpenAddClient}
-                className="flex items-center gap-1 bg-emerald-600 text-white font-bold px-2 py-1.5 rounded-lg text-[11px] shrink-0"
-              >
-                <Plus className="w-3.5 h-3.5 stroke-[3]" />
-                <span>Ekle</span>
-              </button>
+              {!isViewer && (
+                <button
+                  type="button"
+                  onClick={onOpenAddClient}
+                  className="flex items-center gap-1 bg-emerald-600 text-white font-bold px-2 py-1.5 rounded-lg text-[11px] shrink-0"
+                >
+                  <Plus className="w-3.5 h-3.5 stroke-[3]" />
+                  <span>Ekle</span>
+                </button>
+              )}
 
               <button
                 type="button"

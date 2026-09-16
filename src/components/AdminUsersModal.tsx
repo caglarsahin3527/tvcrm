@@ -43,7 +43,7 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
   const [newName, setNewName] = useState('');
   const [newEmail, setNewEmail] = useState('');
   const [newPassword, setNewPassword] = useState('');
-  const [newRole, setNewRole] = useState<'SALES_REP' | 'SALES_MANAGER' | 'ADMIN'>('SALES_REP');
+  const [newRole, setNewRole] = useState<'SALES_REP' | 'SALES_MANAGER' | 'ADMIN' | 'VIEWER'>('SALES_REP');
   const [newTarget, setNewTarget] = useState('500000');
   const [newPhone, setNewPhone] = useState('');
 
@@ -52,7 +52,7 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
   const [editName, setEditName] = useState('');
   const [editEmail, setEditEmail] = useState('');
   const [editPassword, setEditPassword] = useState('');
-  const [editRole, setEditRole] = useState<'SALES_REP' | 'SALES_MANAGER' | 'ADMIN'>('SALES_REP');
+  const [editRole, setEditRole] = useState<'SALES_REP' | 'SALES_MANAGER' | 'ADMIN' | 'VIEWER'>('SALES_REP');
   const [editTarget, setEditTarget] = useState('500000');
   const [editPhone, setEditPhone] = useState('');
 
@@ -313,6 +313,7 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
                   {userList.map((u) => {
                     const isSuper = u.role === 'ADMIN' || u.role === 'SUPER_ADMIN';
                     const isManager = u.role === 'SALES_MANAGER';
+                    const isViewer = u.role === 'VIEWER';
                     const isSelf = u.id === currentUser?.id;
 
                     return (
@@ -325,7 +326,9 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
                             isSuper 
                               ? 'bg-rose-100 text-rose-700 border border-rose-200' 
                               : isManager 
-                              ? 'bg-sky-100 text-sky-700 border border-sky-200' 
+                              ? 'bg-sky-100 text-sky-700 border border-sky-200'
+                              : isViewer
+                              ? 'bg-purple-100 text-purple-700 border border-purple-200'
                               : 'bg-emerald-100 text-emerald-700 border border-emerald-200'
                           }`}>
                             {u.name.substring(0, 2).toUpperCase()}
@@ -344,9 +347,11 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
                                   ? 'bg-rose-50 text-rose-700 border-rose-200' 
                                   : isManager 
                                   ? 'bg-sky-50 text-sky-700 border-sky-200' 
+                                  : isViewer
+                                  ? 'bg-purple-50 text-purple-700 border-purple-200'
                                   : 'bg-emerald-50 text-emerald-700 border-emerald-200'
                               }`}>
-                                {isSuper ? 'Genel Müdür (Admin)' : isManager ? 'Satış Yöneticisi' : 'Satış Temsilcisi'}
+                                {isSuper ? 'Genel Müdür (Süper Admin)' : isManager ? 'Satış Yöneticisi' : isViewer ? 'Yönetim Katı / Misafir (Salt Okunur)' : 'Satış Temsilcisi'}
                               </span>
                             </div>
 
@@ -459,8 +464,9 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
                     onChange={(e: any) => setNewRole(e.target.value)}
                     className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-sky-500 shadow-2xs font-semibold"
                   >
-                    <option value="SALES_REP">Satış Temsilcisi (Çalışma Raporu ve Portföy Yönetimi)</option>
-                    <option value="SALES_MANAGER">Satış Yöneticisi (İzleme & Takip)</option>
+                    <option value="SALES_REP">Satış Temsilcisi (Çalışma Raporu, Müşteri ve Portföy Yönetimi)</option>
+                    <option value="SALES_MANAGER">Satış Yöneticisi (Tüm Ekibi Görür, Çalışma ve Satış Kaydeder)</option>
+                    <option value="VIEWER">Misafir / Yönetim Katı (Tüm Ekranları İzler, Müdahale / Düzenleme Yapamaz)</option>
                     <option value="ADMIN">Süper Admin (Tüm Yetkiler, Rapor Alma & Grup Yönetimi)</option>
                   </select>
                 </div>
@@ -575,9 +581,10 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
                     onChange={(e: any) => setEditRole(e.target.value)}
                     className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-sky-500 shadow-2xs font-semibold"
                   >
-                    <option value="SALES_REP">Satış Temsilcisi</option>
-                    <option value="SALES_MANAGER">Satış Yöneticisi</option>
-                    <option value="ADMIN">Süper Admin</option>
+                    <option value="SALES_REP">Satış Temsilcisi (Çalışma Raporu, Müşteri ve Portföy Yönetimi)</option>
+                    <option value="SALES_MANAGER">Satış Yöneticisi (Tüm Ekibi Görür, Çalışma ve Satış Kaydeder)</option>
+                    <option value="VIEWER">Misafir / Yönetim Katı (Tüm Ekranları İzler, Müdahale / Düzenleme Yapamaz)</option>
+                    <option value="ADMIN">Süper Admin (Tüm Yetkiler, Rapor Alma & Grup Yönetimi)</option>
                   </select>
                 </div>
 

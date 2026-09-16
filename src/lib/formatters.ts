@@ -71,3 +71,14 @@ export function exportToCsv(data: Record<string, any>[], filename: string) {
   link.click();
   document.body.removeChild(link);
 }
+
+export function toTurkishUpper(str: string | null | undefined): string {
+  if (!str) return '';
+  return str.toLocaleUpperCase('tr-TR');
+}
+
+export function toCleanEmail(email: string | null | undefined): string {
+  if (!email) return '';
+  return email.trim().toLowerCase();
+}
+

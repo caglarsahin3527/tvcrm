@@ -13,7 +13,7 @@ model User {
   name      String
   email     String   @unique
   password  String   @default("") // Hashed password
-  role      String   // "SALES_REP", "SALES_MANAGER", "ADMIN"
+  role      String   // "SALES_REP", "SALES_MANAGER", "ADMIN", "VIEWER"
   target    Float    @default(500000) // Aylık Satış Hedefi (TL)
   phone     String?  @default("")
   avatar      String?      @default("")
@@ -87,10 +87,16 @@ model WorkReport {
   rezervasyon_var           Boolean   @default(false)
   rezervasyon_gelen         Int?      @default(0)  // 1-100 arası rakam
   rezervasyon_turu          String?   @default("") // "Spot", "Alt Bant", "Sponsorluk", "Kamu Spotu"
+  rezervasyon_fiyat_tipi    String?   @default("TEK_FIYAT") // "TEK_FIYAT", "PT_OPT"
+  rezervasyon_opt_saniye    Int?      @default(0)
+  rezervasyon_opt_fiyat     Float?    @default(0)
+  rezervasyon_pt_saniye     Int?      @default(0)
+  rezervasyon_pt_fiyat      Float?    @default(0)
   rezervasyon_birim_fiyat   Float?    @default(0)
   rezervasyon_toplam_saniye Int?      @default(0)
   createdAt                 DateTime  @default(now())
   updatedAt                 DateTime  @updatedAt
+
 
   @@index([user_id])
   @@index([tarih])

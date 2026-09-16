@@ -1,14 +1,16 @@
 'use client';
 
-import React, { useState } from 'react';
-import { User, CustomerType } from '@/types';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { User, Client, CustomerType } from '@/types';
 import { createClient } from '@/app/actions';
-import { X, Building2, User as UserIcon, Phone, Mail, Calendar, Plus, Loader2 } from 'lucide-react';
+import { toTurkishUpper, toCleanEmail } from '@/lib/formatters';
+import { X, Building2, User as UserIcon, Phone, Mail, Calendar, Plus, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 interface QuickAddClientModalProps {
   isOpen: boolean;
   onClose: () => void;
   users: User[];
+  clients?: Client[];
   currentUser: User | null;
   onSuccess: () => void;
 }
@@ -17,10 +19,12 @@ export const QuickAddClientModal: React.FC<QuickAddClientModalProps> = ({
   isOpen,
   onClose,
   users,
+  clients = [],
   currentUser,
   onSuccess,
 }) => {
   const [loading, setLoading] = useState(false);
+  const isSuperAdmin = currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPER_ADMIN';
 
   // Form states
   const [firmaAdi, setFirmaAdi] = useState('');
@@ -32,14 +36,50 @@ export const QuickAddClientModal: React.FC<QuickAddClientModalProps> = ({
     currentUser ? currentUser.id : users[0]?.id || ''
   );
 
-  // Synchronize rep ID ONLY when modal opens or when users list changes initially
+  // Autocomplete state
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const autocompleteRef = useRef<HTMLDivElement>(null);
+
+  // Close suggestions when clicked outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (autocompleteRef.current && !autocompleteRef.current.contains(event.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Filtered suggestions based on user input
+  const filteredSuggestions = useMemo(() => {
+    if (!firmaAdi.trim() || firmaAdi.trim().length < 1) return [];
+    const query = firmaAdi.trim().toLocaleUpperCase('tr-TR');
+    return clients.filter((c) =>
+      c.firma_adi?.toLocaleUpperCase('tr-TR').includes(query)
+    );
+  }, [firmaAdi, clients]);
+
+  // Handle selecting an autocomplete suggestion
+  const handleSelectSuggestion = (client: Client) => {
+    setFirmaAdi(toTurkishUpper(client.firma_adi));
+    if (client.yetkili_kisi) setYetkiliKisi(toTurkishUpper(client.yetkili_kisi));
+    if (client.telefon) setTelefon(client.telefon);
+    if (client.eposta) setEposta(toCleanEmail(client.eposta));
+    if (client.musteri_tipi) setMusteriTipi(client.musteri_tipi as CustomerType);
+    setShowSuggestions(false);
+  };
+
+  // Synchronize rep ID when modal opens
   React.useEffect(() => {
-    if (isOpen) {
-      if (currentUser?.role === 'SALES_REP' || !satisTemsilcisiId) {
-        setSatisTemsilcisiId(currentUser ? currentUser.id : users[0]?.id || '');
+    if (isOpen && currentUser) {
+      if (!isSuperAdmin) {
+        setSatisTemsilcisiId(currentUser.id);
+      } else if (!satisTemsilcisiId) {
+        setSatisTemsilcisiId(currentUser.id);
       }
     }
-  }, [isOpen]);
+  }, [isOpen, currentUser, isSuperAdmin]);
   
   const defaultFollowUp = new Date();
   defaultFollowUp.setDate(defaultFollowUp.getDate() + 1);
@@ -56,18 +96,21 @@ export const QuickAddClientModal: React.FC<QuickAddClientModalProps> = ({
       return;
     }
 
-    const effectiveRepId = satisTemsilcisiId || currentUser?.id || users[0]?.id || '';
+    const effectiveRepId = !isSuperAdmin ? (currentUser?.id || satisTemsilcisiId) : (satisTemsilcisiId || currentUser?.id || users[0]?.id || '');
 
     setLoading(true);
     try {
       const payload = {
-        firma_adi: firmaAdi,
-        yetkili_kisi: yetkiliKisi,
+        firma_adi: toTurkishUpper(firmaAdi),
+        yetkili_kisi: toTurkishUpper(yetkiliKisi),
         telefon: telefon,
-        eposta: eposta || undefined,
+        eposta: toCleanEmail(eposta) || undefined,
         musteri_tipi: musteriTipi,
         satis_temsilcisi_id: effectiveRepId,
         sonraki_takip_tarihi: sonrakiTakipTarihi,
+        has_deal: true,
+        kanal: 'Bi Kanal',
+        asama: 'YENİ LEAD',
       };
 
       const res = await fetch('/api/clients', {
@@ -123,33 +166,85 @@ export const QuickAddClientModal: React.FC<QuickAddClientModalProps> = ({
         <form onSubmit={handleSubmit} className="p-5 space-y-3.5 max-h-[80vh] overflow-y-auto">
           
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {/* Firma Adı */}
-            <div className="space-y-1 sm:col-span-2">
-              <label className="text-[11px] font-mono uppercase text-slate-600 font-semibold flex items-center gap-1">
-                Firma Adı <span className="text-rose-500">*</span>
-              </label>
+            {/* Firma Adı with Autocomplete & Live Uppercase */}
+            <div className="space-y-1 sm:col-span-2 relative" ref={autocompleteRef}>
+              <div className="flex items-center justify-between">
+                <label className="text-[11px] font-mono uppercase text-slate-700 font-bold flex items-center gap-1">
+                  <Building2 className="w-3.5 h-3.5 text-sky-600" />
+                  Firma Adı <span className="text-rose-500">*</span>
+                </label>
+                <span className="text-[10px] font-mono text-slate-400 font-normal">
+                  Otomatik BÜYÜK HARF & Öneri
+                </span>
+              </div>
               <input
                 type="text"
                 required
-                placeholder="Örn: Vestel Elektronik A.Ş."
+                placeholder="Örn: ZİRAAT BANKASI, VESTEL A.Ş."
                 value={firmaAdi}
-                onChange={(e) => setFirmaAdi(e.target.value)}
-                className="w-full text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 placeholder-slate-400 focus:outline-none focus:border-sky-500 focus:bg-white"
+                onChange={(e) => {
+                  setFirmaAdi(toTurkishUpper(e.target.value));
+                  setShowSuggestions(true);
+                }}
+                onFocus={() => setShowSuggestions(true)}
+                className="w-full text-xs px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-bold uppercase tracking-wide placeholder:normal-case placeholder:font-normal placeholder-slate-400 focus:outline-none focus:border-sky-500 focus:bg-white transition"
               />
+
+              {/* Autocomplete Dropdown List */}
+              {showSuggestions && filteredSuggestions.length > 0 && (
+                <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-50 max-h-56 overflow-y-auto divide-y divide-slate-100 animate-in fade-in slide-in-from-top-1 duration-100">
+                  <div className="px-3 py-1.5 bg-slate-50 text-[10px] font-mono font-bold text-slate-500 uppercase flex items-center justify-between">
+                    <span>Mevcut Müşteri Önerileri ({filteredSuggestions.length})</span>
+                    <span className="text-[9px] text-sky-600 font-normal">Tıklayarak bilgileri otomatik doldurun</span>
+                  </div>
+                  {filteredSuggestions.map((client) => (
+                    <button
+                      key={client.id}
+                      type="button"
+                      onClick={() => handleSelectSuggestion(client)}
+                      className="w-full text-left px-3 py-2 hover:bg-sky-50/80 transition flex items-center justify-between gap-2 group cursor-pointer"
+                    >
+                      <div className="min-w-0">
+                        <div className="font-bold text-xs text-slate-900 group-hover:text-sky-700 flex items-center gap-1.5">
+                          <span>{client.firma_adi}</span>
+                          <span className="text-[9px] font-mono font-medium px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">
+                            Kayıtlı
+                          </span>
+                        </div>
+                        <div className="text-[10px] text-slate-500 font-medium flex items-center gap-2 mt-0.5">
+                          <span>Yetkili: {client.yetkili_kisi || '-'}</span>
+                          <span>•</span>
+                          <span>Tel: {client.telefon || '-'}</span>
+                          {client.satis_temsilcisi?.name && (
+                            <>
+                              <span>•</span>
+                              <span className="text-slate-600 font-semibold">Temsilci: {client.satis_temsilcisi.name}</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      <span className="text-[10px] font-mono text-sky-600 font-semibold opacity-0 group-hover:opacity-100 transition shrink-0">
+                        Doldur ↵
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
-            {/* Yetkili Kişi */}
+            {/* Yetkili Kişi with Live Turkish Uppercase */}
             <div className="space-y-1">
-              <label className="text-[11px] font-mono uppercase text-slate-600 font-semibold flex items-center gap-1">
+              <label className="text-[11px] font-mono uppercase text-slate-700 font-bold flex items-center gap-1">
+                <UserIcon className="w-3.5 h-3.5 text-sky-600" />
                 Yetkili Kişi <span className="text-rose-500">*</span>
               </label>
               <input
                 type="text"
                 required
-                placeholder="Ad Soyad"
+                placeholder="Örn: AHMET YILMAZ"
                 value={yetkiliKisi}
-                onChange={(e) => setYetkiliKisi(e.target.value)}
-                className="w-full text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 placeholder-slate-400 focus:outline-none focus:border-sky-500 focus:bg-white"
+                onChange={(e) => setYetkiliKisi(toTurkishUpper(e.target.value))}
+                className="w-full text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-semibold uppercase placeholder:normal-case placeholder:font-normal placeholder-slate-400 focus:outline-none focus:border-sky-500 focus:bg-white transition"
               />
             </div>
 
@@ -201,18 +296,28 @@ export const QuickAddClientModal: React.FC<QuickAddClientModalProps> = ({
             {/* Satış Temsilcisi */}
             <div className="space-y-1">
               <label className="text-[11px] font-mono uppercase text-slate-600 font-semibold">Grup Üyesi / Satışçı</label>
-              <select
-                disabled={currentUser?.role === 'SALES_REP'}
-                value={satisTemsilcisiId}
-                onChange={(e) => setSatisTemsilcisiId(e.target.value)}
-                className="w-full text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:border-sky-500 cursor-pointer disabled:opacity-60 font-semibold"
-              >
-                {users.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.name}
-                  </option>
-                ))}
-              </select>
+              {!isSuperAdmin ? (
+                <div className="w-full text-xs px-3 py-2 bg-slate-100/90 border border-slate-200 rounded-lg text-slate-800 font-semibold flex items-center justify-between select-none">
+                  <span>{currentUser?.name || 'Giriş Yapan Kullanıcı'}</span>
+                  <span className="text-[10px] font-mono text-slate-500 uppercase bg-slate-200/80 px-2 py-0.5 rounded font-bold">Otomatik</span>
+                </div>
+              ) : (
+                <select
+                  value={satisTemsilcisiId}
+                  onChange={(e) => setSatisTemsilcisiId(e.target.value)}
+                  className="w-full text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:border-sky-500 cursor-pointer font-semibold"
+                >
+                  {users.length > 0 ? (
+                    users.map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.name} ({u.role === 'ADMIN' ? 'Genel Müdür' : u.role === 'SALES_MANAGER' ? 'Yönetici' : 'Temsilci'})
+                      </option>
+                    ))
+                  ) : currentUser ? (
+                    <option value={currentUser.id}>{currentUser.name}</option>
+                  ) : null}
+                </select>
+              )}
             </div>
 
             {/* Sonraki Takip Tarihi */}

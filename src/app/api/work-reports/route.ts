@@ -77,6 +77,8 @@ export async function GET(request: NextRequest) {
   }
 }
 
+import { toTurkishUpper, toCleanEmail } from '@/lib/formatters';
+
 export async function POST(request: NextRequest) {
   try {
     const sessionUser = await getSessionUserFast();
@@ -84,10 +86,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Oturum açılmalıdır.' }, { status: 401 });
     }
 
-    // Role check: Managers are monitoring only and cannot create or modify reports (feedback #7)
-    if (sessionUser.role === 'SALES_MANAGER') {
+    // Role check: VIEWER role cannot create reports
+    if (sessionUser.role === 'VIEWER') {
       return NextResponse.json(
-        { success: false, error: 'İzleyen yöneticiler çalışma raporu ekleyemez veya düzenleyemez.' },
+        { success: false, error: 'İzleme modundaki hesapların çalışma raporu ekleme yetkisi yoktur.' },
         { status: 403 }
       );
     }
@@ -116,6 +118,11 @@ export async function POST(request: NextRequest) {
       rezervasyon_var,
       rezervasyon_gelen,
       rezervasyon_turu,
+      rezervasyon_fiyat_tipi,
+      rezervasyon_opt_saniye,
+      rezervasyon_opt_fiyat,
+      rezervasyon_pt_saniye,
+      rezervasyon_pt_fiyat,
       rezervasyon_birim_fiyat,
       rezervasyon_toplam_saniye,
       user_id,
@@ -136,12 +143,12 @@ export async function POST(request: NextRequest) {
       data: {
         user_id: effectiveUserId,
         tarih: isNaN(reportDate.getTime()) ? new Date() : reportDate,
-        kurum_adi,
+        kurum_adi: toTurkishUpper(kurum_adi),
         kurum_turu: kurum_turu || 'Marka',
         musteri_durumu: musteri_durumu || 'Yeni Müşteri',
-        yetkili,
+        yetkili: toTurkishUpper(yetkili),
         yetkili_telefon: yetkili_telefon || '',
-        yetkili_eposta: yetkili_eposta || '',
+        yetkili_eposta: toCleanEmail(yetkili_eposta),
         iletisim_turu,
         reklam_turu: reklam_turu || 'Reklam',
         tv_kanali: tv_kanali || 'Bi Kanal',
@@ -157,6 +164,11 @@ export async function POST(request: NextRequest) {
         rezervasyon_var: Boolean(rezervasyon_var),
         rezervasyon_gelen: rezervasyon_var ? Number(rezervasyon_gelen) || 0 : 0,
         rezervasyon_turu: rezervasyon_var ? rezervasyon_turu || '' : '',
+        rezervasyon_fiyat_tipi: rezervasyon_var ? rezervasyon_fiyat_tipi || 'TEK_FIYAT' : 'TEK_FIYAT',
+        rezervasyon_opt_saniye: rezervasyon_var ? Number(rezervasyon_opt_saniye) || 0 : 0,
+        rezervasyon_opt_fiyat: rezervasyon_var ? Number(rezervasyon_opt_fiyat) || 0 : 0,
+        rezervasyon_pt_saniye: rezervasyon_var ? Number(rezervasyon_pt_saniye) || 0 : 0,
+        rezervasyon_pt_fiyat: rezervasyon_var ? Number(rezervasyon_pt_fiyat) || 0 : 0,
         rezervasyon_birim_fiyat: rezervasyon_var ? Number(rezervasyon_birim_fiyat) || 0 : 0,
         rezervasyon_toplam_saniye: rezervasyon_var ? Number(rezervasyon_toplam_saniye) || 0 : 0,
       },
@@ -179,6 +191,13 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Oturum açılmalıdır.' }, { status: 401 });
     }
 
+    if (sessionUser.role === 'VIEWER') {
+      return NextResponse.json(
+        { success: false, error: 'İzleme modundaki hesapların çalışma raporu düzenleme yetkisi yoktur.' },
+        { status: 403 }
+      );
+    }
+
     const body = await request.json();
     const { id, ...data } = body;
 
@@ -191,7 +210,6 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Rapor bulunamadı.' }, { status: 404 });
     }
 
-    // Role check: Managers cannot edit (feedback #7); Sales Reps cannot edit other reps' reports (feedback #6)
     const isAdmin = sessionUser.role === 'ADMIN';
     const isOwner = existing.user_id === sessionUser.id;
 
@@ -202,25 +220,18 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    if (sessionUser.role === 'SALES_MANAGER') {
-      return NextResponse.json(
-        { success: false, error: 'İzleyen yöneticiler çalışma raporlarına müdahale edemez.' },
-        { status: 403 }
-      );
-    }
-
     const reportDate = data.tarih ? new Date(data.tarih) : existing.tarih;
 
     const updated = await prisma.workReport.update({
       where: { id },
       data: {
         tarih: isNaN(reportDate.getTime()) ? existing.tarih : reportDate,
-        kurum_adi: data.kurum_adi !== undefined ? data.kurum_adi : existing.kurum_adi,
+        kurum_adi: data.kurum_adi !== undefined ? toTurkishUpper(data.kurum_adi) : existing.kurum_adi,
         kurum_turu: data.kurum_turu !== undefined ? data.kurum_turu : existing.kurum_turu,
         musteri_durumu: data.musteri_durumu !== undefined ? data.musteri_durumu : existing.musteri_durumu,
-        yetkili: data.yetkili !== undefined ? data.yetkili : existing.yetkili,
+        yetkili: data.yetkili !== undefined ? toTurkishUpper(data.yetkili) : existing.yetkili,
         yetkili_telefon: data.yetkili_telefon !== undefined ? data.yetkili_telefon : existing.yetkili_telefon,
-        yetkili_eposta: data.yetkili_eposta !== undefined ? data.yetkili_eposta : existing.yetkili_eposta,
+        yetkili_eposta: data.yetkili_eposta !== undefined ? toCleanEmail(data.yetkili_eposta) : existing.yetkili_eposta,
         iletisim_turu: data.iletisim_turu !== undefined ? data.iletisim_turu : existing.iletisim_turu,
         reklam_turu: data.reklam_turu !== undefined ? data.reklam_turu : existing.reklam_turu,
         tv_kanali: data.tv_kanali !== undefined ? data.tv_kanali : existing.tv_kanali,
@@ -236,6 +247,11 @@ export async function PUT(request: NextRequest) {
         rezervasyon_var: data.rezervasyon_var !== undefined ? Boolean(data.rezervasyon_var) : existing.rezervasyon_var,
         rezervasyon_gelen: data.rezervasyon_gelen !== undefined ? Number(data.rezervasyon_gelen) : existing.rezervasyon_gelen,
         rezervasyon_turu: data.rezervasyon_turu !== undefined ? data.rezervasyon_turu : existing.rezervasyon_turu,
+        rezervasyon_fiyat_tipi: data.rezervasyon_fiyat_tipi !== undefined ? data.rezervasyon_fiyat_tipi : (existing as any).rezervasyon_fiyat_tipi,
+        rezervasyon_opt_saniye: data.rezervasyon_opt_saniye !== undefined ? Number(data.rezervasyon_opt_saniye) : (existing as any).rezervasyon_opt_saniye,
+        rezervasyon_opt_fiyat: data.rezervasyon_opt_fiyat !== undefined ? Number(data.rezervasyon_opt_fiyat) : (existing as any).rezervasyon_opt_fiyat,
+        rezervasyon_pt_saniye: data.rezervasyon_pt_saniye !== undefined ? Number(data.rezervasyon_pt_saniye) : (existing as any).rezervasyon_pt_saniye,
+        rezervasyon_pt_fiyat: data.rezervasyon_pt_fiyat !== undefined ? Number(data.rezervasyon_pt_fiyat) : (existing as any).rezervasyon_pt_fiyat,
         rezervasyon_birim_fiyat: data.rezervasyon_birim_fiyat !== undefined ? Number(data.rezervasyon_birim_fiyat) : existing.rezervasyon_birim_fiyat,
         rezervasyon_toplam_saniye: data.rezervasyon_toplam_saniye !== undefined ? Number(data.rezervasyon_toplam_saniye) : existing.rezervasyon_toplam_saniye,
       },
@@ -255,6 +271,13 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Oturum açılmalıdır.' }, { status: 401 });
     }
 
+    if (sessionUser.role === 'VIEWER') {
+      return NextResponse.json(
+        { success: false, error: 'İzleme modundaki hesapların çalışma raporu silme yetkisi yoktur.' },
+        { status: 403 }
+      );
+    }
+
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 
@@ -267,20 +290,12 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Rapor bulunamadı.' }, { status: 404 });
     }
 
-    // Role check: Managers cannot delete (feedback #7); Sales Reps cannot delete other reps' reports (feedback #6)
     const isAdmin = sessionUser.role === 'ADMIN';
     const isOwner = existing.user_id === sessionUser.id;
 
     if (!isAdmin && !isOwner) {
       return NextResponse.json(
         { success: false, error: 'Başkasına ait çalışma raporunu silme yetkiniz yoktur.' },
-        { status: 403 }
-      );
-    }
-
-    if (sessionUser.role === 'SALES_MANAGER') {
-      return NextResponse.json(
-        { success: false, error: 'İzleyen yöneticiler çalışma raporlarını silemez.' },
         { status: 403 }
       );
     }
@@ -293,3 +308,4 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
+
