@@ -34,12 +34,20 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const deal = await prisma.deal.create({
+    const deal = await (prisma.deal as any).create({
       data: {
         musteri_id: data.musteri_id,
         kanal: data.kanal,
         teklif_tutari: Number(data.teklif_tutari) || 0,
-        yayin_donemi: data.yayin_donemi,
+        yayin_donemi: data.yayin_donemi || '',
+        baslangic_tarihi:
+          data.baslangic_tarihi && !isNaN(new Date(data.baslangic_tarihi).getTime())
+            ? new Date(data.baslangic_tarihi)
+            : null,
+        bitis_tarihi:
+          data.bitis_tarihi && !isNaN(new Date(data.bitis_tarihi).getTime())
+            ? new Date(data.bitis_tarihi)
+            : null,
         tahmini_kapanis_tarihi: data.tahmini_kapanis_tarihi
           ? new Date(data.tahmini_kapanis_tarihi)
           : null,

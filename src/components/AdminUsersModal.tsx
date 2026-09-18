@@ -97,7 +97,7 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
           email: newEmail,
           password: newPassword,
           role: newRole,
-          target: Number(newTarget) || 500000,
+          target: newRole === 'VIEWER' ? 0 : (Number(newTarget) || 500000),
           phone: newPhone,
         }),
       });
@@ -161,7 +161,7 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
           email: editEmail,
           password: editPassword || undefined,
           role: editRole,
-          target: Number(editTarget) || 500000,
+          target: editRole === 'VIEWER' ? 0 : (Number(editTarget) || 500000),
           phone: editPhone,
         }),
       });
@@ -223,7 +223,7 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
               <h3 className="text-base font-bold text-white flex items-center gap-2">
                 Grup Üyeleri & Yetki Yönetim Masası
                 <span className="text-[10px] uppercase font-mono font-bold px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30">
-                  Süper Admin
+                  Marka Merkezi
                 </span>
               </h3>
               <p className="text-xs text-slate-400">
@@ -351,7 +351,7 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
                                   ? 'bg-purple-50 text-purple-700 border-purple-200'
                                   : 'bg-emerald-50 text-emerald-700 border-emerald-200'
                               }`}>
-                                {isSuper ? 'Genel Müdür (Süper Admin)' : isManager ? 'Satış Yöneticisi' : isViewer ? 'Yönetim Katı / Misafir (Salt Okunur)' : 'Satış Temsilcisi'}
+                                {isSuper ? 'Marka Merkezi' : isManager ? 'Satış Yöneticisi' : isViewer ? 'Yönetim Katı / Misafir (Salt Okunur)' : 'Satış Temsilcisi'}
                               </span>
                             </div>
 
@@ -366,10 +366,12 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
                                   {u.phone}
                                 </span>
                               )}
-                              <span className="flex items-center gap-1 font-semibold text-slate-700">
-                                <TrendingUp className="w-3 h-3 text-emerald-600" />
-                                Hedef: {formatCurrency(u.target || 0)}
-                              </span>
+                              {!isViewer && (
+                                <span className="flex items-center gap-1 font-semibold text-slate-700">
+                                  <TrendingUp className="w-3 h-3 text-emerald-600" />
+                                  Hedef: {formatCurrency(u.target || 0)}
+                                </span>
+                              )}
                               <span className="text-slate-400">
                                 • {u._count?.clients || 0} Müşteri Portföyü
                               </span>
@@ -467,23 +469,25 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
                     <option value="SALES_REP">Satış Temsilcisi (Çalışma Raporu, Müşteri ve Portföy Yönetimi)</option>
                     <option value="SALES_MANAGER">Satış Yöneticisi (Tüm Ekibi Görür, Çalışma ve Satış Kaydeder)</option>
                     <option value="VIEWER">Misafir / Yönetim Katı (Tüm Ekranları İzler, Müdahale / Düzenleme Yapamaz)</option>
-                    <option value="ADMIN">Süper Admin (Tüm Yetkiler, Rapor Alma & Grup Yönetimi)</option>
+                    <option value="ADMIN">Marka Merkezi (Tüm Yetkiler, Rapor Alma & Grup Yönetimi)</option>
                   </select>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Aylık Satış Hedefi (TL)
-                  </label>
-                  <input
-                    type="number"
-                    value={newTarget}
-                    onChange={(e) => setNewTarget(e.target.value)}
-                    placeholder="500000"
-                    step="10000"
-                    className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-sky-500 shadow-2xs font-mono"
-                  />
-                </div>
+                {newRole !== 'VIEWER' && (
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      Aylık Satış Hedefi (TL)
+                    </label>
+                    <input
+                      type="number"
+                      value={newTarget}
+                      onChange={(e) => setNewTarget(e.target.value)}
+                      placeholder="500000"
+                      step="10000"
+                      className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-sky-500 shadow-2xs font-mono"
+                    />
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">
@@ -584,22 +588,24 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
                     <option value="SALES_REP">Satış Temsilcisi (Çalışma Raporu, Müşteri ve Portföy Yönetimi)</option>
                     <option value="SALES_MANAGER">Satış Yöneticisi (Tüm Ekibi Görür, Çalışma ve Satış Kaydeder)</option>
                     <option value="VIEWER">Misafir / Yönetim Katı (Tüm Ekranları İzler, Müdahale / Düzenleme Yapamaz)</option>
-                    <option value="ADMIN">Süper Admin (Tüm Yetkiler, Rapor Alma & Grup Yönetimi)</option>
+                    <option value="ADMIN">Marka Merkezi (Tüm Yetkiler, Rapor Alma & Grup Yönetimi)</option>
                   </select>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Aylık Satış Hedefi (TL)
-                  </label>
-                  <input
-                    type="number"
-                    value={editTarget}
-                    onChange={(e) => setEditTarget(e.target.value)}
-                    step="10000"
-                    className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-sky-500 shadow-2xs font-mono"
-                  />
-                </div>
+                {editRole !== 'VIEWER' && (
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      Aylık Satış Hedefi (TL)
+                    </label>
+                    <input
+                      type="number"
+                      value={editTarget}
+                      onChange={(e) => setEditTarget(e.target.value)}
+                      step="10000"
+                      className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-sky-500 shadow-2xs font-mono"
+                    />
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">

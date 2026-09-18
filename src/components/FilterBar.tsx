@@ -73,24 +73,22 @@ export const FilterBar: React.FC<FilterBarProps> = ({
           </select>
         </div>
 
-        {/* 3. Satış Temsilcisi Filtresi (Yalnızca Manager ve Admin için) */}
-        {(currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'SALES_MANAGER') && (
-          <div className="flex items-center bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 text-xs">
-            <UserIcon className="w-3.5 h-3.5 text-slate-400 mr-1.5" />
-            <select
-              value={selectedRep}
-              onChange={(e) => setSelectedRep(e.target.value)}
-              className="bg-transparent font-medium text-slate-800 focus:outline-none cursor-pointer"
-            >
-              <option value="all" className="bg-white text-slate-800">Tüm Satışçılar</option>
-              {users.map((u) => (
-                <option key={u.id} value={u.id} className="bg-white text-slate-800">
-                  {u.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
+        {/* 3. Satış Temsilcisi Filtresi */}
+        <div className="flex items-center bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 text-xs">
+          <UserIcon className="w-3.5 h-3.5 text-slate-400 mr-1.5" />
+          <select
+            value={selectedRep}
+            onChange={(e) => setSelectedRep(e.target.value)}
+            className="bg-transparent font-medium text-slate-800 focus:outline-none cursor-pointer"
+          >
+            <option value="all" className="bg-white text-slate-800">Tüm Satışçılar</option>
+            {users.map((u) => (
+              <option key={u.id} value={u.id} className="bg-white text-slate-800">
+                {u.name}
+              </option>
+            ))}
+          </select>
+        </div>
 
         {/* 4. Müşteri Tipi Filtresi */}
         <div className="flex items-center bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 text-xs">

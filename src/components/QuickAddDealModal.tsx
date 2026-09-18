@@ -3,7 +3,8 @@
 import React, { useState } from 'react';
 import { Client, TVChannel, DealProbability, DealStage, STAGES } from '@/types';
 import { createDeal } from '@/app/actions';
-import { X, DollarSign, Plus, Building2 } from 'lucide-react';
+import { formatDate } from '@/lib/formatters';
+import { X, DollarSign, Plus, Building2, Calendar } from 'lucide-react';
 
 interface QuickAddDealModalProps {
   isOpen: boolean;
@@ -21,7 +22,8 @@ export const QuickAddDealModal: React.FC<QuickAddDealModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [kanal, setKanal] = useState<TVChannel>('Bi Kanal');
   const [teklifTutari, setTeklifTutari] = useState('');
-  const [yayinDonemi, setYayinDonemi] = useState('Kasım 2026 Kuşak');
+  const [baslangicTarihi, setBaslangicTarihi] = useState('');
+  const [bitisTarihi, setBitisTarihi] = useState('');
   const [ihtimalDerecesi, setIhtimalDerecesi] = useState<DealProbability>('Yüksek');
   const [asama, setAsama] = useState<DealStage>('TEKLİF');
   const [tahminiKapanisTarihi, setTahminiKapanisTarihi] = useState('');
@@ -33,11 +35,23 @@ export const QuickAddDealModal: React.FC<QuickAddDealModalProps> = ({
     e.preventDefault();
     setLoading(true);
     try {
+      // Format readable date range for legacy/display compatibility
+      let yayinDonemiText = '';
+      if (baslangicTarihi && bitisTarihi) {
+        yayinDonemiText = `${formatDate(baslangicTarihi)} - ${formatDate(bitisTarihi)}`;
+      } else if (baslangicTarihi) {
+        yayinDonemiText = `${formatDate(baslangicTarihi)} Başlangıç`;
+      } else if (bitisTarihi) {
+        yayinDonemiText = `${formatDate(bitisTarihi)} Bitiş`;
+      }
+
       const payload = {
         musteri_id: client.id,
         kanal,
         teklif_tutari: parseFloat(teklifTutari) || 0,
-        yayin_donemi: yayinDonemi,
+        baslangic_tarihi: baslangicTarihi || undefined,
+        bitis_tarihi: bitisTarihi || undefined,
+        yayin_donemi: yayinDonemiText,
         tahmini_kapanis_tarihi: tahminiKapanisTarihi || undefined,
         ihtimal_derecesi: ihtimalDerecesi,
         asama,
@@ -55,6 +69,9 @@ export const QuickAddDealModal: React.FC<QuickAddDealModalProps> = ({
       }
 
       setTeklifTutari('');
+      setBaslangicTarihi('');
+      setBitisTarihi('');
+      setTahminiKapanisTarihi('');
       setNot('');
       onSuccess();
       onClose();
@@ -86,7 +103,7 @@ export const QuickAddDealModal: React.FC<QuickAddDealModalProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-700 p-1 rounded-md hover:bg-slate-100 transition"
+            className="text-slate-400 hover:text-slate-700 p-1 rounded-md hover:bg-slate-100 transition cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -153,15 +170,30 @@ export const QuickAddDealModal: React.FC<QuickAddDealModalProps> = ({
               </select>
             </div>
 
-            {/* Yayın Dönemi */}
-            <div className="space-y-1 sm:col-span-2">
-              <label className="text-[10px] font-mono uppercase text-slate-500 font-medium">Yayın Dönemi</label>
+            {/* Teklif Tarih Aralığı: Başlangıç ve Bitiş */}
+            <div className="space-y-1">
+              <label className="text-[10px] font-mono uppercase text-slate-600 font-semibold flex items-center gap-1">
+                <Calendar className="w-3 h-3 text-sky-600" />
+                Başlangıç Tarihi
+              </label>
               <input
-                type="text"
-                placeholder="Örn: Kasım 2026 Kuşak / Sponsorluk"
-                value={yayinDonemi}
-                onChange={(e) => setYayinDonemi(e.target.value)}
-                className="w-full text-xs px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:border-sky-500 focus:bg-white"
+                type="date"
+                value={baslangicTarihi}
+                onChange={(e) => setBaslangicTarihi(e.target.value)}
+                className="w-full text-xs px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-mono focus:outline-none focus:border-sky-500 focus:bg-white"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[10px] font-mono uppercase text-slate-600 font-semibold flex items-center gap-1">
+                <Calendar className="w-3 h-3 text-sky-600" />
+                Bitiş Tarihi
+              </label>
+              <input
+                type="date"
+                value={bitisTarihi}
+                onChange={(e) => setBitisTarihi(e.target.value)}
+                className="w-full text-xs px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-mono focus:outline-none focus:border-sky-500 focus:bg-white"
               />
             </div>
 
@@ -181,7 +213,7 @@ export const QuickAddDealModal: React.FC<QuickAddDealModalProps> = ({
               <label className="text-[10px] font-mono uppercase text-slate-500 font-medium">Not</label>
               <textarea
                 rows={2}
-                placeholder="Detaylar..."
+                placeholder="Teklif detayları ve notlar..."
                 value={not}
                 onChange={(e) => setNot(e.target.value)}
                 className="w-full text-xs px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:border-sky-500 focus:bg-white resize-none"

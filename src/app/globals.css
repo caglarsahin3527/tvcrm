@@ -16,6 +16,129 @@
   }
 }
 
+/* --- Optimized Print Engine for A4 Work Reports --- */
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 5mm 6mm;
+  }
+
+  html, body {
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-size: 8pt !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    max-width: 100% !important;
+  }
+
+  /* Completely remove background application layout from print flow to prevent duplicate or ghost pages */
+  header,
+  main,
+  nav,
+  footer,
+  aside,
+  .no-print,
+  [role="alert"] {
+    display: none !important;
+    height: 0 !important;
+    max-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    visibility: hidden !important;
+  }
+
+  /* Modal backdrops & containers reset to natural page flow */
+  .work-report-modal-backdrop {
+    position: static !important;
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    inset: auto !important;
+    backdrop-filter: none !important;
+    animation: none !important;
+    box-shadow: none !important;
+  }
+
+  .work-report-modal-card {
+    position: static !important;
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+    background: #ffffff !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  #print-work-report-area {
+    position: static !important;
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  #print-work-report-area * {
+    overflow: visible !important;
+    box-shadow: none !important;
+  }
+
+  /* Table styling & pagination controls */
+  #print-work-report-area table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    font-size: 7.5pt !important;
+    page-break-inside: auto !important;
+  }
+
+  #print-work-report-area thead {
+    display: table-header-group !important;
+  }
+
+  #print-work-report-area tr {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    page-break-after: auto !important;
+  }
+
+  #print-work-report-area th,
+  #print-work-report-area td {
+    padding: 2.5px 4px !important;
+    border: 1px solid #cbd5e1 !important;
+  }
+
+  .print-avoid-break {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+}
+
 /* Custom crisp scrollbar for Kanban and tables */
 ::-webkit-scrollbar {
   width: 6px;

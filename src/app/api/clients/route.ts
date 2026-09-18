@@ -41,21 +41,6 @@ export async function POST(request: NextRequest) {
         musteri_tipi: data.musteri_tipi || 'Kurumsal',
         satis_temsilcisi_id: repId,
         sonraki_takip_tarihi: isNaN(followUpDate.getTime()) ? new Date() : followUpDate,
-        deals: {
-          create: {
-            kanal: data.kanal || 'Bi Kanal',
-            teklif_tutari: Number(data.teklif_tutari) || 0,
-            yayin_donemi: data.yayin_donemi || '',
-            tahmini_kapanis_tarihi:
-              data.tahmini_kapanis_tarihi &&
-              !isNaN(new Date(data.tahmini_kapanis_tarihi).getTime())
-                ? new Date(data.tahmini_kapanis_tarihi)
-                : null,
-            ihtimal_derecesi: data.ihtimal_derecesi || 'Orta',
-            asama: data.asama || 'YENİ LEAD',
-            not: data.not || 'Yeni Müşteri Kaydı',
-          },
-        },
       },
       include: {
         deals: true,

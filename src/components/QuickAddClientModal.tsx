@@ -104,9 +104,6 @@ export const QuickAddClientModal: React.FC<QuickAddClientModalProps> = ({
         musteri_tipi: musteriTipi,
         satis_temsilcisi_id: effectiveRepId,
         sonraki_takip_tarihi: sonrakiTakipTarihi,
-        has_deal: true,
-        kanal: 'Bi Kanal',
-        asama: 'YENİ LEAD',
       };
 
       const res = await fetch('/api/clients', {
@@ -307,7 +304,7 @@ export const QuickAddClientModal: React.FC<QuickAddClientModalProps> = ({
                   {users.length > 0 ? (
                     users.map((u) => (
                       <option key={u.id} value={u.id}>
-                        {u.name} ({u.role === 'ADMIN' ? 'Genel Müdür' : u.role === 'SALES_MANAGER' ? 'Yönetici' : 'Temsilci'})
+                        {u.name} ({u.role === 'ADMIN' ? 'Marka Merkezi' : u.role === 'SALES_MANAGER' ? 'Yönetici' : 'Temsilci'})
                       </option>
                     ))
                   ) : currentUser ? (

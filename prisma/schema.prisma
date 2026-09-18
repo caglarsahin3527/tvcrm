@@ -48,6 +48,8 @@ model Deal {
   kanal                  String    // "Bi Kanal", "Sıfır TV"
   teklif_tutari          Float     @default(0)
   yayin_donemi           String    @default("")
+  baslangic_tarihi       DateTime?
+  bitis_tarihi           DateTime?
   tahmini_kapanis_tarihi DateTime?
   ihtimal_derecesi       String    @default("Orta") // "Kesin", "Yüksek", "Orta", "Düşük"
   asama                  String    @default("YENİ LEAD") // "YENİ LEAD", "GÖRÜŞME", "TEKLİF", "TAKİP", "PAZARLIK", "ONAY", "SATIŞ", "YAYIN", "TAHSİLAT"
@@ -79,7 +81,7 @@ model WorkReport {
   sonuc                     String    @default("") // Görüşme sonucu
   teklif_verildi            Boolean   @default(false)
   teklif_tutari             Float?    @default(0)
-  teklif_ihtimal            String?   @default("") // "%10", "%25", "%50", "%75", "%90", "%100"
+  teklif_ihtimal            String?   @default("") // "%25", "%50", "%75", "%100"
   satis_yapildi             Boolean   @default(false)
   satis_turu                String?   @default("") // "Spot Reklam", "Alt Bant Reklam", "Sponsorluk"
   satis_tutari              Float?    @default(0)
@@ -95,6 +97,7 @@ model WorkReport {
   rezervasyon_birim_fiyat   Float?    @default(0)
   rezervasyon_toplam_saniye Int?      @default(0)
   rezervasyon_vade          String?   @default("") // "Nakit", "30 Gün", "60 Gün", "90 Gün", "120 Gün", "150 Gün", "180 Gün", "Özel"
+  deal_id                   String?   // Otomatik oluşturulan fırsatın ID'sini tutar
   createdAt                 DateTime  @default(now())
   updatedAt                 DateTime  @updatedAt
 

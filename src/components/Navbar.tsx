@@ -38,7 +38,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     switch (role) {
       case 'SUPER_ADMIN':
       case 'ADMIN':
-        return { label: 'Süper Admin (Genel Müdür)', color: 'text-rose-700 bg-rose-50 border-rose-200' };
+        return { label: 'Marka Merkezi', color: 'text-rose-700 bg-rose-50 border-rose-200' };
       case 'SALES_MANAGER':
         return { label: 'Satış Yöneticisi', color: 'text-sky-700 bg-sky-50 border-sky-200' };
       case 'VIEWER':
@@ -180,12 +180,12 @@ export const Navbar: React.FC<NavbarProps> = ({
 
                 <div className="text-left leading-tight hidden xl:block">
                   <div className="text-xs font-bold text-slate-800 flex items-center gap-1 group-hover:text-slate-950">
-                    {currentUser?.name || 'Ayşe Yıldız (Genel Müdür)'}
+                    {currentUser?.name || 'Ayşe Yıldız (Marka Merkezi)'}
                   </div>
                   <div className={`text-[10px] font-mono font-semibold ${
                     isSuperAdmin || !currentUser ? 'text-rose-600' : currentUser?.role === 'SALES_MANAGER' ? 'text-sky-600' : 'text-emerald-600'
                   }`}>
-                    {roleInfo?.label || 'Süper Admin (Genel Müdür)'}
+                    {roleInfo?.label || 'Marka Merkezi'}
                   </div>
                 </div>
               </button>

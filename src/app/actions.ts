@@ -24,12 +24,10 @@ export async function getDeals(filters: {
   musteriTipi?: string;
   timeRange?: string; // "all", "today", "this_week", "this_month", "this_quarter"
 }) {
-  const { currentUserId, currentUserRole, selectedRepId, kanal, musteriTipi, timeRange } = filters;
+  const { selectedRepId, kanal, musteriTipi, timeRange } = filters;
 
   let repFilter: string | undefined = undefined;
-  if (currentUserRole === 'SALES_REP') {
-    repFilter = currentUserId;
-  } else if (selectedRepId && selectedRepId !== 'all') {
+  if (selectedRepId && selectedRepId !== 'all') {
     repFilter = selectedRepId;
   }
 
@@ -87,12 +85,10 @@ export async function getClients(filters: {
   selectedRepId?: string;
   musteriTipi?: string;
 }) {
-  const { currentUserId, currentUserRole, selectedRepId, musteriTipi } = filters;
+  const { selectedRepId, musteriTipi } = filters;
 
   let repFilter: string | undefined = undefined;
-  if (currentUserRole === 'SALES_REP') {
-    repFilter = currentUserId;
-  } else if (selectedRepId && selectedRepId !== 'all') {
+  if (selectedRepId && selectedRepId !== 'all') {
     repFilter = selectedRepId;
   }
 
@@ -123,6 +119,8 @@ export async function createClientAndDeal(data: {
   kanal?: string;
   teklif_tutari?: number;
   yayin_donemi?: string;
+  baslangic_tarihi?: string;
+  bitis_tarihi?: string;
   tahmini_kapanis_tarihi?: string;
   ihtimal_derecesi?: string;
   asama?: string;
@@ -138,7 +136,7 @@ export async function createClientAndDeal(data: {
       ? new Date(data.sonraki_takip_tarihi)
       : new Date();
 
-    const client = await prisma.client.create({
+    const client = await (prisma.client as any).create({
       data: {
         firma_adi: data.firma_adi,
         yetkili_kisi: data.yetkili_kisi,
@@ -147,22 +145,37 @@ export async function createClientAndDeal(data: {
         musteri_tipi: data.musteri_tipi || 'Kurumsal',
         satis_temsilcisi_id: repId,
         sonraki_takip_tarihi: isNaN(followUpDate.getTime()) ? new Date() : followUpDate,
-        deals: {
-          create: {
-            kanal: data.kanal || 'Bi Kanal',
-            teklif_tutari: Number(data.teklif_tutari) || 0,
-            yayin_donemi: data.yayin_donemi || '',
-            tahmini_kapanis_tarihi: data.tahmini_kapanis_tarihi && !isNaN(new Date(data.tahmini_kapanis_tarihi).getTime())
-              ? new Date(data.tahmini_kapanis_tarihi)
-              : null,
-            ihtimal_derecesi: data.ihtimal_derecesi || 'Orta',
-            asama: data.asama || 'YENİ LEAD',
-            not: data.not || 'Yeni Müşteri Kaydı',
-          },
-        },
+        ...(data.has_deal
+          ? {
+              deals: {
+                create: {
+                  kanal: data.kanal || 'Bi Kanal',
+                  teklif_tutari: Number(data.teklif_tutari) || 0,
+                  yayin_donemi: data.yayin_donemi || '',
+                  baslangic_tarihi:
+                    data.baslangic_tarihi && !isNaN(new Date(data.baslangic_tarihi).getTime())
+                      ? new Date(data.baslangic_tarihi)
+                      : null,
+                  bitis_tarihi:
+                    data.bitis_tarihi && !isNaN(new Date(data.bitis_tarihi).getTime())
+                      ? new Date(data.bitis_tarihi)
+                      : null,
+                  tahmini_kapanis_tarihi:
+                    data.tahmini_kapanis_tarihi &&
+                    !isNaN(new Date(data.tahmini_kapanis_tarihi).getTime())
+                      ? new Date(data.tahmini_kapanis_tarihi)
+                      : null,
+                  ihtimal_derecesi: data.ihtimal_derecesi || 'Orta',
+                  asama: data.asama || 'YENİ LEAD',
+                  not: data.not || 'Yeni Müşteri Kaydı',
+                },
+              },
+            }
+          : {}),
       },
       include: {
         deals: true,
+        satis_temsilcisi: true,
       },
     });
 
@@ -178,18 +191,43 @@ export async function createDeal(data: {
   musteri_id: string;
   kanal: string;
   teklif_tutari: number;
-  yayin_donemi: string;
+  yayin_donemi?: string;
+  baslangic_tarihi?: string;
+  bitis_tarihi?: string;
   tahmini_kapanis_tarihi?: string;
   ihtimal_derecesi: string;
   asama: string;
   not: string;
 }) {
-  const deal = await prisma.deal.create({
+  const sessionUser = await getSessionUser();
+  if (!sessionUser) throw new Error('Oturum açılmalıdır.');
+  if (sessionUser.role === 'VIEWER') {
+    throw new Error('İzleme modundaki hesapların fırsat ekleme yetkisi yoktur.');
+  }
+
+  if (sessionUser.role !== 'ADMIN' && sessionUser.role !== 'SUPER_ADMIN') {
+    const client = await prisma.client.findUnique({
+      where: { id: data.musteri_id },
+    });
+    if (!client || client.satis_temsilcisi_id !== sessionUser.id) {
+      throw new Error('Yalnızca kendi müşterilerinize teklif/fırsat ekleyebilirsiniz.');
+    }
+  }
+
+  const deal = await (prisma.deal as any).create({
     data: {
       musteri_id: data.musteri_id,
       kanal: data.kanal,
       teklif_tutari: Number(data.teklif_tutari) || 0,
-      yayin_donemi: data.yayin_donemi,
+      yayin_donemi: data.yayin_donemi || '',
+      baslangic_tarihi:
+        data.baslangic_tarihi && !isNaN(new Date(data.baslangic_tarihi).getTime())
+          ? new Date(data.baslangic_tarihi)
+          : null,
+      bitis_tarihi:
+        data.bitis_tarihi && !isNaN(new Date(data.bitis_tarihi).getTime())
+          ? new Date(data.bitis_tarihi)
+          : null,
       tahmini_kapanis_tarihi: data.tahmini_kapanis_tarihi
         ? new Date(data.tahmini_kapanis_tarihi)
         : null,
@@ -204,6 +242,22 @@ export async function createDeal(data: {
 }
 
 export async function updateDealStage(dealId: string, asama: string) {
+  const sessionUser = await getSessionUser();
+  if (!sessionUser) throw new Error('Oturum açılmalıdır.');
+  if (sessionUser.role === 'VIEWER') {
+    throw new Error('İzleme modundaki hesapların aşama değiştirme yetkisi yoktur.');
+  }
+
+  if (sessionUser.role !== 'ADMIN' && sessionUser.role !== 'SUPER_ADMIN') {
+    const existingDeal = await prisma.deal.findUnique({
+      where: { id: dealId },
+      include: { musteri: true },
+    });
+    if (!existingDeal || existingDeal.musteri.satis_temsilcisi_id !== sessionUser.id) {
+      throw new Error('Yalnızca kendi fırsatlarınızı güncelleyebilirsiniz.');
+    }
+  }
+
   const updated = await prisma.deal.update({
     where: { id: dealId },
     data: { asama },
@@ -213,6 +267,21 @@ export async function updateDealStage(dealId: string, asama: string) {
 }
 
 export async function updateClientFollowUpDate(clientId: string, nextFollowUpDate: string) {
+  const sessionUser = await getSessionUser();
+  if (!sessionUser) throw new Error('Oturum açılmalıdır.');
+  if (sessionUser.role === 'VIEWER') {
+    throw new Error('İzleme modundaki hesapların takip tarihi güncelleme yetkisi yoktur.');
+  }
+
+  if (sessionUser.role !== 'ADMIN' && sessionUser.role !== 'SUPER_ADMIN') {
+    const existingClient = await prisma.client.findUnique({
+      where: { id: clientId },
+    });
+    if (!existingClient || existingClient.satis_temsilcisi_id !== sessionUser.id) {
+      throw new Error('Yalnızca kendi müşterilerinizin takip tarihini güncelleyebilirsiniz.');
+    }
+  }
+
   const updated = await prisma.client.update({
     where: { id: clientId },
     data: {
@@ -232,7 +301,16 @@ export async function createClient(data: {
   satis_temsilcisi_id: string;
   sonraki_takip_tarihi: string;
 }) {
+  const sessionUser = await getSessionUser();
+  if (!sessionUser) throw new Error('Oturum açılmalıdır.');
+  if (sessionUser.role === 'VIEWER') {
+    throw new Error('İzleme modundaki hesapların müşteri oluşturma yetkisi yoktur.');
+  }
+
   let repId = data.satis_temsilcisi_id;
+  if (sessionUser.role !== 'ADMIN' && sessionUser.role !== 'SUPER_ADMIN') {
+    repId = sessionUser.id;
+  }
   if (!repId) {
     throw new Error('Satış temsilcisi belirtilmelidir. Müşteri bir temsilciye atanmadan kaydedilemez.');
   }
@@ -262,11 +340,19 @@ export async function createClient(data: {
 }
 
 export async function deleteDeal(dealId: string) {
+  const sessionUser = await getSessionUser();
+  if (!sessionUser || (sessionUser.role !== 'ADMIN' && sessionUser.role !== 'SUPER_ADMIN')) {
+    throw new Error('Fırsat silmek için Admin yetkisi gereklidir.');
+  }
   await prisma.deal.delete({ where: { id: dealId } });
   revalidatePath('/');
 }
 
 export async function deleteClient(clientId: string) {
+  const sessionUser = await getSessionUser();
+  if (!sessionUser || (sessionUser.role !== 'ADMIN' && sessionUser.role !== 'SUPER_ADMIN')) {
+    throw new Error('Müşteri silmek için Admin yetkisi gereklidir.');
+  }
   await prisma.client.delete({ where: { id: clientId } });
   revalidatePath('/');
 }

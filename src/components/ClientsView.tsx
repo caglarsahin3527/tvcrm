@@ -105,6 +105,9 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
           const followUp = getFollowUpStatus(client.sonraki_takip_tarihi);
           const deals = client.deals || [];
           const totalDealsAmount = deals.reduce((sum, d) => sum + (d.teklif_tutari || 0), 0);
+          const isOwner = currentUser?.id === client.satis_temsilcisi_id;
+          const isAdmin = currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPER_ADMIN';
+          const canManage = (isAdmin || isOwner) && currentUser?.role !== 'VIEWER';
 
           return (
             <div
@@ -148,13 +151,15 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
                   >
                     {followUp.label}
                   </span>
-                  <button
-                    onClick={() => onOpenFollowUpModal(client)}
-                    className="p-1 hover:bg-slate-100 rounded-md text-amber-600 transition cursor-pointer"
-                    title="Tarihi Güncelle"
-                  >
-                    <Clock className="w-3.5 h-3.5" />
-                  </button>
+                  {canManage && (
+                    <button
+                      onClick={() => onOpenFollowUpModal(client)}
+                      className="p-1 hover:bg-slate-100 rounded-md text-amber-600 transition cursor-pointer"
+                      title="Tarihi Güncelle"
+                    >
+                      <Clock className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
 
                 {/* Hızlı Aksiyon Butonları */}
@@ -175,14 +180,16 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
                   >
                     <MessageSquare className="w-3.5 h-3.5" />
                   </a>
-                  <button
-                    onClick={() => onOpenAddDeal(client)}
-                    className="flex items-center gap-1 px-2.5 py-1.5 bg-sky-50 text-sky-700 border border-sky-200 rounded-lg text-xs font-bold active:scale-95 transition cursor-pointer"
-                    title="Teklif Ekle"
-                  >
-                    <Plus className="w-3 h-3 stroke-[3]" />
-                    <span>Teklif</span>
-                  </button>
+                  {canManage && (
+                    <button
+                      onClick={() => onOpenAddDeal(client)}
+                      className="flex items-center gap-1 px-2.5 py-1.5 bg-sky-50 text-sky-700 border border-sky-200 rounded-lg text-xs font-bold active:scale-95 transition cursor-pointer"
+                      title="Teklif Ekle"
+                    >
+                      <Plus className="w-3 h-3 stroke-[3]" />
+                      <span>Teklif</span>
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -216,6 +223,9 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
                 const followUp = getFollowUpStatus(client.sonraki_takip_tarihi);
                 const deals = client.deals || [];
                 const totalDealsAmount = deals.reduce((sum, d) => sum + (d.teklif_tutari || 0), 0);
+                const isOwner = currentUser?.id === client.satis_temsilcisi_id;
+                const isAdmin = currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPER_ADMIN';
+                const canManage = (isAdmin || isOwner) && currentUser?.role !== 'VIEWER';
 
                 return (
                   <tr key={client.id} className="hover:bg-slate-50/80 transition-colors">
@@ -277,13 +287,15 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
                         >
                           {followUp.label}
                         </span>
-                        <button
-                          onClick={() => onOpenFollowUpModal(client)}
-                          className="p-1 hover:bg-slate-100 rounded-md text-slate-400 hover:text-slate-700 transition cursor-pointer"
-                          title="Tarihi Güncelle"
-                        >
-                          <Clock className="w-3.5 h-3.5 text-amber-600" />
-                        </button>
+                        {canManage && (
+                          <button
+                            onClick={() => onOpenFollowUpModal(client)}
+                            className="p-1 hover:bg-slate-100 rounded-md text-slate-400 hover:text-slate-700 transition cursor-pointer"
+                            title="Tarihi Güncelle"
+                          >
+                            <Clock className="w-3.5 h-3.5 text-amber-600" />
+                          </button>
+                        )}
                       </div>
                       <div className="text-[10px] font-mono text-slate-400 mt-0.5">
                         {formatDate(client.sonraki_takip_tarihi)}
@@ -328,14 +340,16 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
                             <Mail className="w-3 h-3 text-sky-600" />
                           </a>
                         )}
-                        <button
-                          onClick={() => onOpenAddDeal(client)}
-                          className="p-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-md text-slate-600 hover:text-slate-900 transition cursor-pointer shadow-2xs"
-                          title="Teklif Ekle"
-                        >
-                          <Plus className="w-3 h-3" />
-                        </button>
-                        {currentUser?.role === 'ADMIN' && (
+                        {canManage && (
+                          <button
+                            onClick={() => onOpenAddDeal(client)}
+                            className="p-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-md text-slate-600 hover:text-slate-900 transition cursor-pointer shadow-2xs"
+                            title="Teklif Ekle"
+                          >
+                            <Plus className="w-3 h-3" />
+                          </button>
+                        )}
+                        {isAdmin && (
                           <button
                             onClick={() => handleDelete(client.id, client.firma_adi)}
                             className="p-1.5 bg-slate-50 hover:bg-rose-50 hover:text-rose-600 border border-slate-200 rounded-md text-slate-400 transition cursor-pointer shadow-2xs"

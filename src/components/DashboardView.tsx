@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Deal, User, Client } from '@/types';
-import { formatCurrency, exportToExcel, exportToCsv } from '@/lib/formatters';
+import { formatCurrency, formatDate, exportToExcel, exportToCsv } from '@/lib/formatters';
 import { 
   Target, 
   Layers, 
@@ -167,7 +167,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     .filter((d) => ['TEKLİF', 'TAKİP', 'PAZARLIK', 'ONAY'].includes(d.asama))
     .reduce((sum, d) => sum + (d.teklif_tutari || 0), 0);
 
-  // 3. SATIŞ TAHMİNİ (FORECASTING) KIRILIMLARI
+  // 3. KESİN SATIŞ VE İHTİMALLER KIRILIMLARI
   const exactDeals = scopedDeals.filter((d) => d.ihtimal_derecesi === 'Kesin');
   const exactTotal = exactDeals.reduce((sum, d) => sum + (d.teklif_tutari || 0), 0);
 
@@ -179,9 +179,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   const lowDeals = scopedDeals.filter((d) => d.ihtimal_derecesi === 'Düşük');
   const lowTotal = lowDeals.reduce((sum, d) => sum + (d.teklif_tutari || 0), 0);
-
-  const weightedForecast =
-    exactTotal * 1.0 + highTotal * 0.75 + mediumTotal * 0.5 + lowTotal * 0.25;
 
   // 4. CHART VERİLERİ (Recharts Data Preparation)
 
@@ -236,16 +233,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     };
   });
 
-  // D) Satış Tahmini (Forecasting) Donut Data
+  // D) Kesin Satış ve İhtimaller Donut Data
   const totalForecastValue = exactTotal + highTotal + mediumTotal + lowTotal;
   const forecastProbabilityData = totalForecastValue > 0
     ? [
-        { name: 'Kesin (%100)', value: exactTotal, weighted: exactTotal * 1.0, count: exactDeals.length, color: '#059669' },
-        { name: 'Yüksek (%75)', value: highTotal, weighted: highTotal * 0.75, count: highDeals.length, color: '#0284c7' },
-        { name: 'Orta (%50)', value: mediumTotal, weighted: mediumTotal * 0.5, count: mediumDeals.length, color: '#d97706' },
-        { name: 'Düşük (%25)', value: lowTotal, weighted: lowTotal * 0.25, count: lowDeals.length, color: '#64748b' },
+        { name: 'Kesin (%100)', value: exactTotal, count: exactDeals.length, color: '#059669' },
+        { name: 'Yüksek (%75)', value: highTotal, count: highDeals.length, color: '#0284c7' },
+        { name: 'Orta (%50)', value: mediumTotal, count: mediumDeals.length, color: '#d97706' },
+        { name: 'Düşük (%25)', value: lowTotal, count: lowDeals.length, color: '#64748b' },
       ]
-    : [{ name: 'Henüz Teklif Yok', value: 1, weighted: 0, count: 0, color: '#e2e8f0' }];
+    : [{ name: 'Henüz Teklif Yok', value: 1, count: 0, color: '#e2e8f0' }];
 
   // E) Satış Temsilcisi Performans Verisi
   const repPerformance = users
@@ -288,7 +285,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       'Teklif Tutarı (TL)': d.teklif_tutari,
       'Aşama': d.asama,
       'İhtimal': d.ihtimal_derecesi,
-      'Yayın Dönemi': d.yayin_donemi,
+      'Teklif Başlangıç': d.baslangic_tarihi ? formatDate(d.baslangic_tarihi) : '',
+      'Teklif Bitiş': d.bitis_tarihi ? formatDate(d.bitis_tarihi) : '',
+      'Yayın / Teklif Dönemi': d.yayin_donemi || '',
+      'Tahmini Kapanış': d.tahmini_kapanis_tarihi ? formatDate(d.tahmini_kapanis_tarihi) : '',
       'Sonraki Takip': d.musteri?.sonraki_takip_tarihi
         ? new Date(d.musteri.sonraki_takip_tarihi).toLocaleDateString('tr-TR')
         : '',
@@ -833,7 +833,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         </div>
 
-        {/* SAĞ GRAFİK: SATIŞ TAHMİNİ (FORECASTING) & OLASILIK DAĞILIMI (5/12) */}
+        {/* SAĞ GRAFİK: KESİN SATIŞ VE İHTİMALLER (5/12) */}
         <div className="lg:col-span-5 bg-white border border-slate-200/90 p-5 rounded-2xl shadow-xs flex flex-col justify-between">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-3">
             <div className="flex items-center gap-2.5">
@@ -842,14 +842,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               </div>
               <div>
                 <h3 className="font-mono font-bold text-xs uppercase tracking-wider text-slate-900">
-                  FORECASTING & OLASILIK
+                  KESİN SATIŞ VE İHTİMALLER
                 </h3>
-                <p className="text-[10px] text-slate-500">Ağırlıklı Net Ciro Tahmini</p>
+                <p className="text-[10px] text-slate-500">Öngörülen Teklif Kabul Oranları & Dağılımı</p>
               </div>
             </div>
             <div className="text-right">
               <span className="text-sm font-mono font-black text-emerald-700 bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-200">
-                {formatCurrency(weightedForecast)}
+                {formatCurrency(totalForecastValue)}
               </span>
             </div>
           </div>
@@ -889,9 +889,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 hoveredForecastSlice !== null ? 'opacity-0 scale-90' : 'opacity-100 scale-100'
               }`}
             >
-              <span className="text-[10px] font-mono text-slate-400 uppercase font-semibold">AĞIRLIKLI</span>
+              <span className="text-[10px] font-mono text-slate-400 uppercase font-semibold">TOPLAM</span>
               <span className="text-sm font-mono font-black text-emerald-700">
-                ₺{(weightedForecast / 1000).toFixed(0)}K
+                ₺{(totalForecastValue / 1000).toFixed(0)}K
               </span>
             </div>
           </div>
@@ -907,11 +907,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   </span>
                   <span className="text-slate-400">{item.count} Adet</span>
                 </div>
-                <div className="text-xs font-mono font-bold text-slate-800">
+                <div className="text-xs font-mono font-bold text-slate-900 mt-1">
                   {formatCurrency(item.value)}
-                </div>
-                <div className="text-[10px] font-mono text-emerald-700 font-semibold mt-0.5">
-                  Katkı: {formatCurrency(item.weighted)}
                 </div>
               </div>
             ))}
@@ -920,94 +917,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
       </div>
 
-      {/* 4. GÖRSEL GRAFİK: SATIŞ TEMSİLCİSİ KOTA & GERÇEKLEŞME PERFORMANSI */}
-      <div className="bg-white border border-slate-200/90 p-5 rounded-2xl shadow-xs">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 pb-3 mb-4 gap-2">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center border border-sky-200">
-              <Users className="w-4 h-4" />
-            </div>
-            <div>
-              <h3 className="font-mono font-bold text-xs uppercase tracking-wider text-slate-900">
-                SATIŞ TEMSİLCİLERİ HEDEF & GERÇEKLEŞEN PERFORMANS GRAFİĞİ
-              </h3>
-              <p className="text-[10px] text-slate-500">
-                Temsilci bazında bireysel kota, gerçekleşen satış ve aktif portföy karşılaştırması
-              </p>
-            </div>
-          </div>
-
-          <span className="text-[10px] font-mono text-slate-600 bg-slate-100 px-3 py-1 rounded-full border border-slate-200 font-bold">
-            {repPerformance.length} Aktif Temsilci
-          </span>
-        </div>
-
-        {/* Rep Bar Chart */}
-        <div className="h-64 w-full min-w-0">
-          {isMounted ? (
-            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={220}>
-              <BarChart 
-                data={repPerformance} 
-                margin={{ top: 10, right: 10, left: -10, bottom: 10 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                <XAxis 
-                  dataKey="name" 
-                  stroke="#64748b" 
-                  fontSize={11} 
-                  tickLine={false}
-                  fontFamily="monospace"
-                />
-                <YAxis 
-                  stroke="#64748b" 
-                  fontSize={10} 
-                  tickLine={false} 
-                  axisLine={false}
-                  fontFamily="monospace"
-                  tickFormatter={(val) => `₺${(val / 1000).toFixed(0)}K`}
-                />
-                <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(241, 245, 249, 0.4)', stroke: 'none' }} />
-                <Legend 
-                  verticalAlign="top" 
-                  align="right" 
-                  wrapperStyle={{ paddingBottom: '10px', fontSize: '11px', fontFamily: 'monospace' }} 
-                />
-                <Bar 
-                  dataKey="target" 
-                  name="Kota Hedefi" 
-                  fill="#cbd5e1" 
-                  radius={[6, 6, 0, 0]} 
-                  maxBarSize={28} 
-                  isAnimationActive={true}
-                  animationDuration={900}
-                />
-                <Bar 
-                  dataKey="realized" 
-                  name="Gerçekleşen Satış" 
-                  fill="#059669" 
-                  radius={[6, 6, 0, 0]} 
-                  maxBarSize={28} 
-                  isAnimationActive={true}
-                  animationDuration={900}
-                />
-                <Bar 
-                  dataKey="pipeline" 
-                  name="Aktif Pipeline" 
-                  fill="#0284c7" 
-                  radius={[6, 6, 0, 0]} 
-                  maxBarSize={28} 
-                  isAnimationActive={true}
-                  animationDuration={900}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="w-full h-full flex items-center justify-center bg-slate-50/50 rounded-xl animate-pulse" />
-          )}
-        </div>
-      </div>
-
-      {/* 5. SATIŞÇI PERFORMANS TABLOSU (DETAYLI LİSTE) */}
+      {/* 4. SATIŞÇI PERFORMANS TABLOSU (DETAYLI LİSTE) */}
       <div className="bg-white border border-slate-200/90 rounded-2xl shadow-xs overflow-hidden">
         <div className="p-4 border-b border-slate-100 flex items-center justify-between">
           <div className="flex items-center gap-2">

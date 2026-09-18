@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
     const currentUser = await getSessionUser();
     if (!currentUser || (currentUser.role !== 'ADMIN' && currentUser.role !== 'SUPER_ADMIN')) {
       return NextResponse.json(
-        { success: false, error: 'Bu işlem için Süper Admin yetkisi gereklidir.' },
+        { success: false, error: 'Bu işlem için Marka Merkezi yetkisi gereklidir.' },
         { status: 403 }
       );
     }
@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
         email: normalizedEmail,
         password: hashedPassword,
         role: role || 'SALES_REP',
-        target: Number(target) || 500000,
+        target: role === 'VIEWER' ? 0 : (Number(target) || 500000),
         phone: phone || '',
       },
       select: {
@@ -112,7 +112,7 @@ export async function PUT(request: NextRequest) {
     const currentUser = await getSessionUser();
     if (!currentUser || (currentUser.role !== 'ADMIN' && currentUser.role !== 'SUPER_ADMIN')) {
       return NextResponse.json(
-        { success: false, error: 'Bu işlem için Süper Admin yetkisi gereklidir.' },
+        { success: false, error: 'Bu işlem için Marka Merkezi yetkisi gereklidir.' },
         { status: 403 }
       );
     }
@@ -131,7 +131,7 @@ export async function PUT(request: NextRequest) {
       ...(name ? { name: name.trim() } : {}),
       ...(email ? { email: email.trim().toLowerCase() } : {}),
       ...(role ? { role } : {}),
-      ...(target !== undefined ? { target: Number(target) } : {}),
+      ...(role === 'VIEWER' ? { target: 0 } : target !== undefined ? { target: Number(target) } : {}),
       ...(phone !== undefined ? { phone } : {}),
     };
 
@@ -169,7 +169,7 @@ export async function DELETE(request: NextRequest) {
     const currentUser = await getSessionUser();
     if (!currentUser || (currentUser.role !== 'ADMIN' && currentUser.role !== 'SUPER_ADMIN')) {
       return NextResponse.json(
-        { success: false, error: 'Bu işlem için Süper Admin yetkisi gereklidir.' },
+        { success: false, error: 'Bu işlem için Marka Merkezi yetkisi gereklidir.' },
         { status: 403 }
       );
     }

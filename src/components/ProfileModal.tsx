@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useState } from 'react';
 import { User } from '@/types';
@@ -103,9 +103,11 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
     switch (role) {
       case 'SUPER_ADMIN':
       case 'ADMIN':
-        return 'Süper Admin (Genel Müdür)';
+        return 'Marka Merkezi';
       case 'SALES_MANAGER':
         return 'Satış Yöneticisi';
+      case 'VIEWER':
+        return 'Yönetim Katı / Misafir';
       default:
         return 'Satış Temsilcisi';
     }

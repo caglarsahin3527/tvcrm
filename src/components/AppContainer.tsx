@@ -3,7 +3,6 @@
 import React, { useState, useCallback, useTransition } from 'react';
 import { User, Deal, Client, WorkReport } from '@/types';
 import { Navbar } from '@/components/Navbar';
-import { AlertBanner } from '@/components/AlertBanner';
 import { FilterBar } from '@/components/FilterBar';
 import { QuickAddClientModal } from '@/components/QuickAddClientModal';
 import { QuickAddDealModal } from '@/components/QuickAddDealModal';
@@ -228,13 +227,6 @@ export const AppContainer: React.FC<AppContainerProps> = ({
       {/* Main Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-2.5 sm:px-6 lg:px-8 py-3 sm:py-5">
         
-        {/* Alert & Reminder Banner */}
-        <AlertBanner
-          currentUser={currentUser}
-          deals={filteredDeals}
-          onOpenFollowUpModal={handleOpenFollowUp}
-        />
-
         {/* Global Filter Bar */}
         <FilterBar
           users={users}

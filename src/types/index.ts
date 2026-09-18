@@ -59,6 +59,8 @@ export interface Deal {
   kanal: string;
   teklif_tutari: number;
   yayin_donemi: string;
+  baslangic_tarihi?: Date | string | null;
+  bitis_tarihi?: Date | string | null;
   tahmini_kapanis_tarihi: Date | string | null;
   ihtimal_derecesi: string;
   asama: string;

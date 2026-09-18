@@ -13,11 +13,9 @@ export async function GET(request: NextRequest) {
     const musteriTipi = searchParams.get('musteriTipi') || undefined;
     const timeRange = searchParams.get('timeRange') || undefined;
 
-    // RBAC: SALES_REP can only access their own data
+    // Filter by representative if explicitly selected
     let repFilter: string | undefined = undefined;
-    if (sessionUser && sessionUser.role === 'SALES_REP') {
-      repFilter = sessionUser.id;
-    } else if (selectedRepId && selectedRepId !== 'all') {
+    if (selectedRepId && selectedRepId !== 'all') {
       repFilter = selectedRepId;
     }
 

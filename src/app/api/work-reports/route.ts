@@ -209,15 +209,28 @@ export async function POST(request: NextRequest) {
         }
         const asama = satis_yapildi ? 'SATIŞ' : 'TEKLİF';
         const tutar = satis_yapildi ? (Number(satis_tutari) || 0) : (Number(teklif_tutari) || 0);
-        await prisma.deal.create({
+        const deal = await prisma.deal.create({
           data: {
             musteri_id: client.id,
             kanal: tv_kanali || 'Bi Kanal',
             teklif_tutari: tutar,
-            ihtimal_derecesi: satis_yapildi ? 'Kesin' : (teklif_ihtimal === '%100' || teklif_ihtimal === '%90' ? 'Yüksek' : 'Orta'),
+            ihtimal_derecesi: satis_yapildi 
+              ? 'Kesin' 
+              : (teklif_ihtimal === '%100' 
+                  ? 'Kesin' 
+                  : teklif_ihtimal === '%75' 
+                  ? 'Yüksek' 
+                  : teklif_ihtimal === '%25' 
+                  ? 'Düşük' 
+                  : (teklif_ihtimal === '%90' ? 'Yüksek' : teklif_ihtimal === '%10' ? 'Düşük' : 'Orta')),
             asama: asama,
             not: (satis_yapildi ? satis_turu : 'Teklif Verildi') + ' - Çalışma Raporundan Otomatik Eklendi',
           }
+        });
+
+        await prisma.workReport.update({
+          where: { id: report.id },
+          data: { deal_id: deal.id }
         });
       }
     }
@@ -344,6 +357,14 @@ export async function DELETE(request: NextRequest) {
         { success: false, error: 'Başkasına ait çalışma raporunu silme yetkiniz yoktur.' },
         { status: 403 }
       );
+    }
+
+    if ((existing as any).deal_id) {
+      try {
+        await prisma.deal.delete({ where: { id: (existing as any).deal_id } });
+      } catch (err) {
+        console.error('Failed to delete associated deal:', err);
+      }
     }
 
     await prisma.workReport.delete({ where: { id } });

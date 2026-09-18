@@ -232,7 +232,6 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
     setRezervasyonPtSaniye('');
     setRezervasyonPtFiyat('');
     setRezervasyonVade('');
-    setRezervasyonVade('');
     setErrorMessage('');
     setSuccessMessage('');
   };
@@ -366,8 +365,6 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
   const rezervasyonReports = filteredReports.filter((r) => r.rezervasyon_var);
   const totalRezervasyonAdet = rezervasyonReports.reduce((sum, r) => sum + (r.rezervasyon_gelen || 1), 0);
   const totalRezervasyonSaniye = rezervasyonReports.reduce((sum, r) => sum + (r.rezervasyon_toplam_saniye || 0), 0);
-
-  const kurumsalZiyaretCount = filteredReports.filter((r) => r.kurumsal_ziyaret || r.iletisim_turu === 'Kurumsal Ziyaret').length;
 
   // --- EXECUTIVE SUMMARY MATRIX (Personel Bazlı Matris Tablosu) ---
   const executiveMatrix = useMemo(() => {
@@ -513,7 +510,7 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
         rezervasyon_pt_fiyat: rezervasyonVar && rezervasyonFiyatTipi === 'PT_OPT' ? Number(rezervasyonPtFiyat) || 0 : 0,
         rezervasyon_birim_fiyat: rezervasyonVar ? calculatedReservation.unitPrice : 0,
         rezervasyon_toplam_saniye: rezervasyonVar ? calculatedReservation.totalSaniye : 0,
-        rezervasyon_vade: rezervasyonVar ? rezervasyonVade : '',
+        rezervasyon_vade: (rezervasyonVar || satisYapildi) ? (rezervasyonVade || '') : '',
       };
 
       const res = await fetch('/api/work-reports', {
@@ -603,7 +600,7 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
     }
 
     const exportRows = filteredReports.filter((r) => {
-      if (isSuperAdmin || isViewer) return true; // Genel müdür ve Misafir yönetici tüm raporları alır
+      if (isSuperAdmin || isViewer) return true; // Marka Merkezi ve Misafir yönetici tüm raporları alır
       if (isManager) {
         // Yönetici kendisi ve temsilciler için rapor alır (Admin'leri hariç tut)
         const userRole = users.find(u => u.id === r.user_id)?.role;
@@ -623,7 +620,7 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
       'Reklam Türü': r.reklam_turu || 'Reklam',
       'TV Kanalı': r.tv_kanali || 'Bi Kanal',
       'Görüşme Amacı & Not': r.gorusme_amaci,
-      'Sonuç': r.sonuc || '-',
+      'Vade': r.rezervasyon_vade || '-',
       'Teklif Verildi': r.teklif_verildi ? 'Evet' : 'Hayır',
       'Teklif Tutarı (TL)': r.teklif_tutari || 0,
       'Teklif İhtimal': r.teklif_ihtimal || '-',
@@ -654,47 +651,8 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-xs p-2 sm:p-4 overflow-y-auto animate-fadeIn">
-      
-      {/* PRINT-ONLY LANDSCAPE A4 STYLES */}
-      <style jsx global>{`
-        @media print {
-          @page {
-            size: A4 landscape;
-            margin: 5mm 7mm;
-          }
-          body * {
-            visibility: hidden;
-          }
-          #print-work-report-area,
-          #print-work-report-area * {
-            visibility: visible;
-          }
-          #print-work-report-area {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-            background: white !important;
-            color: black !important;
-            font-size: 8pt;
-            padding: 0 !important;
-            margin: 0 !important;
-          }
-          #print-work-report-area table {
-            font-size: 7.5pt !important;
-          }
-          #print-work-report-area th,
-          #print-work-report-area td {
-            padding: 2px 4px !important;
-          }
-          .no-print {
-            display: none !important;
-          }
-        }
-      `}</style>
-
-      <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-6xl shadow-2xl overflow-hidden my-auto max-h-[95vh] flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-xs p-2 sm:p-4 overflow-y-auto animate-fadeIn work-report-modal-backdrop">
+      <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-6xl shadow-2xl overflow-hidden my-auto max-h-[95vh] flex flex-col work-report-modal-card">
         
         {/* Header (No-Print) */}
         <div className="px-5 py-3.5 bg-slate-900 text-white flex items-center justify-between shrink-0 no-print border-b border-slate-800">
@@ -811,15 +769,17 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
             <div className="space-y-4">
               
               {/* PRINT HEADER ONLY VISIBLE ON PAPER / PDF */}
-              <div className="hidden print:block border-b-2 border-slate-900 pb-3 mb-4">
+              <div className="hidden print:block border-b-2 border-slate-900 pb-2 mb-2.5">
                 <div className="flex justify-between items-start">
                   <div>
-                    <h1 className="text-lg font-black tracking-tight font-mono">B! KANAL & SIFIR TV - GÜNLÜK VE DÖNEMSEL KURUMSAL ÇALIŞMA RAPORU</h1>
-                    <p className="text-xs text-slate-600 font-semibold mt-0.5">
+                    <h1 className="text-sm sm:text-base font-black tracking-tight font-mono text-slate-900">
+                      B! KANAL & SIFIR TV - GÜNLÜK VE DÖNEMSEL KURUMSAL ÇALIŞMA RAPORU
+                    </h1>
+                    <p className="text-[10px] text-slate-600 font-semibold mt-0.5">
                       Marka ve Büyüme Merkezi • Reklam Satış Grup Direktörlüğü
                     </p>
                   </div>
-                  <div className="text-right text-xs font-mono">
+                  <div className="text-right text-[10px] font-mono">
                     <div><strong>Rapor Tarihi:</strong> {new Date().toLocaleDateString('tr-TR')}</div>
                     <div><strong>Filtre Kapsamı:</strong> {selectedUserFilter === 'all' ? 'Tüm Grup Üyeleri' : getRepName(selectedUserFilter)}</div>
                     <div><strong>Zaman Dilimi:</strong> {timeRange === 'today' ? 'Bugün' : timeRange === 'this_week' ? 'Bu Hafta' : timeRange === 'this_month' ? 'Bu Ay' : 'Tüm Dönem'}</div>
@@ -991,46 +951,40 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
               </div>
 
               {/* KPI KONSOLU */}
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-                <div className="bg-slate-50 border border-slate-200 p-3 rounded-xl">
-                  <span className="text-[10px] font-mono uppercase font-bold text-slate-500">Toplam Temas</span>
-                  <div className="text-lg font-mono font-black text-slate-900 mt-1">{totalReportsCount} Kayıt</div>
-                  <div className="text-[10px] text-slate-500 font-mono mt-0.5">Faaliyet sayısı</div>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 print:grid-cols-4 print:gap-1.5 print:mb-2 print-avoid-break">
+                <div className="bg-slate-50 border border-slate-200 p-3 rounded-xl print:p-1.5 print:rounded-lg">
+                  <span className="text-[10px] font-mono uppercase font-bold text-slate-500 print:text-[8px]">Toplam Temas</span>
+                  <div className="text-lg font-mono font-black text-slate-900 mt-1 print:text-xs print:mt-0.5">{totalReportsCount} Kayıt</div>
+                  <div className="text-[10px] text-slate-500 font-mono mt-0.5 print:hidden">Faaliyet sayısı</div>
                 </div>
 
-                <div className="bg-sky-50 border border-sky-200 p-3 rounded-xl">
-                  <span className="text-[10px] font-mono uppercase font-bold text-sky-700">Verilen Teklifler</span>
-                  <div className="text-lg font-mono font-black text-sky-800 mt-1">{formatCurrency(totalTeklifTutari)}</div>
-                  <div className="text-[10px] text-sky-700 font-mono mt-0.5">{teklifReports.length} Teklif Sunuldu</div>
+                <div className="bg-sky-50 border border-sky-200 p-3 rounded-xl print:p-1.5 print:rounded-lg">
+                  <span className="text-[10px] font-mono uppercase font-bold text-sky-700 print:text-[8px]">Verilen Teklifler</span>
+                  <div className="text-lg font-mono font-black text-sky-800 mt-1 print:text-xs print:mt-0.5">{formatCurrency(totalTeklifTutari)}</div>
+                  <div className="text-[10px] text-sky-700 font-mono mt-0.5 print:hidden">{teklifReports.length} Teklif Sunuldu</div>
                 </div>
 
-                <div className="bg-emerald-50 border border-emerald-200 p-3 rounded-xl">
-                  <span className="text-[10px] font-mono uppercase font-bold text-emerald-700">Gerçekleşen Satış</span>
-                  <div className="text-lg font-mono font-black text-emerald-700 mt-1">{formatCurrency(totalSatisTutari)}</div>
-                  <div className="text-[10px] text-emerald-800 font-mono mt-0.5">{satisReports.length} Satış Kapatıldı</div>
+                <div className="bg-emerald-50 border border-emerald-200 p-3 rounded-xl print:p-1.5 print:rounded-lg">
+                  <span className="text-[10px] font-mono uppercase font-bold text-emerald-700 print:text-[8px]">Gerçekleşen Satış</span>
+                  <div className="text-lg font-mono font-black text-emerald-700 mt-1 print:text-xs print:mt-0.5">{formatCurrency(totalSatisTutari)}</div>
+                  <div className="text-[10px] text-emerald-800 font-mono mt-0.5 print:hidden">{satisReports.length} Satış Kapatıldı</div>
                 </div>
 
-                <div className="bg-amber-50 border border-amber-200 p-3 rounded-xl">
-                  <span className="text-[10px] font-mono uppercase font-bold text-amber-800">Rezervasyonlar</span>
-                  <div className="text-lg font-mono font-black text-amber-800 mt-1">{totalRezervasyonAdet} Adet</div>
-                  <div className="text-[10px] text-amber-700 font-mono mt-0.5">{totalRezervasyonSaniye} sn Toplam Kuşak</div>
-                </div>
-
-                <div className="bg-purple-50 border border-purple-200 p-3 rounded-xl col-span-2 sm:col-span-1">
-                  <span className="text-[10px] font-mono uppercase font-bold text-purple-800">Kurumsal Ziyaret</span>
-                  <div className="text-lg font-mono font-black text-purple-900 mt-1">{kurumsalZiyaretCount} Ziyaret</div>
-                  <div className="text-[10px] text-purple-700 font-mono mt-0.5">Saha / Yüzyüze</div>
+                <div className="bg-amber-50 border border-amber-200 p-3 rounded-xl print:p-1.5 print:rounded-lg">
+                  <span className="text-[10px] font-mono uppercase font-bold text-amber-800 print:text-[8px]">Rezervasyonlar</span>
+                  <div className="text-lg font-mono font-black text-amber-800 mt-1 print:text-xs print:mt-0.5">{totalRezervasyonAdet} Adet</div>
+                  <div className="text-[10px] text-amber-700 font-mono mt-0.5 print:hidden">{totalRezervasyonSaniye} sn</div>
                 </div>
               </div>
 
               {/* DETAYLI ÇALIŞMA RAPORU TABLOSU */}
-              <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs">
-                <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
-                  <h4 className="text-xs font-bold font-mono text-slate-900 uppercase tracking-wider flex items-center gap-2">
-                    <FileCheck className="w-4 h-4 text-sky-600" />
+              <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs print:border-slate-300 print:rounded-none">
+                <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between print:px-2 print:py-1">
+                  <h4 className="text-xs font-bold font-mono text-slate-900 uppercase tracking-wider flex items-center gap-2 print:text-[9px]">
+                    <FileCheck className="w-4 h-4 text-sky-600 print:w-3 print:h-3" />
                     Faaliyet ve Görüşme Kayıtları Listesi
                   </h4>
-                  <span className="text-[11px] text-slate-500 font-mono">
+                  <span className="text-[11px] text-slate-500 font-mono print:text-[8px]">
                     Listelenen: {filteredReports.length} Rapor
                   </span>
                 </div>
@@ -1049,7 +1003,7 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                         <th className="py-2.5 px-3 whitespace-nowrap">Kanal</th>
                         <th className="py-2.5 px-3 whitespace-nowrap">Tutar (₺)</th>
                         <th className="py-2.5 px-3 whitespace-nowrap">Rezervasyon / Kuşak</th>
-                        <th className="py-2.5 px-3">Sonuç & Not</th>
+                        <th className="py-2.5 px-3 whitespace-nowrap text-center">Vade</th>
                         <th className="py-2.5 px-3 text-right no-print">İşlem</th>
                       </tr>
                     </thead>
@@ -1157,11 +1111,15 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                               )}
                             </td>
 
-                            {/* Sonuç & Not */}
-                            <td className="py-2.5 px-3 text-slate-700 max-w-[220px] text-[11px]">
-                              <p className="line-clamp-2" title={report.sonuc || report.gorusme_amaci}>
-                                {report.sonuc || report.gorusme_amaci || '-'}
-                              </p>
+                            {/* Vade (Ödeme) */}
+                            <td className="py-2.5 px-3 whitespace-nowrap text-center font-mono text-[11px]">
+                              {report.rezervasyon_vade ? (
+                                <span className="font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded border border-slate-200 inline-block">
+                                  {report.rezervasyon_vade}
+                                </span>
+                              ) : (
+                                <span className="text-slate-400">-</span>
+                              )}
                             </td>
 
                             {/* İşlemler (No-Print) */}
@@ -1244,7 +1202,7 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                           <div className="flex items-center gap-1.5">
                             <span className="font-bold text-slate-900 text-xs">{row.user.name}</span>
                             <span className="text-[9px] text-slate-500 font-mono font-normal">
-                              ({row.user.role === 'SALES_MANAGER' ? 'Satış Yöneticisi' : row.user.role === 'ADMIN' ? 'Genel Müdür' : 'Satış Temsilcisi'})
+                              ({row.user.role === 'SALES_MANAGER' ? 'Satış Yöneticisi' : row.user.role === 'ADMIN' ? 'Marka Merkezi' : 'Satış Temsilcisi'})
                             </span>
                           </div>
                         </td>
@@ -1291,57 +1249,57 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
               </div>
 
               {/* TV REKLAM KUŞAK & REZERVASYON DAĞILIMI ANALİZ KUTULARI */}
-              <div className="grid grid-cols-3 gap-2.5 pt-1">
-                <div className="border border-slate-200 bg-slate-50 px-3 py-1.5 rounded-lg">
-                  <span className="text-[9.5px] font-mono font-bold uppercase text-slate-500 block">Kuşak Rezervasyon Özeti</span>
-                  <div className="text-xs font-mono font-bold text-slate-800 mt-0.5">
+              <div className="grid grid-cols-3 gap-2.5 pt-1 print:gap-2 print:pt-1 print-avoid-break">
+                <div className="border border-slate-200 bg-slate-50 px-3 py-1.5 rounded-lg print:p-1.5">
+                  <span className="text-[9.5px] font-mono font-bold uppercase text-slate-500 block print:text-[8px]">Kuşak Rezervasyon Özeti</span>
+                  <div className="text-xs font-mono font-bold text-slate-800 mt-0.5 print:text-[9.5px]">
                     Toplam Kuşak: <strong className="text-amber-800">{matrixTotals.rezSaniye} sn</strong> ({matrixTotals.rezCount} Adet)
                   </div>
-                  <div className="text-[10px] text-slate-600 font-mono mt-0.5">
+                  <div className="text-[10px] text-slate-600 font-mono mt-0.5 print:text-[8px]">
                     OPT: {matrixTotals.rezOptSaniye} sn | PT: {matrixTotals.rezPtSaniye} sn
                   </div>
                 </div>
 
-                <div className="border border-emerald-200 bg-emerald-50/50 px-3 py-1.5 rounded-lg">
-                  <span className="text-[9.5px] font-mono font-bold uppercase text-emerald-800 block">Kapanan Ciro & Başarı</span>
-                  <div className="text-xs font-mono font-bold text-emerald-800 mt-0.5">
+                <div className="border border-emerald-200 bg-emerald-50/50 px-3 py-1.5 rounded-lg print:p-1.5">
+                  <span className="text-[9.5px] font-mono font-bold uppercase text-emerald-800 block print:text-[8px]">Kapanan Ciro & Başarı</span>
+                  <div className="text-xs font-mono font-bold text-emerald-800 mt-0.5 print:text-[9.5px]">
                     Toplam Satış: {formatCurrency(matrixTotals.satisSum)}
                   </div>
-                  <div className="text-[10px] text-emerald-700 font-mono mt-0.5">
+                  <div className="text-[10px] text-emerald-700 font-mono mt-0.5 print:text-[8px]">
                     {matrixTotals.satisCount} Başarılı Anlaşma
                   </div>
                 </div>
 
-                <div className="border border-sky-200 bg-sky-50/50 px-3 py-1.5 rounded-lg">
-                  <span className="text-[9.5px] font-mono font-bold uppercase text-sky-800 block">Görüşülen & Teklif Portföyü</span>
-                  <div className="text-xs font-mono font-bold text-sky-800 mt-0.5">
+                <div className="border border-sky-200 bg-sky-50/50 px-3 py-1.5 rounded-lg print:p-1.5">
+                  <span className="text-[9.5px] font-mono font-bold uppercase text-sky-800 block print:text-[8px]">Görüşülen & Teklif Portföyü</span>
+                  <div className="text-xs font-mono font-bold text-sky-800 mt-0.5 print:text-[9.5px]">
                     Teklif Havuzu: {formatCurrency(matrixTotals.teklifSum)}
                   </div>
-                  <div className="text-[10px] text-sky-700 font-mono mt-0.5">
+                  <div className="text-[10px] text-sky-700 font-mono mt-0.5 print:text-[8px]">
                     {matrixTotals.totalActivities} Toplam Görüşme Teması
                   </div>
                 </div>
               </div>
 
               {/* PRINT FOOTER / SIGNATURE BLOCK (Visible on matrix print) */}
-              <div className="grid grid-cols-3 gap-6 pt-3 mt-2 border-t border-slate-300 text-center font-mono text-[11px]">
+              <div className="grid grid-cols-3 gap-6 pt-3 mt-2 border-t border-slate-300 text-center font-mono text-[11px] print:pt-2 print:mt-2 print:text-[9px] print-avoid-break">
                 <div>
                   <div className="font-bold text-slate-900">Raporu Hazırlayan</div>
-                  <div className="text-slate-600 text-[10px] mt-0.5">{currentUser?.name || 'Sistem Kullanıcısı'}</div>
-                  <div className="mt-4 border-b border-slate-400 w-28 mx-auto"></div>
-                  <div className="text-[9px] text-slate-400 mt-0.5">İmza</div>
+                  <div className="text-slate-600 text-[10px] mt-0.5 print:text-[8px]">{currentUser?.name || 'Sistem Kullanıcısı'}</div>
+                  <div className="mt-3 border-b border-slate-400 w-24 mx-auto"></div>
+                  <div className="text-[9px] text-slate-400 mt-0.5 print:text-[7.5px]">İmza</div>
                 </div>
                 <div>
                   <div className="font-bold text-slate-900">Reklam Satış Grup Direktörü</div>
-                  <div className="text-slate-600 text-[10px] mt-0.5">İnceleme & Kontrol</div>
-                  <div className="mt-4 border-b border-slate-400 w-28 mx-auto"></div>
-                  <div className="text-[9px] text-slate-400 mt-0.5">İmza</div>
+                  <div className="text-slate-600 text-[10px] mt-0.5 print:text-[8px]">İnceleme & Kontrol</div>
+                  <div className="mt-3 border-b border-slate-400 w-24 mx-auto"></div>
+                  <div className="text-[9px] text-slate-400 mt-0.5 print:text-[7.5px]">İmza</div>
                 </div>
                 <div>
-                  <div className="font-bold text-slate-900">Genel Müdür Onayı</div>
-                  <div className="text-slate-600 text-[10px] mt-0.5">Süper Admin / Yönetim</div>
-                  <div className="mt-4 border-b border-slate-400 w-28 mx-auto"></div>
-                  <div className="text-[9px] text-slate-400 mt-0.5">Onay & Mühür</div>
+                  <div className="font-bold text-slate-900">Marka Merkezi Onayı</div>
+                  <div className="text-slate-600 text-[10px] mt-0.5 print:text-[8px]">Yönetim / Onay</div>
+                  <div className="mt-3 border-b border-slate-400 w-24 mx-auto"></div>
+                  <div className="text-[9px] text-slate-400 mt-0.5 print:text-[7.5px]">Onay & Mühür</div>
                 </div>
               </div>
 
@@ -1423,7 +1381,7 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                       {users.length > 0 ? (
                         users.map((u) => (
                           <option key={u.id} value={u.id}>
-                            {u.name} ({u.role === 'SALES_MANAGER' ? 'Yönetici' : u.role === 'ADMIN' ? 'Genel Müdür' : 'Satış Temsilcisi'})
+                            {u.name} ({u.role === 'SALES_MANAGER' ? 'Yönetici' : u.role === 'ADMIN' ? 'Marka Merkezi' : 'Satış Temsilcisi'})
                           </option>
                         ))
                       ) : currentUser ? (
@@ -1696,11 +1654,9 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                           onChange={(e) => setTeklifIhtimal(e.target.value)}
                           className="w-full text-xs px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-bold focus:outline-none focus:border-sky-500 cursor-pointer"
                         >
-                          <option value="%10">%10 (Düşük İhtimal)</option>
-                          <option value="%25">%25 (Görüşme Sürüyor)</option>
+                          <option value="%25">%25 (Düşük İhtimal)</option>
                           <option value="%50">%50 (Orta İhtimal)</option>
                           <option value="%75">%75 (Yüksek İhtimal)</option>
-                          <option value="%90">%90 (Kapanmak Üzere)</option>
                           <option value="%100">%100 (Kesinleşti)</option>
                         </select>
                       </div>
@@ -1723,7 +1679,7 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                   </label>
 
                   {satisYapildi && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-100">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-slate-100">
                       <div>
                         <label className="text-[10px] font-mono uppercase text-slate-500 font-bold">Satış / Reklam Türü</label>
                         <select
@@ -1746,6 +1702,25 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                           onChange={(e) => setSatisTutari(e.target.value)}
                           className="w-full text-xs px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-emerald-700 font-mono font-black focus:outline-none focus:border-sky-500"
                         />
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] font-mono uppercase text-slate-500 font-bold">Vade (Ödeme)</label>
+                        <select
+                          value={rezervasyonVade}
+                          onChange={(e) => setRezervasyonVade(e.target.value)}
+                          className="w-full text-xs px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-emerald-500 cursor-pointer"
+                        >
+                          <option value="">Seçiniz...</option>
+                          <option value="Nakit">Nakit</option>
+                          <option value="30 Gün">30 Gün</option>
+                          <option value="60 Gün">60 Gün</option>
+                          <option value="90 Gün">90 Gün</option>
+                          <option value="120 Gün">120 Gün</option>
+                          <option value="150 Gün">150 Gün</option>
+                          <option value="180 Gün">180 Gün</option>
+                          <option value="Özel">Özel</option>
+                        </select>
                       </div>
                     </div>
                   )}
@@ -1980,11 +1955,11 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
         {/* Modal Footer (No-Print) */}
         <div className="px-6 py-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between shrink-0 no-print">
           <div className="text-[11px] font-mono text-slate-500">
-            Aktif Kullanıcı: <strong className="text-slate-800">{currentUser?.name || 'Süper Admin'}</strong>
+            Aktif Kullanıcı: <strong className="text-slate-800">{currentUser?.name || 'Marka Merkezi'}</strong>
             <span className="mx-1.5">•</span>
             Rol: <strong className="text-sky-700">
               {currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPER_ADMIN' 
-                ? 'Süper Admin (Genel Müdür)' 
+                ? 'Marka Merkezi' 
                 : currentUser?.role === 'SALES_MANAGER' 
                 ? 'Satış Yöneticisi' 
                 : currentUser?.role === 'VIEWER'
