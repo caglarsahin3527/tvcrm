@@ -74,7 +74,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
         </div>
 
         {/* 3. Satış Temsilcisi Filtresi (Yalnızca Manager ve Admin için) */}
-        {!isRep && (
+        {(currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'SALES_MANAGER') && (
           <div className="flex items-center bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 text-xs">
             <UserIcon className="w-3.5 h-3.5 text-slate-400 mr-1.5" />
             <select

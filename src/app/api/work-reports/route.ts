@@ -125,6 +125,7 @@ export async function POST(request: NextRequest) {
       rezervasyon_pt_fiyat,
       rezervasyon_birim_fiyat,
       rezervasyon_toplam_saniye,
+      rezervasyon_vade,
       user_id,
     } = body;
 
@@ -171,11 +172,55 @@ export async function POST(request: NextRequest) {
         rezervasyon_pt_fiyat: rezervasyon_var ? Number(rezervasyon_pt_fiyat) || 0 : 0,
         rezervasyon_birim_fiyat: rezervasyon_var ? Number(rezervasyon_birim_fiyat) || 0 : 0,
         rezervasyon_toplam_saniye: rezervasyon_var ? Number(rezervasyon_toplam_saniye) || 0 : 0,
+        rezervasyon_vade: rezervasyon_var ? (rezervasyon_vade || '') : '',
       },
       include: {
         user: true,
       },
     });
+
+    
+    if (satis_yapildi || teklif_verildi) {
+      let client = await prisma.client.findFirst({
+        where: { firma_adi: toTurkishUpper(kurum_adi) },
+      });
+      
+      // Auto-create client if they don't exist so the deal isn't lost
+      if (!client) {
+        client = await prisma.client.create({
+          data: {
+            firma_adi: toTurkishUpper(kurum_adi),
+            yetkili_kisi: toTurkishUpper(yetkili) || 'Bilinmiyor',
+            telefon: yetkili_telefon || '0000000000',
+            eposta: yetkili_eposta || '',
+            musteri_tipi: kurum_turu || 'Diğer',
+            satis_temsilcisi_id: effectiveUserId,
+            sonraki_takip_tarihi: new Date(),
+          }
+        });
+      }
+
+      if (client) {
+        // Herkes (Admin hariç) sadece kendi müşterisi için işlem yapabilir.
+        // Eğer yönetici bile olsa, başkasının (veya Admin'in) müşterisine rapor giremez, ancak belki kendi alt ekibi için girebilir.
+        // Ama kural "Herkes sadece kendi yaptığı müşterilerle ilgili değişiklik yapabilir" diyor.
+        if (sessionUser.role !== 'ADMIN' && sessionUser.role !== 'SUPER_ADMIN' && client.satis_temsilcisi_id !== sessionUser.id) {
+          throw new Error('Bu müşteri başka bir temsilciye aittir. Yalnızca kendi müşterileriniz için işlem yapabilirsiniz.');
+        }
+        const asama = satis_yapildi ? 'SATIŞ' : 'TEKLİF';
+        const tutar = satis_yapildi ? (Number(satis_tutari) || 0) : (Number(teklif_tutari) || 0);
+        await prisma.deal.create({
+          data: {
+            musteri_id: client.id,
+            kanal: tv_kanali || 'Bi Kanal',
+            teklif_tutari: tutar,
+            ihtimal_derecesi: satis_yapildi ? 'Kesin' : (teklif_ihtimal === '%100' || teklif_ihtimal === '%90' ? 'Yüksek' : 'Orta'),
+            asama: asama,
+            not: (satis_yapildi ? satis_turu : 'Teklif Verildi') + ' - Çalışma Raporundan Otomatik Eklendi',
+          }
+        });
+      }
+    }
 
     return NextResponse.json({ success: true, report });
   } catch (error: any) {
@@ -254,6 +299,7 @@ export async function PUT(request: NextRequest) {
         rezervasyon_pt_fiyat: data.rezervasyon_pt_fiyat !== undefined ? Number(data.rezervasyon_pt_fiyat) : (existing as any).rezervasyon_pt_fiyat,
         rezervasyon_birim_fiyat: data.rezervasyon_birim_fiyat !== undefined ? Number(data.rezervasyon_birim_fiyat) : existing.rezervasyon_birim_fiyat,
         rezervasyon_toplam_saniye: data.rezervasyon_toplam_saniye !== undefined ? Number(data.rezervasyon_toplam_saniye) : existing.rezervasyon_toplam_saniye,
+        rezervasyon_vade: data.rezervasyon_vade !== undefined ? data.rezervasyon_vade : (existing as any).rezervasyon_vade,
       },
     });
 

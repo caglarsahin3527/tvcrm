@@ -118,6 +118,7 @@ export interface WorkReport {
   rezervasyon_pt_fiyat?: number | null;
   rezervasyon_birim_fiyat?: number | null;
   rezervasyon_toplam_saniye?: number | null;
+  rezervasyon_vade?: string | null;
   createdAt: Date | string;
   updatedAt?: Date | string;
 }

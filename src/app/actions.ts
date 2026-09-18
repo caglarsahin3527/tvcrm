@@ -131,12 +131,7 @@ export async function createClientAndDeal(data: {
   try {
     let repId = data.satis_temsilcisi_id;
     if (!repId) {
-      const defaultUser = await prisma.user.findFirst({
-        where: { role: 'SALES_REP' },
-      }) || await prisma.user.findFirst();
-      if (defaultUser) {
-        repId = defaultUser.id;
-      }
+      throw new Error('Satış temsilcisi belirtilmelidir. Müşteri bir temsilciye atanmadan kaydedilemez.');
     }
 
     const followUpDate = data.sonraki_takip_tarihi
@@ -239,12 +234,7 @@ export async function createClient(data: {
 }) {
   let repId = data.satis_temsilcisi_id;
   if (!repId) {
-    const defaultUser = await prisma.user.findFirst({
-      where: { role: 'SALES_REP' },
-    }) || await prisma.user.findFirst();
-    if (defaultUser) {
-      repId = defaultUser.id;
-    }
+    throw new Error('Satış temsilcisi belirtilmelidir. Müşteri bir temsilciye atanmadan kaydedilemez.');
   }
 
   const followUpDate = data.sonraki_takip_tarihi
@@ -370,6 +360,7 @@ export async function createWorkReport(data: any) {
       rezervasyon_turu: data.rezervasyon_var ? data.rezervasyon_turu || '' : '',
       rezervasyon_birim_fiyat: data.rezervasyon_var ? Number(data.rezervasyon_birim_fiyat) || 0 : 0,
       rezervasyon_toplam_saniye: data.rezervasyon_var ? Number(data.rezervasyon_toplam_saniye) || 0 : 0,
+      rezervasyon_vade: data.rezervasyon_var ? data.rezervasyon_vade || '' : '',
       rezervasyon_fiyat_tipi: data.rezervasyon_var ? data.rezervasyon_fiyat_tipi || 'TEK' : null,
       rezervasyon_opt_saniye: data.rezervasyon_var ? Number(data.rezervasyon_opt_saniye) || 0 : 0,
       rezervasyon_opt_fiyat: data.rezervasyon_var ? Number(data.rezervasyon_opt_fiyat) || 0 : 0,

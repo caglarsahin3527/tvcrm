@@ -103,9 +103,7 @@ export const AppContainer: React.FC<AppContainerProps> = ({
       }
       // 2. Representative Filter
       const repId = deal.musteri?.satis_temsilcisi_id || deal.musteri?.satis_temsilcisi?.id;
-      if (currentUser?.role === 'SALES_REP') {
-        if (repId !== currentUser.id) return false;
-      } else if (selectedRep !== 'all' && repId !== selectedRep) {
+      if (selectedRep !== 'all' && repId !== selectedRep) {
         return false;
       }
       // 3. Customer Type Filter
@@ -127,9 +125,7 @@ export const AppContainer: React.FC<AppContainerProps> = ({
     return clients
       .filter((client) => {
         // 1. Representative Filter
-        if (currentUser?.role === 'SALES_REP') {
-          if (client.satis_temsilcisi_id !== currentUser.id) return false;
-        } else if (selectedRep !== 'all' && client.satis_temsilcisi_id !== selectedRep) {
+        if (selectedRep !== 'all' && client.satis_temsilcisi_id !== selectedRep) {
           return false;
         }
 

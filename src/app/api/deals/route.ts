@@ -21,8 +21,8 @@ export async function POST(request: NextRequest) {
 
     const data = await request.json();
 
-    // Check client ownership for reps (Admins & Managers can create deals for any client)
-    if (sessionUser.role === 'SALES_REP') {
+    // Check client ownership (Admins can create deals for any client)
+    if (sessionUser.role !== 'ADMIN' && sessionUser.role !== 'SUPER_ADMIN') {
       const client = await prisma.client.findUnique({
         where: { id: data.musteri_id },
       });
@@ -94,7 +94,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Fırsat bulunamadı.' }, { status: 404 });
     }
 
-    if (sessionUser.role === 'SALES_REP' && existingDeal.musteri.satis_temsilcisi_id !== sessionUser.id) {
+    if (sessionUser.role !== 'ADMIN' && sessionUser.role !== 'SUPER_ADMIN' && existingDeal.musteri.satis_temsilcisi_id !== sessionUser.id) {
       return NextResponse.json(
         { success: false, error: 'Yalnızca kendi fırsatlarınızı güncelleyebilirsiniz.' },
         { status: 403 }

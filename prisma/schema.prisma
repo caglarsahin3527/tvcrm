@@ -94,6 +94,7 @@ model WorkReport {
   rezervasyon_pt_fiyat      Float?    @default(0)
   rezervasyon_birim_fiyat   Float?    @default(0)
   rezervasyon_toplam_saniye Int?      @default(0)
+  rezervasyon_vade          String?   @default("") // "Nakit", "30 Gün", "60 Gün", "90 Gün", "120 Gün", "150 Gün", "180 Gün", "Özel"
   createdAt                 DateTime  @default(now())
   updatedAt                 DateTime  @updatedAt
 

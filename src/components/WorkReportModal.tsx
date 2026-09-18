@@ -75,6 +75,8 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
   const isSuperAdmin = currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPER_ADMIN';
   const isManager = currentUser?.role === 'SALES_MANAGER';
   const isViewer = currentUser?.role === 'VIEWER';
+  // Misafir yönetici raporları görebilmeli
+  const canSeeMatrix = isSuperAdmin || isManager || isViewer;
 
   // --- FILTERS STATE ---
   const [timeRange, setTimeRange] = useState<'today' | 'this_week' | 'this_month' | 'all' | 'custom'>('all');
@@ -119,14 +121,17 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
   const [rezervasyonFiyatTipi, setRezervasyonFiyatTipi] = useState<'TEK_FIYAT' | 'PT_OPT'>('TEK_FIYAT');
   
   // Tek Fiyat Mode
-  const [rezervasyonBirimFiyat, setRezervasyonBirimFiyat] = useState('40');
-  const [rezervasyonToplamSaniye, setRezervasyonToplamSaniye] = useState('30');
+  const [rezervasyonBirimFiyat, setRezervasyonBirimFiyat] = useState('');
+  const [rezervasyonToplamSaniye, setRezervasyonToplamSaniye] = useState('');
 
   // PT / OPT Kuşak Mode
-  const [rezervasyonOptSaniye, setRezervasyonOptSaniye] = useState('20');
-  const [rezervasyonOptFiyat, setRezervasyonOptFiyat] = useState('35');
-  const [rezervasyonPtSaniye, setRezervasyonPtSaniye] = useState('10');
-  const [rezervasyonPtFiyat, setRezervasyonPtFiyat] = useState('50');
+  const [rezervasyonOptSaniye, setRezervasyonOptSaniye] = useState('');
+  const [rezervasyonOptFiyat, setRezervasyonOptFiyat] = useState('');
+  const [rezervasyonPtSaniye, setRezervasyonPtSaniye] = useState('');
+  const [rezervasyonPtFiyat, setRezervasyonPtFiyat] = useState('');
+
+  // Vade (Payment Terms)
+  const [rezervasyonVade, setRezervasyonVade] = useState('');
 
   // Autocomplete state
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -178,7 +183,13 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
       }
     });
 
-    return Array.from(map.values());
+    return Array.from(map.values()).filter(item => {
+      if (currentUser?.role === 'SALES_REP') {
+        const client = clients.find(c => c.firma_adi?.toUpperCase() === item.name.toUpperCase());
+        if (client && client.satis_temsilcisi_id !== currentUser.id) return false;
+      }
+      return true;
+    });
   }, [clients, workReports]);
 
   // Filtered suggestions based on user input
@@ -214,12 +225,14 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
     setRezervasyonGelen('1');
     setRezervasyonTuru('Spot');
     setRezervasyonFiyatTipi('TEK_FIYAT');
-    setRezervasyonBirimFiyat('40');
-    setRezervasyonToplamSaniye('30');
-    setRezervasyonOptSaniye('20');
-    setRezervasyonOptFiyat('35');
-    setRezervasyonPtSaniye('10');
-    setRezervasyonPtFiyat('50');
+    setRezervasyonBirimFiyat('');
+    setRezervasyonToplamSaniye('');
+    setRezervasyonOptSaniye('');
+    setRezervasyonOptFiyat('');
+    setRezervasyonPtSaniye('');
+    setRezervasyonPtFiyat('');
+    setRezervasyonVade('');
+    setRezervasyonVade('');
     setErrorMessage('');
     setSuccessMessage('');
   };
@@ -361,7 +374,11 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
     // Filter by selected user if specific user selected, else list all team members with activity
     const targetUsers = selectedUserFilter !== 'all' 
       ? users.filter((u) => u.id === selectedUserFilter)
-      : users;
+      : users.filter((u) => {
+          if (isSuperAdmin || isViewer) return true;
+          if (isManager) return u.role !== 'ADMIN' && u.role !== 'SUPER_ADMIN';
+          return u.id === currentUser?.id;
+        });
 
     return targetUsers.map((u) => {
       const userReports = filteredReports.filter((r) => r.user_id === u.id);
@@ -496,6 +513,7 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
         rezervasyon_pt_fiyat: rezervasyonVar && rezervasyonFiyatTipi === 'PT_OPT' ? Number(rezervasyonPtFiyat) || 0 : 0,
         rezervasyon_birim_fiyat: rezervasyonVar ? calculatedReservation.unitPrice : 0,
         rezervasyon_toplam_saniye: rezervasyonVar ? calculatedReservation.totalSaniye : 0,
+        rezervasyon_vade: rezervasyonVar ? rezervasyonVade : '',
       };
 
       const res = await fetch('/api/work-reports', {
@@ -584,7 +602,15 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
       return;
     }
 
-    const exportRows = filteredReports.map((r) => ({
+    const exportRows = filteredReports.filter((r) => {
+      if (isSuperAdmin || isViewer) return true; // Genel müdür ve Misafir yönetici tüm raporları alır
+      if (isManager) {
+        // Yönetici kendisi ve temsilciler için rapor alır (Admin'leri hariç tut)
+        const userRole = users.find(u => u.id === r.user_id)?.role;
+        return userRole !== 'ADMIN' && userRole !== 'SUPER_ADMIN';
+      }
+      return r.user_id === currentUser?.id; // Temsilci sadece kendisi için rapor alır
+    }).map((r) => ({
       'Tarih': formatDate(r.tarih),
       'Grup Üyesi': r.user?.name || '',
       'Kurum': r.kurum_adi,
@@ -736,7 +762,8 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
               <span>Faaliyet Kayıtları ({filteredReports.length})</span>
             </button>
 
-            {/* Tab 2: Yönetici Faaliyet Özeti (A4 Matris) */}
+            {/* Tab 2: Yönetici Faaliyet Özeti (A4 Matris) - Sadece Yönetim ve Misafir */}
+            {canSeeMatrix && (
             <button
               type="button"
               onClick={() => setActiveTab('matrix')}
@@ -749,6 +776,7 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
               <Table className="w-4 h-4 text-indigo-600" />
               <span>Yönetici Özeti (A4 Matris)</span>
             </button>
+            )}
 
             {/* Tab 3: Yeni Çalışma Kaydet (Available for rep, manager, admin; hidden for viewer) */}
             {!isViewer && (
@@ -1743,24 +1771,24 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                         <button
                           type="button"
                           onClick={() => setRezervasyonFiyatTipi('TEK_FIYAT')}
-                          className={`px-2.5 py-1 rounded-md transition cursor-pointer ${
-                            rezervasyonFiyatTipi === 'TEK_FIYAT'
-                              ? 'bg-amber-600 text-white font-bold shadow-2xs'
-                              : 'text-slate-600 hover:text-slate-900'
+                          className={`px-3 py-1.5 text-xs font-bold rounded-lg border transition ${
+                            rezervasyonFiyatTipi === 'TEK_FIYAT' 
+                              ? 'bg-slate-100 border-slate-200 text-slate-700' 
+                              : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
                           }`}
                         >
-                          Tek Fiyat (40 ₺)
+                          Tek Fiyat
                         </button>
                         <button
                           type="button"
                           onClick={() => setRezervasyonFiyatTipi('PT_OPT')}
-                          className={`px-2.5 py-1 rounded-md transition cursor-pointer ${
-                            rezervasyonFiyatTipi === 'PT_OPT'
-                              ? 'bg-amber-600 text-white font-bold shadow-2xs'
-                              : 'text-slate-600 hover:text-slate-900'
+                          className={`px-3 py-1.5 text-xs font-bold rounded-lg border transition ${
+                            rezervasyonFiyatTipi === 'PT_OPT' 
+                              ? 'bg-amber-600 border-amber-700 text-white shadow-sm' 
+                              : 'bg-white border-amber-200 text-amber-700 hover:bg-amber-50'
                           }`}
                         >
-                          OPT (35 ₺) & PT (50 ₺)
+                          OPT & PT
                         </button>
                       </div>
                     )}
@@ -1769,6 +1797,28 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                   {rezervasyonVar && (
                     <div className="space-y-3 pt-2 border-t border-slate-100">
                       
+                      {/* Vade Seçimi */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-mono uppercase text-slate-500 font-bold">Vade (Ödeme)</label>
+                          <select
+                            value={rezervasyonVade}
+                            onChange={(e) => setRezervasyonVade(e.target.value)}
+                            className="w-full text-xs px-2.5 py-2 bg-white border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:border-amber-500 font-semibold"
+                          >
+                            <option value="">Seçiniz...</option>
+                            <option value="Nakit">Nakit</option>
+                            <option value="30 Gün">30 Gün</option>
+                            <option value="60 Gün">60 Gün</option>
+                            <option value="90 Gün">90 Gün</option>
+                            <option value="120 Gün">120 Gün</option>
+                            <option value="150 Gün">150 Gün</option>
+                            <option value="180 Gün">180 Gün</option>
+                            <option value="Özel">Özel</option>
+                          </select>
+                        </div>
+                      </div>
+
                       {/* Rezervasyon Adet ve Türü */}
                       <div className="grid grid-cols-2 gap-3">
                         <div>

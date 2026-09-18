@@ -53,10 +53,12 @@ export async function GET(request: NextRequest) {
         where: {
           ...(kanal && kanal !== 'all' ? { kanal } : {}),
           ...(dateFilter ? { createdAt: dateFilter } : {}),
-          musteri: {
-            ...(repFilter ? { satis_temsilcisi_id: repFilter } : {}),
-            ...(musteriTipi && musteriTipi !== 'all' ? { musteri_tipi: musteriTipi } : {}),
-          },
+          ...((repFilter || (musteriTipi && musteriTipi !== 'all')) ? {
+            musteri: {
+              ...(repFilter ? { satis_temsilcisi_id: repFilter } : {}),
+              ...(musteriTipi && musteriTipi !== 'all' ? { musteri_tipi: musteriTipi } : {}),
+            }
+          } : {})
         },
         include: {
           musteri: {

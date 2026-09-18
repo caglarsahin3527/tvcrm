@@ -100,8 +100,8 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Müşteri bulunamadı.' }, { status: 404 });
     }
 
-    // Role check: If rep, ensure client belongs to rep (Admins and Managers can update)
-    if (sessionUser.role === 'SALES_REP' && existingClient.satis_temsilcisi_id !== sessionUser.id) {
+    // Role check: If rep or manager, ensure client belongs to them (Admins can update anyone)
+    if (sessionUser.role !== 'ADMIN' && sessionUser.role !== 'SUPER_ADMIN' && existingClient.satis_temsilcisi_id !== sessionUser.id) {
       return NextResponse.json(
         { success: false, error: 'Yalnızca kendi müşterilerinizin takip tarihini güncelleyebilirsiniz.' },
         { status: 403 }

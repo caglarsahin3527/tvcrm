@@ -63,6 +63,14 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
       return;
     }
 
+    const deal = localDeals.find(d => d.id === draggableId);
+    if (!deal) return;
+
+    if (currentUser && currentUser.role !== 'ADMIN' && currentUser.role !== 'SUPER_ADMIN' && deal.musteri?.satis_temsilcisi_id !== currentUser.id) {
+      alert('Sadece kendi müşterilerinize ait fırsatları güncelleyebilirsiniz.');
+      return;
+    }
+
     const newStage = destination.droppableId as DealStage;
 
     setLocalDeals((prev) =>
@@ -86,6 +94,10 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   };
 
   const handleQuickCloseSale = async (deal: Deal) => {
+    if (currentUser && currentUser.role !== 'ADMIN' && currentUser.role !== 'SUPER_ADMIN' && deal.musteri?.satis_temsilcisi_id !== currentUser.id) {
+      alert('Sadece kendi müşterilerinize ait fırsatları güncelleyebilirsiniz.');
+      return;
+    }
     const confirm = window.confirm(`"${deal.musteri?.firma_adi}" için anlaşmayı SATIŞ aşamasına taşımak istiyor musunuz?`);
     if (!confirm) return;
 

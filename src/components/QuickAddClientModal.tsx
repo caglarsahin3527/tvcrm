@@ -73,19 +73,15 @@ export const QuickAddClientModal: React.FC<QuickAddClientModalProps> = ({
   // Synchronize rep ID when modal opens
   React.useEffect(() => {
     if (isOpen && currentUser) {
-      if (!isSuperAdmin) {
-        setSatisTemsilcisiId(currentUser.id);
-      } else if (!satisTemsilcisiId) {
-        setSatisTemsilcisiId(currentUser.id);
-      }
+      setSatisTemsilcisiId(currentUser.id);
     }
-  }, [isOpen, currentUser, isSuperAdmin]);
+  }, [isOpen, currentUser]);
   
-  const defaultFollowUp = new Date();
-  defaultFollowUp.setDate(defaultFollowUp.getDate() + 1);
-  const [sonrakiTakipTarihi, setSonrakiTakipTarihi] = useState(
-    defaultFollowUp.toISOString().split('T')[0]
-  );
+  const today = new Date();
+  // Default to today for registration date
+  const defaultFollowUp = new Date(today);
+  const defaultFollowUpStr = defaultFollowUp.toISOString().split('T')[0];
+  const [sonrakiTakipTarihi, setSonrakiTakipTarihi] = useState(defaultFollowUpStr);
 
   if (!isOpen) return null;
 
@@ -129,6 +125,7 @@ export const QuickAddClientModal: React.FC<QuickAddClientModalProps> = ({
       setYetkiliKisi('');
       setTelefon('');
       setEposta('');
+      if (isSuperAdmin) setSatisTemsilcisiId(currentUser?.id || users[0]?.id || '');
       onSuccess();
       onClose();
     } catch (err) {
@@ -320,10 +317,10 @@ export const QuickAddClientModal: React.FC<QuickAddClientModalProps> = ({
               )}
             </div>
 
-            {/* Sonraki Takip Tarihi */}
+            {/* Kayıt Tarihi */}
             <div className="space-y-1">
               <label className="text-[11px] font-mono uppercase text-slate-600 font-semibold flex items-center gap-1">
-                Sonraki Takip <span className="text-rose-500">*</span>
+                Kayıt Tarihi <span className="text-rose-500">*</span>
               </label>
               <input
                 type="date"
