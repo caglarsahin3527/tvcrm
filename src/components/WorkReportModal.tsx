@@ -1924,17 +1924,6 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                                 className="w-full text-xs px-2.5 py-1.5 bg-white border border-amber-300 rounded-lg text-slate-900 font-mono font-bold focus:outline-none"
                               />
                             </div>
-
-                            <div>
-                              <label className="text-[10px] font-mono uppercase text-amber-800 font-bold">PT Birim Fiyat (₺)</label>
-                              <input
-                                type="number"
-                                placeholder="50"
-                                value={rezervasyonPtFiyat}
-                                onChange={(e) => setRezervasyonPtFiyat(e.target.value)}
-                                className="w-full text-xs px-2 py-1.5 bg-white border border-amber-300 rounded-lg text-slate-900 font-mono font-bold focus:outline-none"
-                              />
-                            </div>
                           </div>
                         </div>
                       )}
