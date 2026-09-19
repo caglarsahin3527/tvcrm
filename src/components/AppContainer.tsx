@@ -5,7 +5,6 @@ import { User, Deal, Client, WorkReport } from '@/types';
 import { Navbar } from '@/components/Navbar';
 import { FilterBar } from '@/components/FilterBar';
 import { QuickAddClientModal } from '@/components/QuickAddClientModal';
-import { QuickAddDealModal } from '@/components/QuickAddDealModal';
 import { UpdateFollowUpModal } from '@/components/UpdateFollowUpModal';
 import { AdminUsersModal } from '@/components/AdminUsersModal';
 import { WorkReportModal } from '@/components/WorkReportModal';
@@ -49,7 +48,6 @@ export const AppContainer: React.FC<AppContainerProps> = ({
 
   // Modal States
   const [isAddClientOpen, setIsAddClientOpen] = useState(false);
-  const [isAddDealOpen, setIsAddDealOpen] = useState(false);
   const [isFollowUpOpen, setIsFollowUpOpen] = useState(false);
   const [isAdminUsersOpen, setIsAdminUsersOpen] = useState(false);
   const [isWorkReportOpen, setIsWorkReportOpen] = useState(false);
@@ -204,11 +202,6 @@ export const AppContainer: React.FC<AppContainerProps> = ({
     setIsFollowUpOpen(true);
   };
 
-  const handleOpenAddDeal = (client: any) => {
-    setSelectedClientForAction(client);
-    setIsAddDealOpen(true);
-  };
-
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-900 antialiased selection:bg-sky-500 selection:text-white">
       {/* Top Navigation Bar */}
@@ -279,13 +272,6 @@ export const AppContainer: React.FC<AppContainerProps> = ({
         users={users}
         clients={clients}
         currentUser={currentUser}
-        onSuccess={refreshData}
-      />
-
-      <QuickAddDealModal
-        isOpen={isAddDealOpen}
-        onClose={() => setIsAddDealOpen(false)}
-        client={selectedClientForAction}
         onSuccess={refreshData}
       />
 

@@ -41,7 +41,6 @@ interface KanbanBoardProps {
   currentUser?: User | null;
   onRefresh: () => void;
   onOpenFollowUpModal: (client: Client) => void;
-  onOpenAddDealModal: (client: Client) => void;
 }
 
 // Visual configuration for each pipeline stage (Y-Axis Sections)
@@ -155,7 +154,6 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   currentUser,
   onRefresh,
   onOpenFollowUpModal,
-  onOpenAddDealModal,
 }) => {
   const [mounted, setMounted] = useState(false);
   const [localDeals, setLocalDeals] = useState<Deal[]>(deals);
@@ -862,16 +860,6 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                                             title="Takip Tarihini Güncelle"
                                           >
                                             <Clock className="w-3 h-3 text-amber-600" />
-                                          </button>
-                                        )}
-
-                                        {client && canManageDeal && (
-                                          <button
-                                            onClick={() => onOpenAddDealModal(client)}
-                                            className="p-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-md text-slate-600 hover:text-slate-900 transition cursor-pointer shadow-2xs"
-                                            title="Yeni Teklif Ekle"
-                                          >
-                                            <Plus className="w-3 h-3 text-slate-700" />
                                           </button>
                                         )}
 

@@ -142,6 +142,21 @@ export async function POST(request: NextRequest) {
     const effectiveUserId = ((sessionUser.role === 'ADMIN' || sessionUser.role === 'SUPER_ADMIN') && user_id) ? user_id : sessionUser.id;
     const reportDate = tarih ? new Date(tarih) : new Date();
 
+    // Yetki Kontrolü: Müşteri zaten başkasına aitse ve temsilci işlem yapıyorsa engelle
+    let client = await prisma.client.findFirst({
+      where: { firma_adi: toTurkishUpper(kurum_adi) },
+    });
+
+    if (client) {
+      const canManageClient = sessionUser.role === 'ADMIN' || sessionUser.role === 'SUPER_ADMIN' || sessionUser.role === 'SALES_MANAGER' || client.satis_temsilcisi_id === sessionUser.id;
+      if (!canManageClient) {
+        return NextResponse.json(
+          { success: false, error: 'Bu müşteri başka bir temsilciye aittir. Yalnızca kendi müşterileriniz için işlem yapabilirsiniz.' },
+          { status: 403 }
+        );
+      }
+    }
+
     const report = await prisma.workReport.create({
       data: {
         user_id: effectiveUserId,
@@ -209,11 +224,6 @@ export async function POST(request: NextRequest) {
       }
 
       if (client) {
-        const canManageClient = sessionUser.role === 'ADMIN' || sessionUser.role === 'SUPER_ADMIN' || sessionUser.role === 'SALES_MANAGER' || client.satis_temsilcisi_id === sessionUser.id;
-        if (!canManageClient) {
-          throw new Error('Bu müşteri başka bir temsilciye aittir. Yalnızca kendi müşterileriniz için işlem yapabilirsiniz.');
-        }
-
         const asama = satis_yapildi ? 'SATIŞ' : teklif_verildi ? 'TEKLİF' : 'ONAY';
         const tutar = satis_yapildi 
           ? (Number(satis_tutari) || 0) 
@@ -288,10 +298,10 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Rapor bulunamadı.' }, { status: 404 });
     }
 
-    const isAdmin = sessionUser.role === 'ADMIN' || sessionUser.role === 'SUPER_ADMIN';
+    const isAdminOrManager = sessionUser.role === 'ADMIN' || sessionUser.role === 'SUPER_ADMIN' || sessionUser.role === 'SALES_MANAGER';
     const isOwner = existing.user_id === sessionUser.id;
 
-    if (!isAdmin && !isOwner) {
+    if (!isAdminOrManager && !isOwner) {
       return NextResponse.json(
         { success: false, error: 'Başkasına ait çalışma raporuna müdahale etme yetkiniz yoktur.' },
         { status: 403 }
