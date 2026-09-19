@@ -242,10 +242,10 @@ export const AppContainer: React.FC<AppContainerProps> = ({
           onReset={handleResetFilters}
         />
 
-        {/* Refreshing subtle banner indicator if background loading */}
+        {/* Refreshing subtle banner indicator if background loading (Fixed position to avoid layout shifts) */}
         {isRefreshing && (
-          <div className="flex items-center justify-end gap-2 text-[11px] font-mono text-sky-600 mb-2 pr-1 animate-pulse">
-            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          <div className="fixed bottom-4 right-4 z-50 bg-slate-900/90 text-white px-3 py-1.5 rounded-full shadow-lg flex items-center gap-2 text-xs font-mono backdrop-blur-xs animate-in fade-in duration-200">
+            <Loader2 className="w-3.5 h-3.5 animate-spin text-sky-400" />
             <span>Veriler güncelleniyor...</span>
           </div>
         )}

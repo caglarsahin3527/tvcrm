@@ -85,10 +85,10 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const { dealId, asama } = await request.json();
-    if (!dealId || !asama) {
+    const { dealId, asama, is_archived } = await request.json();
+    if (!dealId) {
       return NextResponse.json(
-        { success: false, error: 'Fırsat ID ve Aşama bilgisi gereklidir.' },
+        { success: false, error: 'Fırsat ID bilgisi gereklidir.' },
         { status: 400 }
       );
     }
@@ -109,10 +109,26 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const updated = await prisma.deal.update({
-      where: { id: dealId },
-      data: { asama },
-    });
+    const updateData: any = {};
+    if (asama !== undefined) updateData.asama = asama;
+    if (is_archived !== undefined) updateData.is_archived = Boolean(is_archived);
+
+    if (Object.keys(updateData).length > 0) {
+      await prisma.deal.update({
+        where: { id: dealId },
+        data: updateData,
+      });
+
+      // If archiving status changed, sync the associated WorkReport if it exists
+      if (is_archived !== undefined) {
+        await prisma.workReport.updateMany({
+          where: { deal_id: dealId },
+          data: { tamamlandi: Boolean(is_archived) },
+        });
+      }
+    }
+
+    const updated = await prisma.deal.findUnique({ where: { id: dealId } });
     return NextResponse.json({ success: true, deal: updated });
   } catch (error: any) {
     console.error('Error in PUT /api/deals:', error);

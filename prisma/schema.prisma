@@ -53,6 +53,7 @@ model Deal {
   tahmini_kapanis_tarihi DateTime?
   ihtimal_derecesi       String    @default("Orta") // "Kesin", "Yüksek", "Orta", "Düşük"
   asama                  String    @default("YENİ LEAD") // "YENİ LEAD", "GÖRÜŞME", "TEKLİF", "TAKİP", "PAZARLIK", "ONAY", "SATIŞ", "YAYIN", "TAHSİLAT"
+  is_archived            Boolean   @default(false)
   not                    String    @default("")
   createdAt              DateTime  @default(now())
   updatedAt              DateTime  @updatedAt
@@ -60,6 +61,7 @@ model Deal {
   @@index([musteri_id])
   @@index([kanal])
   @@index([asama])
+  @@index([is_archived])
   @@index([createdAt])
 }
 
@@ -98,12 +100,13 @@ model WorkReport {
   rezervasyon_toplam_saniye Int?      @default(0)
   rezervasyon_vade          String?   @default("") // "Nakit", "30 Gün", "60 Gün", "90 Gün", "120 Gün", "150 Gün", "180 Gün", "Özel"
   deal_id                   String?   // Otomatik oluşturulan fırsatın ID'sini tutar
+  tamamlandi                Boolean   @default(false)
   createdAt                 DateTime  @default(now())
   updatedAt                 DateTime  @updatedAt
-
 
   @@index([user_id])
   @@index([tarih])
   @@index([kurum_turu])
   @@index([tv_kanali])
+  @@index([tamamlandi])
 }

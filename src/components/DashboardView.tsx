@@ -83,6 +83,22 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
+// Role badge styling helper
+const getRoleBadge = (role?: string) => {
+  switch (role) {
+    case 'SUPER_ADMIN':
+    case 'ADMIN':
+      return { label: 'Marka Merkezi', color: 'text-rose-700 bg-rose-50 border-rose-200' };
+    case 'SALES_MANAGER':
+      return { label: 'Satış Yöneticisi', color: 'text-sky-700 bg-sky-50 border-sky-200' };
+    case 'VIEWER':
+      return { label: 'Misafir', color: 'text-purple-700 bg-purple-50 border-purple-200' };
+    case 'SALES_REP':
+    default:
+      return { label: 'Satış Temsilcisi', color: 'text-emerald-700 bg-emerald-50 border-emerald-200' };
+  }
+};
+
 export const DashboardView: React.FC<DashboardViewProps> = ({
   deals,
   users,
@@ -98,6 +114,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const [activeChannelScope, setActiveChannelScope] = useState<'all' | 'Bi Kanal' | 'Sıfır TV'>('all');
   const [stageViewMetric, setStageViewMetric] = useState<'amount' | 'count'>('amount');
 
+  // Performance Table Filters & Sorting
+  const [tableRoleFilter, setTableRoleFilter] = useState<'ALL' | 'SALES_REP' | 'SALES_MANAGER' | 'ADMIN'>('ALL');
+  const [tableSortBy, setTableSortBy] = useState<'realized' | 'pipeline' | 'offer' | 'rate' | 'role' | 'name'>('realized');
+
   // Hover states for Donut Charts to prevent center label & tooltip collision
   const [hoveredQuotaSlice, setHoveredQuotaSlice] = useState<number | null>(null);
   const [hoveredForecastSlice, setHoveredForecastSlice] = useState<number | null>(null);
@@ -107,16 +127,24 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     ? deals 
     : deals.filter((d) => d.kanal === activeChannelScope);
 
+  // Define Won and Open Pipeline Stage Groups
+  const WON_STAGES = ['SATIŞ', 'YAYIN', 'TAHSİLAT'];
+  const OPEN_STAGES = ['YENİ LEAD', 'GÖRÜŞME', 'TEKLİF', 'TAKİP', 'PAZARLIK', 'ONAY'];
+
   // 1. Calculations for KPIs (Scoped & Global)
-  const realizedDeals = scopedDeals.filter((d) => ['SATIŞ', 'YAYIN', 'TAHSİLAT'].includes(d.asama));
+  // Gerçekleşen Satışlar (Arşivlenmemiş tüm kazanılan işler)
+  const realizedDeals = scopedDeals.filter((d) => !d.is_archived && WON_STAGES.includes(d.asama));
   const realizedTotal = realizedDeals.reduce((sum, d) => sum + (d.teklif_tutari || 0), 0);
 
-  const pipelineTotal = scopedDeals.reduce((sum, d) => sum + (d.teklif_tutari || 0), 0);
+  // Aktif Pipeline (Yalnızca arşive kaldırılmamış VE açık/devam eden fırsatlar)
+  const activeScopedDeals = scopedDeals.filter((d) => !d.is_archived && OPEN_STAGES.includes(d.asama));
+  const pipelineTotal = activeScopedDeals.reduce((sum, d) => sum + (d.teklif_tutari || 0), 0);
 
-  const pendingDeals = scopedDeals.filter((d) => ['TEKLİF', 'TAKİP', 'PAZARLIK', 'ONAY'].includes(d.asama));
+  // Bekleyen Açık Teklifler
+  const pendingDeals = activeScopedDeals.filter((d) => ['TEKLİF', 'TAKİP', 'PAZARLIK', 'ONAY'].includes(d.asama));
   const pendingTotal = pendingDeals.reduce((sum, d) => sum + (d.teklif_tutari || 0), 0);
 
-  const collectionDeals = scopedDeals.filter((d) => d.asama === 'TAHSİLAT');
+  const collectionDeals = scopedDeals.filter((d) => !d.is_archived && d.asama === 'TAHSİLAT');
   const collectionTotal = collectionDeals.reduce((sum, d) => sum + (d.teklif_tutari || 0), 0);
 
   const isRep = currentUser?.role === 'SALES_REP';
@@ -151,33 +179,37 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   // 2. KANAL BAZINDA (Bİ KANAL vs. SIFIR TV) AYRIMI
   const biKanalDeals = deals.filter((d) => d.kanal === 'Bi Kanal');
   const biKanalRealized = biKanalDeals
-    .filter((d) => ['SATIŞ', 'YAYIN', 'TAHSİLAT'].includes(d.asama))
+    .filter((d) => !d.is_archived && WON_STAGES.includes(d.asama))
     .reduce((sum, d) => sum + (d.teklif_tutari || 0), 0);
-  const biKanalPipeline = biKanalDeals.reduce((sum, d) => sum + (d.teklif_tutari || 0), 0);
+  const biKanalPipeline = biKanalDeals
+    .filter((d) => !d.is_archived && OPEN_STAGES.includes(d.asama))
+    .reduce((sum, d) => sum + (d.teklif_tutari || 0), 0);
   const biKanalPending = biKanalDeals
-    .filter((d) => ['TEKLİF', 'TAKİP', 'PAZARLIK', 'ONAY'].includes(d.asama))
+    .filter((d) => !d.is_archived && ['TEKLİF', 'TAKİP', 'PAZARLIK', 'ONAY'].includes(d.asama))
     .reduce((sum, d) => sum + (d.teklif_tutari || 0), 0);
 
   const sifirTvDeals = deals.filter((d) => d.kanal === 'Sıfır TV');
   const sifirTvRealized = sifirTvDeals
-    .filter((d) => ['SATIŞ', 'YAYIN', 'TAHSİLAT'].includes(d.asama))
+    .filter((d) => !d.is_archived && WON_STAGES.includes(d.asama))
     .reduce((sum, d) => sum + (d.teklif_tutari || 0), 0);
-  const sifirTvPipeline = sifirTvDeals.reduce((sum, d) => sum + (d.teklif_tutari || 0), 0);
+  const sifirTvPipeline = sifirTvDeals
+    .filter((d) => !d.is_archived && OPEN_STAGES.includes(d.asama))
+    .reduce((sum, d) => sum + (d.teklif_tutari || 0), 0);
   const sifirTvPending = sifirTvDeals
-    .filter((d) => ['TEKLİF', 'TAKİP', 'PAZARLIK', 'ONAY'].includes(d.asama))
+    .filter((d) => !d.is_archived && ['TEKLİF', 'TAKİP', 'PAZARLIK', 'ONAY'].includes(d.asama))
     .reduce((sum, d) => sum + (d.teklif_tutari || 0), 0);
 
   // 3. KESİN SATIŞ VE İHTİMALLER KIRILIMLARI
-  const exactDeals = scopedDeals.filter((d) => d.ihtimal_derecesi === 'Kesin');
+  const exactDeals = activeScopedDeals.filter((d) => d.ihtimal_derecesi === 'Kesin');
   const exactTotal = exactDeals.reduce((sum, d) => sum + (d.teklif_tutari || 0), 0);
 
-  const highDeals = scopedDeals.filter((d) => d.ihtimal_derecesi === 'Yüksek');
+  const highDeals = activeScopedDeals.filter((d) => d.ihtimal_derecesi === 'Yüksek');
   const highTotal = highDeals.reduce((sum, d) => sum + (d.teklif_tutari || 0), 0);
 
-  const mediumDeals = scopedDeals.filter((d) => d.ihtimal_derecesi === 'Orta');
+  const mediumDeals = activeScopedDeals.filter((d) => d.ihtimal_derecesi === 'Orta');
   const mediumTotal = mediumDeals.reduce((sum, d) => sum + (d.teklif_tutari || 0), 0);
 
-  const lowDeals = scopedDeals.filter((d) => d.ihtimal_derecesi === 'Düşük');
+  const lowDeals = activeScopedDeals.filter((d) => d.ihtimal_derecesi === 'Düşük');
   const lowTotal = lowDeals.reduce((sum, d) => sum + (d.teklif_tutari || 0), 0);
 
   // 4. CHART VERİLERİ (Recharts Data Preparation)
@@ -221,7 +253,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   ];
 
   const stageDistributionData = stageDefinitions.map((st) => {
-    const stageDeals = scopedDeals.filter((d) => d.asama === st.key);
+    const isWonStage = ['SATIŞ', 'YAYIN', 'TAHSİLAT'].includes(st.key);
+    const stageDeals = scopedDeals.filter((d) => d.asama === st.key && (isWonStage || !d.is_archived));
     const stageAmount = stageDeals.reduce((sum, d) => sum + (d.teklif_tutari || 0), 0);
     return {
       asama: st.label,
@@ -244,25 +277,28 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       ]
     : [{ name: 'Henüz Teklif Yok', value: 1, count: 0, color: '#e2e8f0' }];
 
-  // E) Satış Temsilcisi Performans Verisi
+  // E) Ekip & Satış Temsilcisi Performans Verisi (Misafir rolü haricinde herkes)
   const repPerformance = users
-    .filter((u) => u.role === 'SALES_REP')
+    .filter((u) => u.role !== 'VIEWER' && u.role !== 'GUEST')
     .map((rep) => {
       const repDeals = scopedDeals.filter((d) => d.musteri?.satis_temsilcisi_id === rep.id);
-      const repPipeline = repDeals.reduce((sum, d) => sum + (d.teklif_tutari || 0), 0);
+      const repPipeline = repDeals
+        .filter((d) => !d.is_archived && OPEN_STAGES.includes(d.asama))
+        .reduce((sum, d) => sum + (d.teklif_tutari || 0), 0);
       const repOffer = repDeals
-        .filter((d) => ['TEKLİF', 'TAKİP', 'PAZARLIK', 'ONAY'].includes(d.asama))
+        .filter((d) => !d.is_archived && ['TEKLİF', 'TAKİP', 'PAZARLIK', 'ONAY'].includes(d.asama))
         .reduce((sum, d) => sum + (d.teklif_tutari || 0), 0);
       const repRealized = repDeals
-        .filter((d) => ['SATIŞ', 'YAYIN', 'TAHSİLAT'].includes(d.asama))
+        .filter((d) => !d.is_archived && WON_STAGES.includes(d.asama))
         .reduce((sum, d) => sum + (d.teklif_tutari || 0), 0);
-      const repTarget = rep.target ?? 500000;
+      const repTarget = rep.target !== undefined && rep.target !== null ? Number(rep.target) : (rep.role === 'SALES_REP' ? 500000 : 0);
       const repRate = repTarget > 0 ? (repRealized / repTarget) * 100 : 0;
 
       return {
         id: rep.id,
         name: rep.name,
         email: rep.email,
+        role: rep.role,
         pipeline: repPipeline,
         offer: repOffer,
         realized: repRealized,
@@ -271,6 +307,45 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         dealCount: repDeals.length,
       };
     });
+
+  // Rol Hiyerarşisi ve Tablo Sıralama / Filtreleme
+  const roleHierarchy: Record<string, number> = {
+    'SUPER_ADMIN': 1,
+    'ADMIN': 1,
+    'SALES_MANAGER': 2,
+    'SALES_REP': 3,
+  };
+
+  const filteredRepPerformance = repPerformance.filter((rep) => {
+    if (tableRoleFilter === 'ALL') return true;
+    if (tableRoleFilter === 'ADMIN') return rep.role === 'ADMIN' || rep.role === 'SUPER_ADMIN';
+    return rep.role === tableRoleFilter;
+  });
+
+  const sortedRepPerformance = [...filteredRepPerformance].sort((a, b) => {
+    if (tableSortBy === 'role') {
+      const rankA = roleHierarchy[a.role] || 99;
+      const rankB = roleHierarchy[b.role] || 99;
+      if (rankA !== rankB) return rankA - rankB;
+      return b.realized - a.realized;
+    }
+    if (tableSortBy === 'realized') {
+      return b.realized - a.realized;
+    }
+    if (tableSortBy === 'pipeline') {
+      return b.pipeline - a.pipeline;
+    }
+    if (tableSortBy === 'offer') {
+      return b.offer - a.offer;
+    }
+    if (tableSortBy === 'rate') {
+      return b.rate - a.rate;
+    }
+    if (tableSortBy === 'name') {
+      return a.name.localeCompare(b.name, 'tr');
+    }
+    return 0;
+  });
 
   // Export handlers
   const handleExportExcel = () => {
@@ -462,7 +537,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div>
             <div className="text-lg font-mono font-black text-sky-800">{formatCurrency(pipelineTotal)}</div>
             <div className="text-[10px] font-mono text-sky-700 mt-1">
-              {scopedDeals.length} Fırsat
+              {activeScopedDeals.length} Fırsat
             </div>
           </div>
         </div>
@@ -917,23 +992,92 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
       </div>
 
-      {/* 4. SATIŞÇI PERFORMANS TABLOSU (DETAYLI LİSTE) */}
+      {/* 4. SATIŞ & EKİP PERFORMANS TABLOSU (DETAYLI LİSTE) */}
       <div className="bg-white border border-slate-200/90 rounded-2xl shadow-xs overflow-hidden">
-        <div className="p-4 border-b border-slate-100 flex items-center justify-between">
-          <div className="flex items-center gap-2">
+        <div className="p-4 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div className="flex items-center gap-2 flex-wrap">
             <Users className="w-4 h-4 text-sky-600" />
             <h3 className="font-mono font-bold text-xs uppercase tracking-wider text-slate-900">
-              SATIŞ TEMSİLCİSİ PERFORMANS TABLOSU
+              EKİP &amp; SATIŞ PERFORMANS TABLOSU
             </h3>
+            <span className="text-[10px] font-mono bg-sky-50 text-sky-700 border border-sky-200 px-2 py-0.5 rounded-md font-medium">
+              {sortedRepPerformance.length} / {repPerformance.length} Kişi
+            </span>
           </div>
-          <span className="text-[10px] font-mono text-slate-500 font-medium">CANLI KONSOL</span>
+
+          <div className="flex items-center gap-2.5 flex-wrap">
+            {/* Rol Filtre Butonları */}
+            <div className="inline-flex items-center bg-slate-100/90 p-0.5 rounded-lg border border-slate-200 text-[11px] font-mono">
+              <button
+                type="button"
+                onClick={() => setTableRoleFilter('ALL')}
+                className={`px-2.5 py-1 rounded-md transition-all ${
+                  tableRoleFilter === 'ALL'
+                    ? 'bg-white text-slate-900 shadow-2xs font-bold'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Tümü
+              </button>
+              <button
+                type="button"
+                onClick={() => setTableRoleFilter('SALES_REP')}
+                className={`px-2.5 py-1 rounded-md transition-all ${
+                  tableRoleFilter === 'SALES_REP'
+                    ? 'bg-emerald-600 text-white shadow-2xs font-bold'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Temsilci
+              </button>
+              <button
+                type="button"
+                onClick={() => setTableRoleFilter('SALES_MANAGER')}
+                className={`px-2.5 py-1 rounded-md transition-all ${
+                  tableRoleFilter === 'SALES_MANAGER'
+                    ? 'bg-sky-600 text-white shadow-2xs font-bold'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Yönetici
+              </button>
+              <button
+                type="button"
+                onClick={() => setTableRoleFilter('ADMIN')}
+                className={`px-2.5 py-1 rounded-md transition-all ${
+                  tableRoleFilter === 'ADMIN'
+                    ? 'bg-rose-600 text-white shadow-2xs font-bold'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Marka Merkezi
+              </button>
+            </div>
+
+            {/* Sıralama Seçimi */}
+            <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-2 py-1 rounded-lg">
+              <SlidersHorizontal className="w-3.5 h-3.5 text-slate-400" />
+              <select
+                value={tableSortBy}
+                onChange={(e) => setTableSortBy(e.target.value as any)}
+                className="bg-transparent text-[11px] font-mono text-slate-700 font-semibold focus:outline-none cursor-pointer"
+              >
+                <option value="realized">Sırala: Gerçekleşen Satış</option>
+                <option value="pipeline">Sırala: Pipeline Tutarı</option>
+                <option value="offer">Sırala: Bekleyen Teklif</option>
+                <option value="rate">Sırala: Kota Gerçekleşme (%)</option>
+                <option value="role">Sırala: Rol Hiyerarşisi</option>
+                <option value="name">Sırala: İsim (A-Z)</option>
+              </select>
+            </div>
+          </div>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-50 text-slate-600 font-mono text-[10px] uppercase border-b border-slate-200">
               <tr>
-                <th className="px-4 py-3">Satışçı</th>
+                <th className="px-4 py-3">Ekip Üyesi</th>
                 <th className="px-4 py-3">Pipeline</th>
                 <th className="px-4 py-3">Bekleyen Teklif</th>
                 <th className="px-4 py-3">Gerçekleşen Satış</th>
@@ -942,43 +1086,60 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {repPerformance.map((rep) => (
-                <tr key={rep.id} className="hover:bg-slate-50/80 transition-colors">
-                  <td className="px-4 py-3 font-semibold text-slate-900">
-                    <div>{rep.name}</div>
-                    <div className="text-[10px] font-mono text-slate-500">{rep.email}</div>
-                  </td>
-                  <td className="px-4 py-3 font-mono text-sky-700 font-bold">
-                    {formatCurrency(rep.pipeline)}
-                  </td>
-                  <td className="px-4 py-3 font-mono text-amber-700 font-medium">
-                    {formatCurrency(rep.offer)}
-                  </td>
-                  <td className="px-4 py-3 font-mono text-emerald-700 font-bold">
-                    {formatCurrency(rep.realized)}
-                  </td>
-                  <td className="px-4 py-3 font-mono text-slate-600">
-                    {formatCurrency(rep.target)}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-24 bg-slate-100 rounded-full h-2 overflow-hidden border border-slate-200">
-                        <div
-                          className="bg-emerald-600 h-full rounded-full transition-all duration-500"
-                          style={{ width: `${Math.min(rep.rate, 100)}%` }}
-                        />
+              {sortedRepPerformance.map((rep) => {
+                const badge = getRoleBadge(rep.role);
+                return (
+                  <tr key={rep.id} className="hover:bg-slate-50/80 transition-colors">
+                    <td className="px-4 py-3 font-semibold text-slate-900">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span>{rep.name}</span>
+                        <span className={`text-[10px] font-mono px-2 py-0.5 rounded-md border font-medium ${badge.color}`}>
+                          {badge.label}
+                        </span>
                       </div>
-                      <span className="font-mono font-bold text-xs text-slate-900">
-                        %{rep.rate.toFixed(1)}
-                      </span>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {repPerformance.length === 0 && (
+                      <div className="text-[10px] font-mono text-slate-500 mt-0.5 flex items-center gap-2">
+                        <span>{rep.email}</span>
+                        {rep.dealCount > 0 && (
+                          <span className="text-slate-400 font-medium">({rep.dealCount} Fırsat)</span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 font-mono text-sky-700 font-bold">
+                      {formatCurrency(rep.pipeline)}
+                    </td>
+                    <td className="px-4 py-3 font-mono text-amber-700 font-medium">
+                      {formatCurrency(rep.offer)}
+                    </td>
+                    <td className="px-4 py-3 font-mono text-emerald-700 font-bold">
+                      {formatCurrency(rep.realized)}
+                    </td>
+                    <td className="px-4 py-3 font-mono text-slate-600">
+                      {rep.target > 0 ? formatCurrency(rep.target) : '—'}
+                    </td>
+                    <td className="px-4 py-3">
+                      {rep.target > 0 ? (
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-24 bg-slate-100 rounded-full h-2 overflow-hidden border border-slate-200">
+                            <div
+                              className="bg-emerald-600 h-full rounded-full transition-all duration-500"
+                              style={{ width: `${Math.min(rep.rate, 100)}%` }}
+                            />
+                          </div>
+                          <span className="font-mono font-bold text-xs text-slate-900">
+                            %{rep.rate.toFixed(1)}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-[11px] font-mono text-slate-400 font-medium">Hedefsiz</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+              {sortedRepPerformance.length === 0 && (
                 <tr>
                   <td colSpan={6} className="text-center py-6 text-slate-400 font-mono text-xs">
-                    KAYITLI SATIŞ TEMSİLCİSİ BULUNAMADI
+                    KAYITLI EKİP ÜYESİ BULUNAMADI
                   </td>
                 </tr>
               )}

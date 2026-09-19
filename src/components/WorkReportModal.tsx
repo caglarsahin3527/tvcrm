@@ -70,6 +70,11 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
   const [submitting, setSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+  const [localReports, setLocalReports] = useState<WorkReport[]>(workReports);
+
+  useEffect(() => {
+    setLocalReports(workReports);
+  }, [workReports]);
 
   // Role Checks
   const isSuperAdmin = currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPER_ADMIN';
@@ -80,6 +85,7 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
 
   // --- FILTERS STATE ---
   const [timeRange, setTimeRange] = useState<'today' | 'this_week' | 'this_month' | 'all' | 'custom'>('all');
+  const [statusFilter, setStatusFilter] = useState<'active' | 'completed' | 'all'>('active');
   const [selectedUserFilter, setSelectedUserFilter] = useState<string>('all');
   const [selectedOrgFilter, setSelectedOrgFilter] = useState<string>('all');
   const [selectedContactFilter, setSelectedContactFilter] = useState<string>('all');
@@ -171,7 +177,7 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
     });
 
     // Add from previous work reports
-    workReports.forEach((r) => {
+    localReports.forEach((r) => {
       if (r.kurum_adi && !map.has(r.kurum_adi.toUpperCase())) {
         map.set(r.kurum_adi.toUpperCase(), {
           name: r.kurum_adi,
@@ -190,7 +196,7 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
       }
       return true;
     });
-  }, [clients, workReports]);
+  }, [clients, localReports, currentUser]);
 
   // Filtered suggestions based on user input
   const filteredSuggestions = useMemo(() => {
@@ -301,7 +307,15 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
     const now = new Date();
     const todayDateStr = now.toISOString().split('T')[0];
 
-    return workReports.filter((r) => {
+    return localReports.filter((r) => {
+      // 0. Status Filter (Active vs Completed/Archived)
+      if (statusFilter === 'active' && r.tamamlandi) {
+        return false;
+      }
+      if (statusFilter === 'completed' && !r.tamamlandi) {
+        return false;
+      }
+
       // 1. User Filter
       if (selectedUserFilter !== 'all' && r.user_id !== selectedUserFilter) {
         return false;
@@ -351,7 +365,7 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
 
       return true; // 'all'
     });
-  }, [workReports, selectedUserFilter, selectedOrgFilter, selectedContactFilter, timeRange, customStartDate, customEndDate, searchQuery]);
+  }, [localReports, statusFilter, selectedUserFilter, selectedOrgFilter, selectedContactFilter, timeRange, customStartDate, customEndDate, searchQuery]);
 
   // Aggregated KPI Metrics
   const totalReportsCount = filteredReports.length;
@@ -541,6 +555,45 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
     }
   };
 
+  // Handle Toggle Complete / Archive (With sync to associated deal)
+  const handleToggleComplete = async (report: WorkReport) => {
+    if (isViewer) {
+      alert('İzleme modundaki hesapların işlem yapma yetkisi yoktur.');
+      return;
+    }
+
+    const newStatus = !report.tamamlandi;
+
+    // 1. Optimistic Instant UI Update (Immediate response on screen)
+    setLocalReports((prev) =>
+      prev.map((r) => (r.id === report.id ? { ...r, tamamlandi: newStatus } : r))
+    );
+
+    try {
+      const res = await fetch('/api/work-reports', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: report.id, tamamlandi: newStatus }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        if (onRefresh) onRefresh();
+      } else {
+        // Revert optimistic update on failure
+        setLocalReports((prev) =>
+          prev.map((r) => (r.id === report.id ? { ...r, tamamlandi: report.tamamlandi } : r))
+        );
+        alert(data.error || 'İşlem güncellenemedi.');
+      }
+    } catch {
+      // Revert optimistic update on error
+      setLocalReports((prev) =>
+        prev.map((r) => (r.id === report.id ? { ...r, tamamlandi: report.tamamlandi } : r))
+      );
+      alert('Güncelleme sırasında hata oluştu.');
+    }
+  };
+
   // Handle Delete Report (With strict role & ownership check)
   const handleDeleteReport = async (report: WorkReport) => {
     if (isViewer) {
@@ -557,15 +610,20 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
       return;
     }
 
+    // Optimistic Instant Removal
+    setLocalReports((prev) => prev.filter((r) => r.id !== report.id));
+
     try {
       const res = await fetch(`/api/work-reports?id=${report.id}`, { method: 'DELETE' });
       const data = await res.json();
       if (data.success) {
         if (onRefresh) onRefresh();
       } else {
+        setLocalReports(workReports);
         alert(data.error || 'Silinemedi.');
       }
     } catch {
+      setLocalReports(workReports);
       alert('Silme sırasında hata oluştu.');
     }
   };
@@ -791,53 +849,88 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
               <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-2.5 no-print">
                 <div className="flex flex-wrap items-center justify-between gap-2.5">
                   
-                  {/* 1. Time Range Quick Buttons */}
-                  <div className="flex items-center bg-white border border-slate-200 p-0.5 rounded-lg shadow-2xs text-xs font-semibold">
-                    <button
-                      type="button"
-                      onClick={() => setTimeRange('today')}
-                      className={`px-3 py-1.5 rounded-md transition cursor-pointer ${
-                        timeRange === 'today' ? 'bg-sky-600 text-white font-bold' : 'text-slate-600 hover:text-slate-900'
-                      }`}
-                    >
-                      Bugün
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setTimeRange('this_week')}
-                      className={`px-3 py-1.5 rounded-md transition cursor-pointer ${
-                        timeRange === 'this_week' ? 'bg-sky-600 text-white font-bold' : 'text-slate-600 hover:text-slate-900'
-                      }`}
-                    >
-                      Bu Hafta
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setTimeRange('this_month')}
-                      className={`px-3 py-1.5 rounded-md transition cursor-pointer ${
-                        timeRange === 'this_month' ? 'bg-sky-600 text-white font-bold' : 'text-slate-600 hover:text-slate-900'
-                      }`}
-                    >
-                      Bu Ay
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setTimeRange('all')}
-                      className={`px-3 py-1.5 rounded-md transition cursor-pointer ${
-                        timeRange === 'all' ? 'bg-sky-600 text-white font-bold' : 'text-slate-600 hover:text-slate-900'
-                      }`}
-                    >
-                      Tümü
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setTimeRange('custom')}
-                      className={`px-3 py-1.5 rounded-md transition cursor-pointer ${
-                        timeRange === 'custom' ? 'bg-sky-600 text-white font-bold' : 'text-slate-600 hover:text-slate-900'
-                      }`}
-                    >
-                      Özel Tarih
-                    </button>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {/* 0. Status Filter: Aktif / Tamamlanan / Tümü */}
+                    <div className="flex items-center bg-white border border-slate-200 p-0.5 rounded-lg shadow-2xs text-xs font-semibold">
+                      <button
+                        type="button"
+                        onClick={() => setStatusFilter('active')}
+                        className={`px-3 py-1.5 rounded-md transition cursor-pointer flex items-center gap-1.5 ${
+                          statusFilter === 'active' ? 'bg-emerald-600 text-white font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        <Clock className="w-3.5 h-3.5" />
+                        <span>Aktif İşler</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setStatusFilter('completed')}
+                        className={`px-3 py-1.5 rounded-md transition cursor-pointer flex items-center gap-1.5 ${
+                          statusFilter === 'completed' ? 'bg-indigo-600 text-white font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>Tamamlananlar / Arşiv</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setStatusFilter('all')}
+                        className={`px-3 py-1.5 rounded-md transition cursor-pointer ${
+                          statusFilter === 'all' ? 'bg-slate-700 text-white font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        Tümü
+                      </button>
+                    </div>
+
+                    {/* 1. Time Range Quick Buttons */}
+                    <div className="flex items-center bg-white border border-slate-200 p-0.5 rounded-lg shadow-2xs text-xs font-semibold">
+                      <button
+                        type="button"
+                        onClick={() => setTimeRange('today')}
+                        className={`px-2.5 py-1.5 rounded-md transition cursor-pointer ${
+                          timeRange === 'today' ? 'bg-sky-600 text-white font-bold' : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        Bugün
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setTimeRange('this_week')}
+                        className={`px-2.5 py-1.5 rounded-md transition cursor-pointer ${
+                          timeRange === 'this_week' ? 'bg-sky-600 text-white font-bold' : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        Bu Hafta
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setTimeRange('this_month')}
+                        className={`px-2.5 py-1.5 rounded-md transition cursor-pointer ${
+                          timeRange === 'this_month' ? 'bg-sky-600 text-white font-bold' : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        Bu Ay
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setTimeRange('all')}
+                        className={`px-2.5 py-1.5 rounded-md transition cursor-pointer ${
+                          timeRange === 'all' ? 'bg-sky-600 text-white font-bold' : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        Tümü
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setTimeRange('custom')}
+                        className={`px-2.5 py-1.5 rounded-md transition cursor-pointer ${
+                          timeRange === 'custom' ? 'bg-sky-600 text-white font-bold' : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        Özel Tarih
+                      </button>
+                    </div>
                   </div>
 
                   {/* 2. Custom Date Pickers (if custom selected) */}
@@ -1030,15 +1123,23 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                               <div className="font-bold text-slate-900 text-[11px]">{report.kurum_adi}</div>
                             </td>
 
-                            {/* Yeni / Mevcut */}
+                            {/* Yeni / Mevcut / Tamamlandı Durumu */}
                             <td className="py-2.5 px-3 whitespace-nowrap">
-                              <span className={`text-[9.5px] font-bold px-2 py-0.5 rounded-full border ${
-                                report.musteri_durumu === 'Yeni Müşteri'
-                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                  : 'bg-slate-100 text-slate-600 border-slate-200'
-                              }`}>
-                                {report.musteri_durumu || 'Yeni Müşteri'}
-                              </span>
+                              <div className="flex flex-col gap-1 items-start">
+                                <span className={`text-[9.5px] font-bold px-2 py-0.5 rounded-full border ${
+                                  report.musteri_durumu === 'Yeni Müşteri'
+                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                    : 'bg-slate-100 text-slate-600 border-slate-200'
+                                }`}>
+                                  {report.musteri_durumu || 'Yeni Müşteri'}
+                                </span>
+                                {report.tamamlandi && (
+                                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 flex items-center gap-1 font-mono">
+                                    <CheckCircle2 className="w-2.5 h-2.5" />
+                                    Tamamlandı
+                                  </span>
+                                )}
+                              </div>
                             </td>
 
                             {/* Kurum Türü */}
@@ -1124,18 +1225,34 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
 
                             {/* İşlemler (No-Print) */}
                             <td className="py-2.5 px-3 text-right whitespace-nowrap no-print">
-                              {canDelete && !isViewer ? (
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeleteReport(report)}
-                                  className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition cursor-pointer"
-                                  title="Raporu Sil"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
-                              ) : (
-                                <span className="text-[10px] text-slate-400 italic">İzleme</span>
-                              )}
+                              <div className="flex items-center justify-end gap-1.5">
+                                {!isViewer && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleToggleComplete(report)}
+                                    className={`px-2 py-1 rounded text-[11px] font-bold transition flex items-center gap-1 cursor-pointer border shadow-2xs ${
+                                      report.tamamlandi
+                                        ? 'bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100'
+                                        : 'bg-emerald-600 text-white border-emerald-700 hover:bg-emerald-700'
+                                    }`}
+                                    title={report.tamamlandi ? 'Tamamlanma durumunu geri al (Aktif yap)' : 'İşi Tamamla / Çıktı Alındı (Arşive Taşı)'}
+                                  >
+                                    <CheckCircle2 className="w-3.5 h-3.5" />
+                                    <span>{report.tamamlandi ? 'Aktife Al' : 'Tamamla'}</span>
+                                  </button>
+                                )}
+
+                                {canDelete && !isViewer && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteReport(report)}
+                                    className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition cursor-pointer"
+                                    title="Raporu Sil (Hatalı Giriş)"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                              </div>
                             </td>
 
                           </tr>

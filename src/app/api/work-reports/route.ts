@@ -18,6 +18,7 @@ export async function GET(request: NextRequest) {
     const endDate = searchParams.get('endDate') || undefined;
     const kurumTuru = searchParams.get('kurumTuru') || undefined;
     const iletisimTuru = searchParams.get('iletisimTuru') || undefined;
+    const status = searchParams.get('status') || undefined; // "active", "completed", "all"
 
     let dateFilter: { gte?: Date; lte?: Date } | undefined = undefined;
     const now = new Date();
@@ -52,6 +53,7 @@ export async function GET(request: NextRequest) {
         ...(selectedUserId && selectedUserId !== 'all' ? { user_id: selectedUserId } : {}),
         ...(kurumTuru && kurumTuru !== 'all' ? { kurum_turu: kurumTuru } : {}),
         ...(iletisimTuru && iletisimTuru !== 'all' ? { iletisim_turu: iletisimTuru } : {}),
+        ...(status === 'active' ? { tamamlandi: false } : status === 'completed' ? { tamamlandi: true } : {}),
         ...(dateFilter ? { tarih: dateFilter } : {}),
       },
       include: {
@@ -276,6 +278,28 @@ export async function PUT(request: NextRequest) {
         { success: false, error: 'Başkasına ait çalışma raporuna müdahale etme yetkiniz yoktur.' },
         { status: 403 }
       );
+    }
+
+    // If this is a status toggle (tamamlandi)
+    if (data.tamamlandi !== undefined) {
+      await prisma.workReport.update({
+        where: { id },
+        data: { tamamlandi: Boolean(data.tamamlandi) },
+      });
+
+      if ((existing as any).deal_id) {
+        try {
+          await prisma.deal.update({
+            where: { id: (existing as any).deal_id },
+            data: { is_archived: Boolean(data.tamamlandi) },
+          });
+        } catch (dealErr) {
+          console.error('Failed to sync deal archive status:', dealErr);
+        }
+      }
+
+      const updated = await prisma.workReport.findUnique({ where: { id } });
+      return NextResponse.json({ success: true, report: updated });
     }
 
     const reportDate = data.tarih ? new Date(data.tarih) : existing.tarih;

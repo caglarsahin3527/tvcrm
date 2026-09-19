@@ -64,6 +64,7 @@ export interface Deal {
   tahmini_kapanis_tarihi: Date | string | null;
   ihtimal_derecesi: string;
   asama: string;
+  is_archived?: boolean;
   not: string;
   createdAt: Date | string;
   updatedAt: Date | string;
@@ -121,6 +122,8 @@ export interface WorkReport {
   rezervasyon_birim_fiyat?: number | null;
   rezervasyon_toplam_saniye?: number | null;
   rezervasyon_vade?: string | null;
+  deal_id?: string | null;
+  tamamlandi?: boolean;
   createdAt: Date | string;
   updatedAt?: Date | string;
 }
