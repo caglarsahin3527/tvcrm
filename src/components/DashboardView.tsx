@@ -123,9 +123,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const [hoveredForecastSlice, setHoveredForecastSlice] = useState<number | null>(null);
 
   // Filter deals based on active channel scope for the reactive charts
+  const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth());
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+
+  const monthFilteredDeals = deals.filter(d => {
+    const dateToUse = d.tahmini_kapanis_tarihi ? new Date(d.tahmini_kapanis_tarihi) : new Date(d.createdAt);
+    return dateToUse.getMonth() === selectedMonth && dateToUse.getFullYear() === selectedYear;
+  });
+
   const scopedDeals = activeChannelScope === 'all' 
-    ? deals 
-    : deals.filter((d) => d.kanal === activeChannelScope);
+    ? monthFilteredDeals 
+    : monthFilteredDeals.filter((d) => d.kanal === activeChannelScope);
 
   // Define Won and Open Pipeline Stage Groups
   const WON_STAGES = ['SATIŞ', 'YAYIN', 'TAHSİLAT'];
@@ -177,7 +185,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   }).length;
 
   // 2. KANAL BAZINDA (Bİ KANAL vs. SIFIR TV) AYRIMI
-  const biKanalDeals = deals.filter((d) => d.kanal === 'Bi Kanal');
+  const biKanalDeals = monthFilteredDeals.filter((d) => d.kanal === 'Bi Kanal');
   const biKanalRealized = biKanalDeals
     .filter((d) => !d.is_archived && WON_STAGES.includes(d.asama))
     .reduce((sum, d) => sum + (d.teklif_tutari || 0), 0);
@@ -188,7 +196,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     .filter((d) => !d.is_archived && ['TEKLİF', 'TAKİP', 'PAZARLIK', 'ONAY'].includes(d.asama))
     .reduce((sum, d) => sum + (d.teklif_tutari || 0), 0);
 
-  const sifirTvDeals = deals.filter((d) => d.kanal === 'Sıfır TV');
+  const sifirTvDeals = monthFilteredDeals.filter((d) => d.kanal === 'Sıfır TV');
   const sifirTvRealized = sifirTvDeals
     .filter((d) => !d.is_archived && WON_STAGES.includes(d.asama))
     .reduce((sum, d) => sum + (d.teklif_tutari || 0), 0);
@@ -349,7 +357,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   // Export handlers
   const handleExportExcel = () => {
-    const exportData = deals.map((d) => ({
+    const exportData = scopedDeals.map((d) => ({
       'Firma Adı': d.musteri?.firma_adi || '',
       'Yetkili Kişi': d.musteri?.yetkili_kisi || '',
       'Telefon': d.musteri?.telefon || '',
@@ -373,7 +381,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   };
 
   const handleExportCsv = () => {
-    const exportData = deals.map((d) => ({
+    const exportData = scopedDeals.map((d) => ({
       'Firma': d.musteri?.firma_adi || '',
       'Yetkili': d.musteri?.yetkili_kisi || '',
       'Telefon': d.musteri?.telefon || '',
@@ -414,6 +422,38 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         {/* Interactive Scope Toggle & Export Actions */}
         <div className="flex flex-wrap items-center gap-2.5">
           
+          {/* Period Scope Selector */}
+          <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl border border-slate-200 shadow-2xs text-xs font-semibold">
+            <select
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(Number(e.target.value))}
+              className="bg-white border border-slate-200 text-slate-700 px-2.5 py-1.5 rounded-lg outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 cursor-pointer hover:border-slate-300 transition-colors"
+            >
+              <option value={0}>Ocak</option>
+              <option value={1}>Şubat</option>
+              <option value={2}>Mart</option>
+              <option value={3}>Nisan</option>
+              <option value={4}>Mayıs</option>
+              <option value={5}>Haziran</option>
+              <option value={6}>Temmuz</option>
+              <option value={7}>Ağustos</option>
+              <option value={8}>Eylül</option>
+              <option value={9}>Ekim</option>
+              <option value={10}>Kasım</option>
+              <option value={11}>Aralık</option>
+            </select>
+            <select
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(Number(e.target.value))}
+              className="bg-white border border-slate-200 text-slate-700 px-2.5 py-1.5 rounded-lg outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 cursor-pointer hover:border-slate-300 transition-colors"
+            >
+              <option value={2024}>2024</option>
+              <option value={2025}>2025</option>
+              <option value={2026}>2026</option>
+              <option value={2027}>2027</option>
+            </select>
+          </div>
+
           {/* Channel Scope Selector */}
           <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 shadow-2xs text-xs font-semibold">
             <button

@@ -21,6 +21,7 @@ export default async function HomePage() {
     const [users, deals, clients, workReports] = await Promise.all([
       prisma.user.findMany({ orderBy: { name: 'asc' } }),
       prisma.deal.findMany({
+        where: { is_archived: false },
         include: {
           musteri: {
             include: {
@@ -33,11 +34,14 @@ export default async function HomePage() {
       prisma.client.findMany({
         include: {
           satis_temsilcisi: true,
-          deals: true,
+          deals: {
+            where: { is_archived: false }
+          },
         },
         orderBy: { createdAt: 'desc' },
       }),
       prisma.workReport.findMany({
+        where: { tamamlandi: false },
         include: {
           user: true,
         },

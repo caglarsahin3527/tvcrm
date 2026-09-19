@@ -49,6 +49,7 @@ export async function GET(request: NextRequest) {
       prisma.user.findMany({ orderBy: { name: 'asc' } }),
       prisma.deal.findMany({
         where: {
+          is_archived: false,
           ...(kanal && kanal !== 'all' ? { kanal } : {}),
           ...(dateFilter ? { createdAt: dateFilter } : {}),
           ...((repFilter || (musteriTipi && musteriTipi !== 'all')) ? {
@@ -74,11 +75,14 @@ export async function GET(request: NextRequest) {
         },
         include: {
           satis_temsilcisi: true,
-          deals: true,
+          deals: {
+            where: { is_archived: false }
+          },
         },
         orderBy: { createdAt: 'desc' },
       }),
       prisma.workReport.findMany({
+        where: { tamamlandi: false },
         include: {
           user: {
             select: {
