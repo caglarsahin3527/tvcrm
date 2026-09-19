@@ -47,6 +47,17 @@ import {
   ChevronDown
 } from 'lucide-react';
 
+// Helper to calculate total monetary amount of a reservation
+export const getReportRezAmount = (r: Partial<WorkReport>): number => {
+  if (!r.rezervasyon_var) return 0;
+  if (r.rezervasyon_fiyat_tipi === 'PT_OPT') {
+    const opt = (Number(r.rezervasyon_opt_saniye) || 0) * (Number(r.rezervasyon_opt_fiyat) || 0);
+    const pt = (Number(r.rezervasyon_pt_saniye) || 0) * (Number(r.rezervasyon_pt_fiyat) || 0);
+    return opt + pt;
+  }
+  return (Number(r.rezervasyon_toplam_saniye) || 0) * (Number(r.rezervasyon_birim_fiyat) || 0);
+};
+
 interface WorkReportModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -367,6 +378,7 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
     });
   }, [localReports, statusFilter, selectedUserFilter, selectedOrgFilter, selectedContactFilter, timeRange, customStartDate, customEndDate, searchQuery]);
 
+
   // Aggregated KPI Metrics
   const totalReportsCount = filteredReports.length;
   
@@ -379,6 +391,7 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
   const rezervasyonReports = filteredReports.filter((r) => r.rezervasyon_var);
   const totalRezervasyonAdet = rezervasyonReports.reduce((sum, r) => sum + (r.rezervasyon_gelen || 1), 0);
   const totalRezervasyonSaniye = rezervasyonReports.reduce((sum, r) => sum + (r.rezervasyon_toplam_saniye || 0), 0);
+  const totalRezervasyonTutari = rezervasyonReports.reduce((sum, r) => sum + getReportRezAmount(r), 0);
 
   // --- EXECUTIVE SUMMARY MATRIX (Personel Bazlı Matris Tablosu) ---
   const executiveMatrix = useMemo(() => {
@@ -414,6 +427,7 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
       const rezSaniye = userRez.reduce((sum, r) => sum + (r.rezervasyon_toplam_saniye || 0), 0);
       const rezOptSaniye = userRez.reduce((sum, r) => sum + (r.rezervasyon_opt_saniye || 0), 0);
       const rezPtSaniye = userRez.reduce((sum, r) => sum + (r.rezervasyon_pt_saniye || 0), 0);
+      const rezSum = userRez.reduce((sum, r) => sum + getReportRezAmount(r), 0);
 
       return {
         user: u,
@@ -431,6 +445,7 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
         rezSaniye,
         rezOptSaniye,
         rezPtSaniye,
+        rezSum,
       };
     });
   }, [users, filteredReports, selectedUserFilter]);
@@ -453,6 +468,7 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
         rezSaniye: acc.rezSaniye + row.rezSaniye,
         rezOptSaniye: acc.rezOptSaniye + row.rezOptSaniye,
         rezPtSaniye: acc.rezPtSaniye + row.rezPtSaniye,
+        rezSum: acc.rezSum + row.rezSum,
       }),
       {
         telCount: 0,
@@ -469,6 +485,7 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
         rezSaniye: 0,
         rezOptSaniye: 0,
         rezPtSaniye: 0,
+        rezSum: 0,
       }
     );
   }, [executiveMatrix]);
@@ -539,6 +556,11 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
         return;
       }
 
+      // Optimistically add report directly to localReports state
+      if (data.report) {
+        setLocalReports((prev) => [data.report, ...prev.filter((r) => r.id !== data.report.id)]);
+      }
+
       setSuccessMessage('Çalışma raporu başarıyla sisteme işlendi.');
       resetForm();
       if (onRefresh) onRefresh();
@@ -546,7 +568,7 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
       setTimeout(() => {
         setActiveTab('reports');
         setSuccessMessage('');
-      }, 900);
+      }, 600);
     } catch (err: any) {
       console.error(err);
       setErrorMessage('Kayıt sırasında bağlantı hatası oluştu.');
@@ -651,6 +673,7 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
         'Satış Tutarı (TL)': r.satisSum,
         'Rezervasyon (Adet)': r.rezCount,
         'Rezervasyon Kuşak Saniyesi': r.rezSaniye,
+        'Rezervasyon Tutarı (TL)': r.rezSum,
       }));
 
       exportToExcel(matrixRows, `TVCRM_Yonetici_Faaliyet_Ozeti_${new Date().toISOString().split('T')[0]}`);
@@ -690,6 +713,7 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
       'Rezervasyon Gelen': r.rezervasyon_gelen || 0,
       'Rezervasyon Türü': r.rezervasyon_turu || '-',
       'Fiyat Tipi': r.rezervasyon_fiyat_tipi || 'TEK_FIYAT',
+      'Rezervasyon Tutarı (TL)': getReportRezAmount(r),
       'OPT Saniye': r.rezervasyon_opt_saniye || 0,
       'OPT Birim Fiyat (TL)': r.rezervasyon_opt_fiyat || 0,
       'PT Saniye': r.rezervasyon_pt_saniye || 0,
@@ -1065,8 +1089,8 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
 
                 <div className="bg-amber-50 border border-amber-200 p-3 rounded-xl print:p-1.5 print:rounded-lg">
                   <span className="text-[10px] font-mono uppercase font-bold text-amber-800 print:text-[8px]">Rezervasyonlar</span>
-                  <div className="text-lg font-mono font-black text-amber-800 mt-1 print:text-xs print:mt-0.5">{totalRezervasyonAdet} Adet</div>
-                  <div className="text-[10px] text-amber-700 font-mono mt-0.5 print:hidden">{totalRezervasyonSaniye} sn</div>
+                  <div className="text-lg font-mono font-black text-amber-800 mt-1 print:text-xs print:mt-0.5">{formatCurrency(totalRezervasyonTutari)}</div>
+                  <div className="text-[10px] text-amber-700 font-mono mt-0.5 print:hidden">{totalRezervasyonAdet} Adet • {totalRezervasyonSaniye} sn</div>
                 </div>
               </div>
 
@@ -1104,6 +1128,7 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                       {filteredReports.map((report) => {
                         const isOwner = report.user_id === currentUser?.id;
                         const canDelete = isSuperAdmin || isOwner;
+                        const rezAmount = getReportRezAmount(report);
 
                         return (
                           <tr key={report.id} className="hover:bg-slate-50/80 transition-colors">
@@ -1186,6 +1211,11 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                                 <div>
                                   <span className="font-bold text-sky-700">{formatCurrency(report.teklif_tutari)}</span>
                                   <div className="text-[9px] text-sky-600 font-sans font-medium">Teklif ({report.teklif_ihtimal || '%50'})</div>
+                                </div>
+                              ) : (report.rezervasyon_var && rezAmount > 0) ? (
+                                <div>
+                                  <span className="font-bold text-amber-800">{formatCurrency(rezAmount)}</span>
+                                  <div className="text-[9px] text-amber-700 font-sans font-medium">Rezervasyon ({report.rezervasyon_toplam_saniye} sn)</div>
                                 </div>
                               ) : (
                                 <span className="text-slate-400">-</span>
@@ -1309,7 +1339,7 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                       <th className="py-1.5 px-2 text-center bg-slate-800 text-amber-300">Toplam Temas</th>
                       <th className="py-1.5 px-2.5 text-right">Teklif (Adet / ₺)</th>
                       <th className="py-1.5 px-2.5 text-right text-emerald-300">Satış (Adet / ₺)</th>
-                      <th className="py-1.5 px-2.5 text-right text-sky-300">Rezervasyon (sn)</th>
+                      <th className="py-1.5 px-2.5 text-right text-amber-300">Rezervasyon (₺ / sn)</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200">
@@ -1337,8 +1367,8 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                           <span className="text-[9.5px] text-emerald-600 ml-1">({row.satisCount})</span>
                         </td>
                         <td className="py-1.5 px-2.5 text-right font-mono">
-                          <span className="font-bold text-amber-800">{row.rezSaniye} sn</span>
-                          <span className="text-[9.5px] text-slate-500 ml-1">({row.rezCount} ad.)</span>
+                          <div className="font-bold text-amber-800">{formatCurrency(row.rezSum)}</div>
+                          <div className="text-[9.5px] text-slate-500 font-normal">{row.rezSaniye} sn ({row.rezCount} ad.)</div>
                         </td>
                       </tr>
                     ))}
@@ -1357,8 +1387,9 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                       <td className="py-2 px-2.5 text-right text-emerald-800">
                         {formatCurrency(matrixTotals.satisSum)} <span className="text-[9.5px] font-normal">({matrixTotals.satisCount})</span>
                       </td>
-                      <td className="py-2 px-2.5 text-right text-amber-900">
-                        {matrixTotals.rezSaniye} sn <span className="text-[9.5px] font-normal">({matrixTotals.rezCount})</span>
+                      <td className="py-2 px-2.5 text-right text-amber-900 font-mono">
+                        <div className="font-black text-amber-900">{formatCurrency(matrixTotals.rezSum)}</div>
+                        <div className="text-[9.5px] font-normal">{matrixTotals.rezSaniye} sn ({matrixTotals.rezCount} ad.)</div>
                       </td>
                     </tr>
                   </tbody>
@@ -1369,11 +1400,11 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
               <div className="grid grid-cols-3 gap-2.5 pt-1 print:gap-2 print:pt-1 print-avoid-break">
                 <div className="border border-slate-200 bg-slate-50 px-3 py-1.5 rounded-lg print:p-1.5">
                   <span className="text-[9.5px] font-mono font-bold uppercase text-slate-500 block print:text-[8px]">Kuşak Rezervasyon Özeti</span>
-                  <div className="text-xs font-mono font-bold text-slate-800 mt-0.5 print:text-[9.5px]">
-                    Toplam Kuşak: <strong className="text-amber-800">{matrixTotals.rezSaniye} sn</strong> ({matrixTotals.rezCount} Adet)
+                  <div className="text-xs font-mono font-bold text-amber-800 mt-0.5 print:text-[9.5px]">
+                    Rezervasyon Hacmi: <strong>{formatCurrency(matrixTotals.rezSum)}</strong>
                   </div>
-                  <div className="text-[10px] text-slate-600 font-mono mt-0.5 print:text-[8px]">
-                    OPT: {matrixTotals.rezOptSaniye} sn | PT: {matrixTotals.rezPtSaniye} sn
+                  <div className="text-[10px] text-slate-700 font-mono mt-0.5 print:text-[8px]">
+                    Toplam: {matrixTotals.rezSaniye} sn ({matrixTotals.rezCount} Adet) • OPT: {matrixTotals.rezOptSaniye}s | PT: {matrixTotals.rezPtSaniye}s
                   </div>
                 </div>
 

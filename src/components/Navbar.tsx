@@ -4,7 +4,6 @@ import React from 'react';
 import { User } from '@/types';
 import { BiKanalLogo } from '@/components/BiKanalLogo';
 import { 
-  Kanban, 
   Users, 
   BarChart3, 
   Plus, 
@@ -15,8 +14,8 @@ import {
 
 interface NavbarProps {
   currentUser: User | null;
-  activeTab: 'pipeline' | 'clients' | 'dashboard';
-  setActiveTab: (tab: 'pipeline' | 'clients' | 'dashboard') => void;
+  activeTab: 'clients' | 'dashboard';
+  setActiveTab: (tab: 'clients' | 'dashboard') => void;
   onOpenAddClient: () => void;
   onOpenAdminUsers?: () => void;
   onOpenWorkReport?: () => void;
@@ -114,19 +113,6 @@ export const Navbar: React.FC<NavbarProps> = ({
             >
               <Users className="w-3.5 h-3.5 text-emerald-600" />
               <span>Müşteriler</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveTab('pipeline')}
-              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                activeTab === 'pipeline'
-                  ? 'bg-white text-slate-900 shadow-sm border border-slate-200/90 font-bold'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
-              }`}
-            >
-              <Kanban className="w-3.5 h-3.5 text-sky-600" />
-              <span>Pipeline</span>
             </button>
           </nav>
 
@@ -277,7 +263,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
 
           {/* Mobile Row 2: Segmented Tab Navigation */}
-          <nav className="grid grid-cols-3 bg-slate-100 p-1 rounded-xl border border-slate-200/90 shadow-2xs gap-1">
+          <nav className="grid grid-cols-2 bg-slate-100 p-1 rounded-xl border border-slate-200/90 shadow-2xs gap-1">
             <button
               type="button"
               onClick={() => setActiveTab('dashboard')}
@@ -302,19 +288,6 @@ export const Navbar: React.FC<NavbarProps> = ({
             >
               <Users className="w-3.5 h-3.5 text-emerald-600" />
               <span>Müşteriler</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveTab('pipeline')}
-              className={`flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-all ${
-                activeTab === 'pipeline'
-                  ? 'bg-white text-slate-900 shadow-sm border border-slate-200/90 font-bold'
-                  : 'text-slate-600'
-              }`}
-            >
-              <Kanban className="w-3.5 h-3.5 text-sky-600" />
-              <span>Pipeline</span>
             </button>
           </nav>
 

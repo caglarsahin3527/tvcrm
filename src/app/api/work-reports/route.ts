@@ -182,7 +182,13 @@ export async function POST(request: NextRequest) {
     });
 
     
-    if (satis_yapildi || teklif_verildi) {
+    const rezAmount = rezervasyon_var 
+      ? (rezervasyon_fiyat_tipi === 'PT_OPT'
+          ? (Number(rezervasyon_opt_saniye) || 0) * (Number(rezervasyon_opt_fiyat) || 0) + (Number(rezervasyon_pt_saniye) || 0) * (Number(rezervasyon_pt_fiyat) || 0)
+          : (Number(rezervasyon_toplam_saniye) || 0) * (Number(rezervasyon_birim_fiyat) || 0))
+      : 0;
+
+    if (satis_yapildi || teklif_verildi || (rezervasyon_var && rezAmount > 0)) {
       let client = await prisma.client.findFirst({
         where: { firma_adi: toTurkishUpper(kurum_adi) },
       });
@@ -203,14 +209,24 @@ export async function POST(request: NextRequest) {
       }
 
       if (client) {
-        // Herkes (Admin hariç) sadece kendi müşterisi için işlem yapabilir.
-        // Eğer yönetici bile olsa, başkasının (veya Admin'in) müşterisine rapor giremez, ancak belki kendi alt ekibi için girebilir.
-        // Ama kural "Herkes sadece kendi yaptığı müşterilerle ilgili değişiklik yapabilir" diyor.
-        if (sessionUser.role !== 'ADMIN' && sessionUser.role !== 'SUPER_ADMIN' && client.satis_temsilcisi_id !== sessionUser.id) {
+        const canManageClient = sessionUser.role === 'ADMIN' || sessionUser.role === 'SUPER_ADMIN' || sessionUser.role === 'SALES_MANAGER' || client.satis_temsilcisi_id === sessionUser.id;
+        if (!canManageClient) {
           throw new Error('Bu müşteri başka bir temsilciye aittir. Yalnızca kendi müşterileriniz için işlem yapabilirsiniz.');
         }
-        const asama = satis_yapildi ? 'SATIŞ' : 'TEKLİF';
-        const tutar = satis_yapildi ? (Number(satis_tutari) || 0) : (Number(teklif_tutari) || 0);
+
+        const asama = satis_yapildi ? 'SATIŞ' : teklif_verildi ? 'TEKLİF' : 'ONAY';
+        const tutar = satis_yapildi 
+          ? (Number(satis_tutari) || 0) 
+          : teklif_verildi 
+          ? (Number(teklif_tutari) || 0) 
+          : rezAmount;
+
+        const dealNote = satis_yapildi 
+          ? `${satis_turu || 'Spot Reklam'} - Satış Kaydı`
+          : teklif_verildi 
+          ? 'Teklif Verildi' 
+          : `${rezervasyon_turu || 'Spot'} Kuşak Rezervasyonu (${rezervasyon_toplam_saniye || 0} sn)`;
+
         const deal = await prisma.deal.create({
           data: {
             musteri_id: client.id,
@@ -218,6 +234,8 @@ export async function POST(request: NextRequest) {
             teklif_tutari: tutar,
             ihtimal_derecesi: satis_yapildi 
               ? 'Kesin' 
+              : rezervasyon_var 
+              ? 'Yüksek' 
               : (teklif_ihtimal === '%100' 
                   ? 'Kesin' 
                   : teklif_ihtimal === '%75' 
@@ -226,7 +244,7 @@ export async function POST(request: NextRequest) {
                   ? 'Düşük' 
                   : (teklif_ihtimal === '%90' ? 'Yüksek' : teklif_ihtimal === '%10' ? 'Düşük' : 'Orta')),
             asama: asama,
-            not: (satis_yapildi ? satis_turu : 'Teklif Verildi') + ' - Çalışma Raporundan Otomatik Eklendi',
+            not: `${dealNote} - Çalışma Raporundan Otomatik Eklendi`,
           }
         });
 

@@ -12,7 +12,6 @@ import { WorkReportModal } from '@/components/WorkReportModal';
 import { ProfileModal } from '@/components/ProfileModal';
 import { Loader2 } from 'lucide-react';
 
-import { KanbanBoard } from '@/components/KanbanBoard';
 import { DashboardView } from '@/components/DashboardView';
 import { ClientsView } from '@/components/ClientsView';
 
@@ -40,7 +39,7 @@ export const AppContainer: React.FC<AppContainerProps> = ({
   const [isPending, startTransition] = useTransition();
 
   // Active View Tab - default is 'dashboard'
-  const [activeTab, setActiveTab] = useState<'pipeline' | 'clients' | 'dashboard'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'clients' | 'dashboard'>('dashboard');
 
   // Global Filters
   const [selectedChannel, setSelectedChannel] = useState<string>('all');
@@ -252,23 +251,12 @@ export const AppContainer: React.FC<AppContainerProps> = ({
 
         {/* Dynamic Content Views - Instant Switching */}
         <div className="transition-opacity duration-150">
-          {activeTab === 'pipeline' && (
-            <KanbanBoard
-              deals={filteredDeals}
-              currentUser={currentUser}
-              onRefresh={refreshData}
-              onOpenFollowUpModal={handleOpenFollowUp}
-              onOpenAddDealModal={handleOpenAddDeal}
-            />
-          )}
-
           {activeTab === 'clients' && (
             <ClientsView
               clients={filteredClients}
               currentUser={currentUser}
               onRefresh={refreshData}
               onOpenAddClient={() => setIsAddClientOpen(true)}
-              onOpenAddDeal={handleOpenAddDeal}
               onOpenFollowUpModal={handleOpenFollowUp}
             />
           )}

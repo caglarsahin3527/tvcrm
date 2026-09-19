@@ -5,20 +5,17 @@ import { Deal, User, Client } from '@/types';
 import { formatCurrency, formatDate, exportToExcel, exportToCsv } from '@/lib/formatters';
 import { 
   Target, 
-  Layers, 
   Clock, 
-  DollarSign, 
-  Sparkles, 
+  DollarSign,
+  Sparkles,
   FileSpreadsheet, 
   FileText, 
   Activity,
   CheckCircle2,
   Users,
-  Tv,
   TrendingDown,
   TrendingUp,
   Calculator,
-  BarChart3,
   PieChart as PieChartIcon,
   ChevronRight,
   ArrowUpRight,
@@ -29,16 +26,10 @@ import {
 } from 'lucide-react';
 import {
   ResponsiveContainer,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
   Tooltip,
-  Legend,
   PieChart,
   Pie,
   Cell,
-  CartesianGrid,
 } from 'recharts';
 
 interface DashboardViewProps {
@@ -112,11 +103,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   // Interactive Local View Filters for Charts
   const [activeChannelScope, setActiveChannelScope] = useState<'all' | 'Bi Kanal' | 'Sıfır TV'>('all');
-  const [stageViewMetric, setStageViewMetric] = useState<'amount' | 'count'>('amount');
 
   // Performance Table Filters & Sorting
   const [tableRoleFilter, setTableRoleFilter] = useState<'ALL' | 'SALES_REP' | 'SALES_MANAGER' | 'ADMIN'>('ALL');
-  const [tableSortBy, setTableSortBy] = useState<'realized' | 'pipeline' | 'offer' | 'rate' | 'role' | 'name'>('realized');
+  const [tableSortBy, setTableSortBy] = useState<'realized' | 'offer' | 'rate' | 'role' | 'name'>('realized');
 
   // Hover states for Donut Charts to prevent center label & tooltip collision
   const [hoveredQuotaSlice, setHoveredQuotaSlice] = useState<number | null>(null);
@@ -135,7 +125,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     ? monthFilteredDeals 
     : monthFilteredDeals.filter((d) => d.kanal === activeChannelScope);
 
-  // Define Won and Open Pipeline Stage Groups
+  // Define Won and Open Stage Groups
   const WON_STAGES = ['SATIŞ', 'YAYIN', 'TAHSİLAT'];
   const OPEN_STAGES = ['YENİ LEAD', 'GÖRÜŞME', 'TEKLİF', 'TAKİP', 'PAZARLIK', 'ONAY'];
 
@@ -144,9 +134,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const realizedDeals = scopedDeals.filter((d) => !d.is_archived && WON_STAGES.includes(d.asama));
   const realizedTotal = realizedDeals.reduce((sum, d) => sum + (d.teklif_tutari || 0), 0);
 
-  // Aktif Pipeline (Yalnızca arşive kaldırılmamış VE açık/devam eden fırsatlar)
+  // Aktif Açık Fırsatlar
   const activeScopedDeals = scopedDeals.filter((d) => !d.is_archived && OPEN_STAGES.includes(d.asama));
-  const pipelineTotal = activeScopedDeals.reduce((sum, d) => sum + (d.teklif_tutari || 0), 0);
 
   // Bekleyen Açık Teklifler
   const pendingDeals = activeScopedDeals.filter((d) => ['TEKLİF', 'TAKİP', 'PAZARLIK', 'ONAY'].includes(d.asama));
@@ -184,30 +173,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     return dStr === todayDateString;
   }).length;
 
-  // 2. KANAL BAZINDA (Bİ KANAL vs. SIFIR TV) AYRIMI
-  const biKanalDeals = monthFilteredDeals.filter((d) => d.kanal === 'Bi Kanal');
-  const biKanalRealized = biKanalDeals
-    .filter((d) => !d.is_archived && WON_STAGES.includes(d.asama))
-    .reduce((sum, d) => sum + (d.teklif_tutari || 0), 0);
-  const biKanalPipeline = biKanalDeals
-    .filter((d) => !d.is_archived && OPEN_STAGES.includes(d.asama))
-    .reduce((sum, d) => sum + (d.teklif_tutari || 0), 0);
-  const biKanalPending = biKanalDeals
-    .filter((d) => !d.is_archived && ['TEKLİF', 'TAKİP', 'PAZARLIK', 'ONAY'].includes(d.asama))
-    .reduce((sum, d) => sum + (d.teklif_tutari || 0), 0);
-
-  const sifirTvDeals = monthFilteredDeals.filter((d) => d.kanal === 'Sıfır TV');
-  const sifirTvRealized = sifirTvDeals
-    .filter((d) => !d.is_archived && WON_STAGES.includes(d.asama))
-    .reduce((sum, d) => sum + (d.teklif_tutari || 0), 0);
-  const sifirTvPipeline = sifirTvDeals
-    .filter((d) => !d.is_archived && OPEN_STAGES.includes(d.asama))
-    .reduce((sum, d) => sum + (d.teklif_tutari || 0), 0);
-  const sifirTvPending = sifirTvDeals
-    .filter((d) => !d.is_archived && ['TEKLİF', 'TAKİP', 'PAZARLIK', 'ONAY'].includes(d.asama))
-    .reduce((sum, d) => sum + (d.teklif_tutari || 0), 0);
-
-  // 3. KESİN SATIŞ VE İHTİMALLER KIRILIMLARI
+  // 2. KESİN SATIŞ VE İHTİMALLER KIRILIMLARI
   const exactDeals = activeScopedDeals.filter((d) => d.ihtimal_derecesi === 'Kesin');
   const exactTotal = exactDeals.reduce((sum, d) => sum + (d.teklif_tutari || 0), 0);
 
@@ -220,7 +186,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const lowDeals = activeScopedDeals.filter((d) => d.ihtimal_derecesi === 'Düşük');
   const lowTotal = lowDeals.reduce((sum, d) => sum + (d.teklif_tutari || 0), 0);
 
-  // 4. CHART VERİLERİ (Recharts Data Preparation)
+  // 3. CHART VERİLERİ (Recharts Data Preparation)
 
   // A) Hedef & Gerçekleşme Verisi (Donut)
   const targetVsRealizedData = (realizedTotal === 0 && remainingToTarget === 0)
@@ -230,51 +196,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         { name: 'Kalan Hedef Tutarı', value: Math.max(remainingToTarget, 0), color: '#e2e8f0' }, // slate-200
       ];
 
-  // B) Kanal Karşılaştırma Grafiği Verisi (Bar Chart)
-  const channelComparisonData = [
-    {
-      kategori: 'Gerçekleşen Satış',
-      'Bi Kanal': biKanalRealized,
-      'Sıfır TV': sifirTvRealized,
-    },
-    {
-      kategori: 'Aktif Pipeline',
-      'Bi Kanal': biKanalPipeline,
-      'Sıfır TV': sifirTvPipeline,
-    },
-    {
-      kategori: 'Bekleyen Teklif',
-      'Bi Kanal': biKanalPending,
-      'Sıfır TV': sifirTvPending,
-    },
-  ];
-
-  // C) Aşama / Satış Hunisi Verisi (Pipeline Funnel Stages)
-  const stageDefinitions = [
-    { key: 'TEKLİF', label: 'Teklif Hazırlandı', color: '#0284c7' }, // sky-600
-    { key: 'TAKİP', label: 'Takip Aşamasında', color: '#6366f1' }, // indigo-500
-    { key: 'PAZARLIK', label: 'Pazarlık / Revize', color: '#d97706' }, // amber-600
-    { key: 'ONAY', label: 'Yönetim Onayında', color: '#9333ea' }, // purple-600
-    { key: 'SATIŞ', label: 'Satış / Sözleşme', color: '#059669' }, // emerald-600
-    { key: 'YAYIN', label: 'Yayında', color: '#0d9488' }, // teal-600
-    { key: 'TAHSİLAT', label: 'Tahsilat', color: '#2563eb' }, // blue-600
-  ];
-
-  const stageDistributionData = stageDefinitions.map((st) => {
-    const isWonStage = ['SATIŞ', 'YAYIN', 'TAHSİLAT'].includes(st.key);
-    const stageDeals = scopedDeals.filter((d) => d.asama === st.key && (isWonStage || !d.is_archived));
-    const stageAmount = stageDeals.reduce((sum, d) => sum + (d.teklif_tutari || 0), 0);
-    return {
-      asama: st.label,
-      shortLabel: st.key,
-      tutar: stageAmount,
-      adet: stageDeals.length,
-      metricValue: stageViewMetric === 'amount' ? stageAmount : stageDeals.length,
-      fill: st.color,
-    };
-  });
-
-  // D) Kesin Satış ve İhtimaller Donut Data
+  // B) Kesin Satış ve İhtimaller Donut Data
   const totalForecastValue = exactTotal + highTotal + mediumTotal + lowTotal;
   const forecastProbabilityData = totalForecastValue > 0
     ? [
@@ -285,14 +207,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       ]
     : [{ name: 'Henüz Teklif Yok', value: 1, count: 0, color: '#e2e8f0' }];
 
-  // E) Ekip & Satış Temsilcisi Performans Verisi (Misafir rolü haricinde herkes)
+  // C) Ekip & Satış Temsilcisi Performans Verisi (Misafir rolü haricinde herkes)
   const repPerformance = users
     .filter((u) => u.role !== 'VIEWER' && u.role !== 'GUEST')
     .map((rep) => {
       const repDeals = scopedDeals.filter((d) => d.musteri?.satis_temsilcisi_id === rep.id);
-      const repPipeline = repDeals
-        .filter((d) => !d.is_archived && OPEN_STAGES.includes(d.asama))
-        .reduce((sum, d) => sum + (d.teklif_tutari || 0), 0);
       const repOffer = repDeals
         .filter((d) => !d.is_archived && ['TEKLİF', 'TAKİP', 'PAZARLIK', 'ONAY'].includes(d.asama))
         .reduce((sum, d) => sum + (d.teklif_tutari || 0), 0);
@@ -307,7 +226,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         name: rep.name,
         email: rep.email,
         role: rep.role,
-        pipeline: repPipeline,
         offer: repOffer,
         realized: repRealized,
         target: repTarget,
@@ -339,9 +257,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     }
     if (tableSortBy === 'realized') {
       return b.realized - a.realized;
-    }
-    if (tableSortBy === 'pipeline') {
-      return b.pipeline - a.pipeline;
     }
     if (tableSortBy === 'offer') {
       return b.offer - a.offer;
@@ -516,7 +431,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       </div>
 
       {/* 1. ANA KPI KUTULARI (Data-Density Console) */}
-      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-2.5 sm:gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         
         {/* KPI 1: Aylık Hedef */}
         <div className="bg-white border border-slate-200/90 p-4 rounded-2xl shadow-xs flex flex-col justify-between hover:shadow-md transition-all duration-200">
@@ -566,23 +481,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         </div>
 
-        {/* KPI 4: Toplam Pipeline */}
-        <div className="bg-sky-50/40 border border-sky-200/80 p-4 rounded-2xl shadow-xs flex flex-col justify-between hover:shadow-md transition-all duration-200">
-          <div className="flex items-center justify-between text-sky-700 mb-2">
-            <span className="text-[10px] font-mono font-bold uppercase tracking-wider">Pipeline</span>
-            <div className="w-7 h-7 rounded-lg bg-sky-100 flex items-center justify-center text-sky-700">
-              <Layers className="w-3.5 h-3.5" />
-            </div>
-          </div>
-          <div>
-            <div className="text-lg font-mono font-black text-sky-800">{formatCurrency(pipelineTotal)}</div>
-            <div className="text-[10px] font-mono text-sky-700 mt-1">
-              {activeScopedDeals.length} Fırsat
-            </div>
-          </div>
-        </div>
-
-        {/* KPI 5: Bekleyen Teklif */}
+        {/* KPI 4: Bekleyen Teklif */}
         <div className="bg-amber-50/40 border border-amber-200/80 p-4 rounded-2xl shadow-xs flex flex-col justify-between hover:shadow-md transition-all duration-200">
           <div className="flex items-center justify-between text-amber-800 mb-2">
             <span className="text-[10px] font-mono font-bold uppercase tracking-wider">Bekleyen Teklif</span>
@@ -598,51 +497,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         </div>
 
-        {/* KPI 6: Tahsilat */}
-        <div className="bg-white border border-slate-200/90 p-4 rounded-2xl shadow-xs flex flex-col justify-between hover:shadow-md transition-all duration-200">
-          <div className="flex items-center justify-between text-slate-500 mb-2">
-            <span className="text-[10px] font-mono font-bold uppercase tracking-wider">Tahsilat</span>
-            <div className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600">
-              <DollarSign className="w-3.5 h-3.5" />
-            </div>
-          </div>
-          <div>
-            <div className="text-lg font-mono font-black text-slate-800">{formatCurrency(collectionTotal)}</div>
-            <div className="text-[10px] font-mono text-slate-500 mt-1">
-              Yayın Sonrası ({collectionDeals.length})
-            </div>
-          </div>
-        </div>
-
-        {/* KPI 7: Bugünün Özeti */}
-        <div className="bg-slate-900 text-white border border-slate-800 p-4 rounded-2xl shadow-xs flex flex-col justify-between hover:shadow-md transition-all duration-200">
-          <div className="flex items-center justify-between text-sky-400 mb-1.5">
-            <span className="text-[10px] font-mono font-bold uppercase tracking-wider">BUGÜN</span>
-            <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-spin" style={{ animationDuration: '6s' }} />
-          </div>
-          <div className="space-y-1 text-[10px] font-mono">
-            <div className="flex justify-between items-center">
-              <span className="text-slate-400">Yeni Müşteri:</span>
-              <span className="font-bold text-white bg-slate-800 px-1.5 py-0.2 rounded">{todayClientsCount}</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-slate-400">Yeni Teklif:</span>
-              <span className="font-bold text-emerald-400 bg-slate-800 px-1.5 py-0.2 rounded">{todayNewDealsCount}</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-slate-400">Takip:</span>
-              <span className="font-bold text-amber-400 bg-slate-800 px-1.5 py-0.2 rounded">{todayFollowUpsCount}</span>
-            </div>
-          </div>
-        </div>
-
       </div>
 
-      {/* 2. GÖRSEL GRAFİKLER BÖLÜMÜ 1: HEDEF İLERLEMESİ & KANAL KARŞILAŞTIRMASI */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+      {/* 2. GÖRSEL GRAFİKLER: KOTA İLERLEMESİ & KESİN SATIŞ / İHTİMALLER */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         
-        {/* SOL GRAFİK: AYLIK HEDEF VE GERÇEKLEŞME İLERLEMESİ (5/12) */}
-        <div className="lg:col-span-5 bg-white border border-slate-200/90 p-5 rounded-2xl shadow-xs flex flex-col justify-between">
+        {/* SOL GRAFİK: AYLIK HEDEF VE GERÇEKLEŞME İLERLEMESİ */}
+        <div className="bg-white border border-slate-200/90 p-5 rounded-2xl shadow-xs flex flex-col justify-between">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-3">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-200">
@@ -756,200 +617,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         </div>
 
-        {/* SAĞ GRAFİK: Bİ KANAL vs. SIFIR TV KARŞILAŞTIRMALI CİRO & PİPELİNE GRAFİĞİ (7/12) */}
-        <div className="lg:col-span-7 bg-white border border-slate-200/90 p-5 rounded-2xl shadow-xs flex flex-col justify-between">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 pb-3 mb-3 gap-2">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center border border-sky-200">
-                <Tv className="w-4 h-4" />
-              </div>
-              <div>
-                <h3 className="font-mono font-bold text-xs uppercase tracking-wider text-slate-900">
-                  KANAL BAZLI GELİR VE PİPELİNE KARŞILAŞTIRMASI
-                </h3>
-                <p className="text-[10px] text-slate-500">Bi Kanal & Sıfır TV Finansal Dağılımı</p>
-              </div>
-            </div>
-
-            {/* Live Channel Badges */}
-            <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-sky-50 text-sky-700 border border-sky-200">
-                <span className="w-1.5 h-1.5 rounded-full bg-sky-500"></span>
-                Bi Kanal
-              </span>
-              <span className="inline-flex items-center gap-1.5 text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-                Sıfır TV
-              </span>
-            </div>
-          </div>
-
-          {/* Grouped Bar Chart */}
-          <div className="h-60 w-full min-w-0">
-            {isMounted ? (
-              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={200}>
-                <BarChart data={channelComparisonData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                  <XAxis 
-                    dataKey="kategori" 
-                    stroke="#64748b" 
-                    fontSize={11} 
-                    tickLine={false}
-                    fontFamily="monospace"
-                  />
-                  <YAxis 
-                    stroke="#64748b" 
-                    fontSize={10} 
-                    tickLine={false} 
-                    axisLine={false}
-                    fontFamily="monospace"
-                    tickFormatter={(val) => `₺${(val / 1000).toFixed(0)}K`}
-                  />
-                  <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(241, 245, 249, 0.4)', stroke: 'none' }} />
-                  <Legend 
-                    verticalAlign="top" 
-                    align="right" 
-                    wrapperStyle={{ paddingBottom: '10px', fontSize: '11px', fontFamily: 'monospace' }} 
-                  />
-                  <Bar 
-                    dataKey="Bi Kanal" 
-                    fill="#0284c7" 
-                    radius={[6, 6, 0, 0]} 
-                    maxBarSize={36} 
-                    isAnimationActive={true}
-                    animationDuration={900}
-                  />
-                  <Bar 
-                    dataKey="Sıfır TV" 
-                    fill="#d97706" 
-                    radius={[6, 6, 0, 0]} 
-                    maxBarSize={36} 
-                    isAnimationActive={true}
-                    animationDuration={900}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="w-full h-full flex items-center justify-center bg-slate-50/50 rounded-xl animate-pulse" />
-            )}
-          </div>
-
-          {/* Channel Summary Footer */}
-          <div className="grid grid-cols-2 gap-3 mt-2 pt-3 border-t border-slate-100 text-[11px] font-mono">
-            <div className="flex items-center justify-between bg-sky-50/60 p-2.5 rounded-xl border border-sky-200/80">
-              <span className="text-sky-800 font-bold">Bi Kanal Toplam:</span>
-              <span className="text-slate-900 font-black">{formatCurrency(biKanalRealized + biKanalPipeline)}</span>
-            </div>
-            <div className="flex items-center justify-between bg-amber-50/60 p-2.5 rounded-xl border border-amber-200/80">
-              <span className="text-amber-900 font-bold">Sıfır TV Toplam:</span>
-              <span className="text-slate-900 font-black">{formatCurrency(sifirTvRealized + sifirTvPipeline)}</span>
-            </div>
-          </div>
-        </div>
-
-      </div>
-
-      {/* 3. GÖRSEL GRAFİKLER BÖLÜMÜ 2: SATIŞ HUNİSİ (AŞAMA DAĞILIMI) & FORECASTING */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-        
-        {/* SOL GRAFİK: AŞAMA VE SATIŞ HUNİSİ (PIPELINE STAGES VOLUME) (7/12) */}
-        <div className="lg:col-span-7 bg-white border border-slate-200/90 p-5 rounded-2xl shadow-xs flex flex-col justify-between">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 pb-3 mb-3 gap-2">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center border border-sky-200">
-                <Layers className="w-4 h-4" />
-              </div>
-              <div>
-                <h3 className="font-mono font-bold text-xs uppercase tracking-wider text-slate-900">
-                  SATIŞ AŞAMALARI VE PİPELİNE DAĞILIMI
-                </h3>
-                <p className="text-[10px] text-slate-500">
-                  Fırsatların aşamalara göre finansal hacmi ve adetleri
-                </p>
-              </div>
-            </div>
-
-            {/* Metric Mode Switcher */}
-            <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-[11px] font-mono">
-              <button
-                onClick={() => setStageViewMetric('amount')}
-                className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
-                  stageViewMetric === 'amount'
-                    ? 'bg-white text-slate-900 font-bold shadow-2xs'
-                    : 'text-slate-500 hover:text-slate-800'
-                }`}
-              >
-                Tutar (₺)
-              </button>
-              <button
-                onClick={() => setStageViewMetric('count')}
-                className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
-                  stageViewMetric === 'count'
-                    ? 'bg-white text-slate-900 font-bold shadow-2xs'
-                    : 'text-slate-500 hover:text-slate-800'
-                }`}
-              >
-                Adet
-              </button>
-            </div>
-          </div>
-
-          <div className="h-64 w-full min-w-0">
-            {isMounted ? (
-              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={220}>
-                <BarChart data={stageDistributionData} margin={{ top: 10, right: 10, left: -5, bottom: 25 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                  <XAxis 
-                    dataKey="shortLabel" 
-                    stroke="#64748b" 
-                    fontSize={10} 
-                    tickLine={false}
-                    fontFamily="monospace"
-                    interval={0}
-                    angle={-20}
-                    textAnchor="end"
-                  />
-                  <YAxis 
-                    stroke="#64748b" 
-                    fontSize={10} 
-                    tickLine={false} 
-                    axisLine={false}
-                    fontFamily="monospace"
-                    tickFormatter={(val) => stageViewMetric === 'amount' ? `₺${(val / 1000).toFixed(0)}K` : `${val}`}
-                  />
-                  <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(241, 245, 249, 0.4)', stroke: 'none' }} />
-                  <Bar 
-                    dataKey="metricValue" 
-                    name={stageViewMetric === 'amount' ? 'Aşama Tutarı' : 'Anlaşma Adedi'} 
-                    radius={[6, 6, 0, 0]}
-                    isAnimationActive={true}
-                    animationDuration={900}
-                  >
-                    {stageDistributionData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.fill} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="w-full h-full flex items-center justify-center bg-slate-50/50 rounded-xl animate-pulse" />
-            )}
-          </div>
-
-          {/* Stages count chips */}
-          <div className="flex flex-wrap items-center justify-between gap-1.5 pt-3 border-t border-slate-100 text-[10px] font-mono">
-            {stageDistributionData.map((st, i) => (
-              <div key={i} className="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200">
-                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: st.fill }}></span>
-                <span className="text-slate-500">{st.shortLabel}:</span>
-                <span className="font-bold text-slate-800">{st.adet} Adet</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* SAĞ GRAFİK: KESİN SATIŞ VE İHTİMALLER (5/12) */}
-        <div className="lg:col-span-5 bg-white border border-slate-200/90 p-5 rounded-2xl shadow-xs flex flex-col justify-between">
+        {/* SAĞ GRAFİK: KESİN SATIŞ VE İHTİMALLER */}
+        <div className="bg-white border border-slate-200/90 p-5 rounded-2xl shadow-xs flex flex-col justify-between">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-3">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-200">
@@ -959,7 +628,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 <h3 className="font-mono font-bold text-xs uppercase tracking-wider text-slate-900">
                   KESİN SATIŞ VE İHTİMALLER
                 </h3>
-                <p className="text-[10px] text-slate-500">Öngörülen Teklif Kabul Oranları & Dağılımı</p>
+                <p className="text-[10px] text-slate-500">Öngörülen Teklif Kabul Oranları &amp; Dağılımı</p>
               </div>
             </div>
             <div className="text-right">
@@ -970,7 +639,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
 
           {/* Forecasting Donut Chart */}
-          <div className="h-44 w-full min-w-0 relative flex items-center justify-center">
+          <div className="h-48 w-full min-w-0 relative flex items-center justify-center my-auto">
             {isMounted ? (
               <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={160}>
                 <PieChart>
@@ -978,8 +647,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     data={forecastProbabilityData}
                     cx="50%"
                     cy="50%"
-                    innerRadius={48}
-                    outerRadius={70}
+                    innerRadius={54}
+                    outerRadius={76}
                     paddingAngle={3}
                     dataKey="value"
                     stroke="none"
@@ -1012,7 +681,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
 
           {/* Probability Breakdown Cards */}
-          <div className="grid grid-cols-2 gap-2 mt-2">
+          <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-slate-100">
             {forecastProbabilityData.map((item, idx) => (
               <div key={idx} className="bg-slate-50 p-2.5 rounded-xl border border-slate-200">
                 <div className="flex items-center justify-between text-[10px] font-mono mb-0.5">
@@ -1032,7 +701,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
       </div>
 
-      {/* 4. SATIŞ & EKİP PERFORMANS TABLOSU (DETAYLI LİSTE) */}
+      {/* 3. SATIŞ & EKİP PERFORMANS TABLOSU (DETAYLI LİSTE) */}
       <div className="bg-white border border-slate-200/90 rounded-2xl shadow-xs overflow-hidden">
         <div className="p-4 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div className="flex items-center gap-2 flex-wrap">
@@ -1103,7 +772,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 className="bg-transparent text-[11px] font-mono text-slate-700 font-semibold focus:outline-none cursor-pointer"
               >
                 <option value="realized">Sırala: Gerçekleşen Satış</option>
-                <option value="pipeline">Sırala: Pipeline Tutarı</option>
                 <option value="offer">Sırala: Bekleyen Teklif</option>
                 <option value="rate">Sırala: Kota Gerçekleşme (%)</option>
                 <option value="role">Sırala: Rol Hiyerarşisi</option>
@@ -1118,7 +786,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <thead className="bg-slate-50 text-slate-600 font-mono text-[10px] uppercase border-b border-slate-200">
               <tr>
                 <th className="px-4 py-3">Ekip Üyesi</th>
-                <th className="px-4 py-3">Pipeline</th>
                 <th className="px-4 py-3">Bekleyen Teklif</th>
                 <th className="px-4 py-3">Gerçekleşen Satış</th>
                 <th className="px-4 py-3">Hedef</th>
@@ -1143,9 +810,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                           <span className="text-slate-400 font-medium">({rep.dealCount} Fırsat)</span>
                         )}
                       </div>
-                    </td>
-                    <td className="px-4 py-3 font-mono text-sky-700 font-bold">
-                      {formatCurrency(rep.pipeline)}
                     </td>
                     <td className="px-4 py-3 font-mono text-amber-700 font-medium">
                       {formatCurrency(rep.offer)}
@@ -1178,7 +842,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               })}
               {sortedRepPerformance.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="text-center py-6 text-slate-400 font-mono text-xs">
+                  <td colSpan={5} className="text-center py-6 text-slate-400 font-mono text-xs">
                     KAYITLI EKİP ÜYESİ BULUNAMADI
                   </td>
                 </tr>

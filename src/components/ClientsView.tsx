@@ -20,7 +20,6 @@ interface ClientsViewProps {
   currentUser: User | null;
   onRefresh: () => void;
   onOpenAddClient: () => void;
-  onOpenAddDeal: (client: Client) => void;
   onOpenFollowUpModal: (client: Client) => void;
 }
 
@@ -29,7 +28,6 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
   currentUser,
   onRefresh,
   onOpenAddClient,
-  onOpenAddDeal,
   onOpenFollowUpModal,
 }) => {
   const [search, setSearch] = useState('');
@@ -180,16 +178,6 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
                   >
                     <MessageSquare className="w-3.5 h-3.5" />
                   </a>
-                  {canManage && (
-                    <button
-                      onClick={() => onOpenAddDeal(client)}
-                      className="flex items-center gap-1 px-2.5 py-1.5 bg-sky-50 text-sky-700 border border-sky-200 rounded-lg text-xs font-bold active:scale-95 transition cursor-pointer"
-                      title="Teklif Ekle"
-                    >
-                      <Plus className="w-3 h-3 stroke-[3]" />
-                      <span>Teklif</span>
-                    </button>
-                  )}
                 </div>
               </div>
             </div>
@@ -339,15 +327,6 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
                           >
                             <Mail className="w-3 h-3 text-sky-600" />
                           </a>
-                        )}
-                        {canManage && (
-                          <button
-                            onClick={() => onOpenAddDeal(client)}
-                            className="p-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-md text-slate-600 hover:text-slate-900 transition cursor-pointer shadow-2xs"
-                            title="Teklif Ekle"
-                          >
-                            <Plus className="w-3 h-3" />
-                          </button>
                         )}
                         {isAdmin && (
                           <button
