@@ -82,7 +82,6 @@ export async function GET(request: NextRequest) {
         orderBy: { createdAt: 'desc' },
       }),
       prisma.workReport.findMany({
-        where: { tamamlandi: false },
         include: {
           user: {
             select: {

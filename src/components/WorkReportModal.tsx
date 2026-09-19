@@ -44,7 +44,11 @@ import {
   FileCheck,
   Table,
   Calculator,
-  ChevronDown
+  ChevronDown,
+  DollarSign,
+  RotateCcw,
+  Archive,
+  ArrowRight
 } from 'lucide-react';
 
 // Helper to calculate total monetary amount of a reservation
@@ -57,6 +61,8 @@ export const getReportRezAmount = (r: Partial<WorkReport>): number => {
   }
   return (Number(r.rezervasyon_toplam_saniye) || 0) * (Number(r.rezervasyon_birim_fiyat) || 0);
 };
+
+export type PipelineStageFilter = 'offers' | 'realized' | 'archived' | 'all';
 
 interface WorkReportModalProps {
   isOpen: boolean;
@@ -83,6 +89,16 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
   const [errorMessage, setErrorMessage] = useState('');
   const [localReports, setLocalReports] = useState<WorkReport[]>(workReports);
 
+  // 3-Stage Pipeline Filter: 'offers' | 'realized' | 'archived' | 'all'
+  const [pipelineStage, setPipelineStage] = useState<PipelineStageFilter>('offers');
+
+  // Quick Confirm Sale Modal State
+  const [confirmSaleReport, setConfirmSaleReport] = useState<WorkReport | null>(null);
+  const [saleAmountInput, setSaleAmountInput] = useState<string>('');
+  const [saleTypeInput, setSaleTypeInput] = useState<WorkReportSaleType>('Spot Reklam');
+  const [saleVadeInput, setSaleVadeInput] = useState<string>('Nakit');
+  const [isConfirmingSale, setIsConfirmingSale] = useState(false);
+
   useEffect(() => {
     setLocalReports(workReports);
   }, [workReports]);
@@ -96,7 +112,6 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
 
   // --- FILTERS STATE ---
   const [timeRange, setTimeRange] = useState<'today' | 'this_week' | 'this_month' | 'all' | 'custom'>('all');
-  const [statusFilter, setStatusFilter] = useState<'active' | 'completed' | 'all'>('active');
   const [selectedUserFilter, setSelectedUserFilter] = useState<string>('all');
   const [selectedOrgFilter, setSelectedOrgFilter] = useState<string>('all');
   const [selectedContactFilter, setSelectedContactFilter] = useState<string>('all');
@@ -313,20 +328,12 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
     setShowSuggestions(false);
   };
 
-  // Filtered Reports Calculation
-  const filteredReports = useMemo(() => {
+  // 1. Base Filtered Reports (Filters before stage segmentation)
+  const baseFilteredReports = useMemo(() => {
     const now = new Date();
     const todayDateStr = now.toISOString().split('T')[0];
 
     return localReports.filter((r) => {
-      // 0. Status Filter (Active vs Completed/Archived)
-      if (statusFilter === 'active' && r.tamamlandi) {
-        return false;
-      }
-      if (statusFilter === 'completed' && !r.tamamlandi) {
-        return false;
-      }
-
       // 1. User Filter
       if (selectedUserFilter !== 'all' && r.user_id !== selectedUserFilter) {
         return false;
@@ -376,13 +383,39 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
 
       return true; // 'all'
     });
-  }, [localReports, statusFilter, selectedUserFilter, selectedOrgFilter, selectedContactFilter, timeRange, customStartDate, customEndDate, searchQuery]);
+  }, [localReports, selectedUserFilter, selectedOrgFilter, selectedContactFilter, timeRange, customStartDate, customEndDate, searchQuery]);
+
+  // 2. 3-Stage Pipeline Counts
+  const pipelineCounts = useMemo(() => {
+    const offers = baseFilteredReports.filter((r) => !r.tamamlandi && !r.satis_yapildi).length;
+    const realized = baseFilteredReports.filter((r) => !r.tamamlandi && r.satis_yapildi).length;
+    const archived = baseFilteredReports.filter((r) => Boolean(r.tamamlandi)).length;
+    const all = baseFilteredReports.length;
+
+    return { offers, realized, archived, all };
+  }, [baseFilteredReports]);
+
+  // 3. Final Filtered Reports by Pipeline Stage
+  const filteredReports = useMemo(() => {
+    return baseFilteredReports.filter((r) => {
+      if (pipelineStage === 'offers') {
+        return !r.tamamlandi && !r.satis_yapildi;
+      }
+      if (pipelineStage === 'realized') {
+        return !r.tamamlandi && r.satis_yapildi;
+      }
+      if (pipelineStage === 'archived') {
+        return Boolean(r.tamamlandi);
+      }
+      return true; // 'all'
+    });
+  }, [baseFilteredReports, pipelineStage]);
 
 
   // Aggregated KPI Metrics
   const totalReportsCount = filteredReports.length;
   
-  const teklifReports = filteredReports.filter((r) => r.teklif_verildi);
+  const teklifReports = filteredReports.filter((r) => r.teklif_verildi || (!r.satis_yapildi && (r.teklif_tutari || 0) > 0));
   const totalTeklifTutari = teklifReports.reduce((sum, r) => sum + (r.teklif_tutari || 0), 0);
 
   const satisReports = filteredReports.filter((r) => r.satis_yapildi);
@@ -405,7 +438,7 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
         });
 
     return targetUsers.map((u) => {
-      const userReports = filteredReports.filter((r) => r.user_id === u.id);
+      const userReports = baseFilteredReports.filter((r) => r.user_id === u.id);
 
       const telCount = userReports.filter((r) => r.iletisim_turu === 'Telefon').length;
       const dijitalCount = userReports.filter((r) => r.iletisim_turu === 'Dijital Toplantı').length;
@@ -414,7 +447,7 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
       const emailCount = userReports.filter((r) => r.iletisim_turu === 'E-posta').length;
       const totalActivities = userReports.length;
 
-      const userTeklif = userReports.filter((r) => r.teklif_verildi);
+      const userTeklif = userReports.filter((r) => r.teklif_verildi || (!r.satis_yapildi && (r.teklif_tutari || 0) > 0));
       const teklifCount = userTeklif.length;
       const teklifSum = userTeklif.reduce((sum, r) => sum + (r.teklif_tutari || 0), 0);
 
@@ -448,7 +481,7 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
         rezSum,
       };
     });
-  }, [users, filteredReports, selectedUserFilter]);
+  }, [users, baseFilteredReports, selectedUserFilter]);
 
   // Matrix Grand Totals
   const matrixTotals = useMemo(() => {
@@ -489,6 +522,121 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
       }
     );
   }, [executiveMatrix]);
+
+  // Open Quick Confirm Sale Modal
+  const handleOpenConfirmSale = (report: WorkReport) => {
+    if (isViewer) {
+      alert('İzleme modundaki hesapların işlem yetkisi yoktur.');
+      return;
+    }
+    setConfirmSaleReport(report);
+    const defaultAmount = report.satis_tutari && report.satis_tutari > 0
+      ? report.satis_tutari
+      : (report.teklif_tutari && report.teklif_tutari > 0 
+          ? report.teklif_tutari 
+          : getReportRezAmount(report));
+    setSaleAmountInput(defaultAmount > 0 ? String(defaultAmount) : '');
+    setSaleTypeInput((report.satis_turu as WorkReportSaleType) || (report.rezervasyon_turu ? `${report.rezervasyon_turu} Reklam` as any : 'Spot Reklam'));
+    setSaleVadeInput(report.rezervasyon_vade || 'Nakit');
+  };
+
+  // Execute Quick Confirm Sale (Converts to Realized Sale & Syncs with Dashboard)
+  const handleExecuteConfirmSale = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!confirmSaleReport) return;
+
+    const finalAmount = Number(saleAmountInput) || 0;
+    if (finalAmount <= 0) {
+      alert('Lütfen geçerli bir satış tutarı giriniz.');
+      return;
+    }
+
+    setIsConfirmingSale(true);
+    const targetReportId = confirmSaleReport.id;
+
+    // 1. Optimistic Update (Immediate UI reaction)
+    setLocalReports((prev) =>
+      prev.map((r) =>
+        r.id === targetReportId
+          ? {
+              ...r,
+              satis_yapildi: true,
+              satis_tutari: finalAmount,
+              satis_turu: saleTypeInput,
+              rezervasyon_vade: saleVadeInput,
+              tamamlandi: false,
+            }
+          : r
+      )
+    );
+
+    try {
+      const res = await fetch('/api/work-reports', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: targetReportId,
+          action: 'confirm_sale',
+          satis_tutari: finalAmount,
+          satis_turu: saleTypeInput,
+          rezervasyon_vade: saleVadeInput,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        setConfirmSaleReport(null);
+        if (onRefresh) onRefresh();
+      } else {
+        setLocalReports(workReports);
+        alert(data.error || 'Satış onaylanamadı.');
+      }
+    } catch (err) {
+      setLocalReports(workReports);
+      alert('Satış onaylama sırasında bağlantı hatası oluştu.');
+    } finally {
+      setIsConfirmingSale(false);
+    }
+  };
+
+  // Revert Realized Sale back to Open Offer (Teklife Geri Al)
+  const handleRevertToOffer = async (report: WorkReport) => {
+    if (isViewer) {
+      alert('İzleme modundaki hesapların işlem yapma yetkisi yoktur.');
+      return;
+    }
+
+    if (!confirm(`"${report.kurum_adi}" için gerçekleşen satışı iptal edip teklif aşamasına geri almak istiyor musunuz?`)) {
+      return;
+    }
+
+    // Optimistic Update
+    setLocalReports((prev) =>
+      prev.map((r) =>
+        r.id === report.id
+          ? { ...r, satis_yapildi: false, satis_tutari: 0, tamamlandi: false }
+          : r
+      )
+    );
+
+    try {
+      const res = await fetch('/api/work-reports', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: report.id, action: 'revert_to_offer' }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        if (onRefresh) onRefresh();
+      } else {
+        setLocalReports(workReports);
+        alert(data.error || 'Teklife geri alma başarısız oldu.');
+      }
+    } catch {
+      setLocalReports(workReports);
+      alert('İşlem sırasında hata oluştu.');
+    }
+  };
 
   // Handle Form Submission
   const handleSubmitReport = async (e: React.FormEvent) => {
@@ -578,13 +726,13 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
   };
 
   // Handle Toggle Complete / Archive (With sync to associated deal)
-  const handleToggleComplete = async (report: WorkReport) => {
+  const handleToggleComplete = async (report: WorkReport, targetStatus?: boolean) => {
     if (isViewer) {
       alert('İzleme modundaki hesapların işlem yapma yetkisi yoktur.');
       return;
     }
 
-    const newStatus = !report.tamamlandi;
+    const newStatus = targetStatus !== undefined ? targetStatus : !report.tamamlandi;
 
     // 1. Optimistic Instant UI Update (Immediate response on screen)
     setLocalReports((prev) =>
@@ -595,7 +743,7 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
       const res = await fetch('/api/work-reports', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: report.id, tamamlandi: newStatus }),
+        body: JSON.stringify({ id: report.id, action: 'toggle_archive', tamamlandi: newStatus }),
       });
       const data = await res.json();
       if (data.success) {
@@ -874,36 +1022,77 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                 <div className="flex flex-wrap items-center justify-between gap-2.5">
                   
                   <div className="flex flex-wrap items-center gap-2">
-                    {/* 0. Status Filter: Aktif / Tamamlanan / Tümü */}
+                    {/* 0. 3-STAGE PIPELINE SELECTOR: Teklif Verilenler / Satışı Gerçekleşenler / Arşivlenenler / Tümü */}
                     <div className="flex items-center bg-white border border-slate-200 p-0.5 rounded-lg shadow-2xs text-xs font-semibold">
                       <button
                         type="button"
-                        onClick={() => setStatusFilter('active')}
+                        onClick={() => setPipelineStage('offers')}
                         className={`px-3 py-1.5 rounded-md transition cursor-pointer flex items-center gap-1.5 ${
-                          statusFilter === 'active' ? 'bg-emerald-600 text-white font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                          pipelineStage === 'offers' 
+                            ? 'bg-sky-600 text-white font-bold shadow-xs' 
+                            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                         }`}
                       >
                         <Clock className="w-3.5 h-3.5" />
-                        <span>Aktif İşler</span>
+                        <span>Teklif Verilenler</span>
+                        <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
+                          pipelineStage === 'offers' ? 'bg-white/20 text-white' : 'bg-sky-50 text-sky-700 border border-sky-200'
+                        }`}>
+                          {pipelineCounts.offers}
+                        </span>
                       </button>
+
                       <button
                         type="button"
-                        onClick={() => setStatusFilter('completed')}
+                        onClick={() => setPipelineStage('realized')}
                         className={`px-3 py-1.5 rounded-md transition cursor-pointer flex items-center gap-1.5 ${
-                          statusFilter === 'completed' ? 'bg-indigo-600 text-white font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                          pipelineStage === 'realized' 
+                            ? 'bg-emerald-600 text-white font-bold shadow-xs' 
+                            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                         }`}
                       >
                         <CheckCircle2 className="w-3.5 h-3.5" />
-                        <span>Tamamlananlar / Arşiv</span>
+                        <span>Satışı Gerçekleşenler</span>
+                        <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
+                          pipelineStage === 'realized' ? 'bg-white/20 text-white' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                        }`}>
+                          {pipelineCounts.realized}
+                        </span>
                       </button>
+
                       <button
                         type="button"
-                        onClick={() => setStatusFilter('all')}
-                        className={`px-3 py-1.5 rounded-md transition cursor-pointer ${
-                          statusFilter === 'all' ? 'bg-slate-700 text-white font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                        onClick={() => setPipelineStage('archived')}
+                        className={`px-3 py-1.5 rounded-md transition cursor-pointer flex items-center gap-1.5 ${
+                          pipelineStage === 'archived' 
+                            ? 'bg-indigo-600 text-white font-bold shadow-xs' 
+                            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                         }`}
                       >
-                        Tümü
+                        <Archive className="w-3.5 h-3.5" />
+                        <span>Arşivlenenler</span>
+                        <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
+                          pipelineStage === 'archived' ? 'bg-white/20 text-white' : 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                        }`}>
+                          {pipelineCounts.archived}
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setPipelineStage('all')}
+                        className={`px-2.5 py-1.5 rounded-md transition cursor-pointer flex items-center gap-1 ${
+                          pipelineStage === 'all' 
+                            ? 'bg-slate-800 text-white font-bold shadow-xs' 
+                            : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        <span>Tümü</span>
+                        <span className={`text-[10px] px-1 py-0.2 rounded font-mono ${
+                          pipelineStage === 'all' ? 'bg-slate-700 text-slate-200' : 'text-slate-400'
+                        }`}>
+                          ({pipelineCounts.all})
+                        </span>
                       </button>
                     </div>
 
@@ -1099,7 +1288,10 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                 <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between print:px-2 print:py-1">
                   <h4 className="text-xs font-bold font-mono text-slate-900 uppercase tracking-wider flex items-center gap-2 print:text-[9px]">
                     <FileCheck className="w-4 h-4 text-sky-600 print:w-3 print:h-3" />
-                    Faaliyet ve Görüşme Kayıtları Listesi
+                    <span>Faaliyet ve Görüşme Kayıtları Listesi</span>
+                    <span className="text-[10px] font-normal px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 font-mono">
+                      {pipelineStage === 'offers' ? 'Teklif Verilenler' : pipelineStage === 'realized' ? 'Satışı Gerçekleşenler' : pipelineStage === 'archived' ? 'Arşivlenenler' : 'Tüm Kayıtlar'}
+                    </span>
                   </h4>
                   <span className="text-[11px] text-slate-500 font-mono print:text-[8px]">
                     Listelenen: {filteredReports.length} Rapor
@@ -1113,7 +1305,7 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                         <th className="py-2.5 px-3 whitespace-nowrap">Tarih</th>
                         <th className="py-2.5 px-3 whitespace-nowrap">Personel</th>
                         <th className="py-2.5 px-3 whitespace-nowrap">Kurum</th>
-                        <th className="py-2.5 px-3 whitespace-nowrap">Durum</th>
+                        <th className="py-2.5 px-3 whitespace-nowrap">Aşama & Durum</th>
                         <th className="py-2.5 px-3 whitespace-nowrap">Tür</th>
                         <th className="py-2.5 px-3 whitespace-nowrap">Yetkili</th>
                         <th className="py-2.5 px-3 whitespace-nowrap">İletişim</th>
@@ -1121,7 +1313,7 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                         <th className="py-2.5 px-3 whitespace-nowrap">Tutar (₺)</th>
                         <th className="py-2.5 px-3 whitespace-nowrap">Rezervasyon / Kuşak</th>
                         <th className="py-2.5 px-3 whitespace-nowrap text-center">Vade</th>
-                        <th className="py-2.5 px-3 text-right no-print">İşlem</th>
+                        <th className="py-2.5 px-3 text-right no-print">İşlem & Boru Hattı</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -1129,6 +1321,10 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                         const isOwner = report.user_id === currentUser?.id;
                         const canDelete = isSuperAdmin || isOwner;
                         const rezAmount = getReportRezAmount(report);
+
+                        const isOffer = !report.tamamlandi && !report.satis_yapildi;
+                        const isRealizedSale = !report.tamamlandi && report.satis_yapildi;
+                        const isArchived = Boolean(report.tamamlandi);
 
                         return (
                           <tr key={report.id} className="hover:bg-slate-50/80 transition-colors">
@@ -1148,22 +1344,41 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                               <div className="font-bold text-slate-900 text-[11px]">{report.kurum_adi}</div>
                             </td>
 
-                            {/* Yeni / Mevcut / Tamamlandı Durumu */}
+                            {/* Aşama & Durum Rozetleri */}
                             <td className="py-2.5 px-3 whitespace-nowrap">
                               <div className="flex flex-col gap-1 items-start">
-                                <span className={`text-[9.5px] font-bold px-2 py-0.5 rounded-full border ${
+                                {isRealizedSale ? (
+                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1 font-mono">
+                                    <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                    Satış Gerçekleşti
+                                  </span>
+                                ) : isArchived ? (
+                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 flex items-center gap-1 font-mono">
+                                    <Archive className="w-3 h-3 text-indigo-500" />
+                                    Arşivde
+                                  </span>
+                                ) : report.teklif_verildi ? (
+                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-50 text-sky-700 border border-sky-200 flex items-center gap-1 font-mono">
+                                    <Clock className="w-3 h-3 text-sky-500" />
+                                    Teklif ({report.teklif_ihtimal || '%50'})
+                                  </span>
+                                ) : report.rezervasyon_var ? (
+                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 font-mono">
+                                    Rezervasyon
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200 font-mono">
+                                    Görüşme
+                                  </span>
+                                )}
+
+                                <span className={`text-[9px] font-semibold px-1.5 py-0.2 rounded border ${
                                   report.musteri_durumu === 'Yeni Müşteri'
                                     ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                                     : 'bg-slate-100 text-slate-600 border-slate-200'
                                 }`}>
                                   {report.musteri_durumu || 'Yeni Müşteri'}
                                 </span>
-                                {report.tamamlandi && (
-                                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 flex items-center gap-1 font-mono">
-                                    <CheckCircle2 className="w-2.5 h-2.5" />
-                                    Tamamlandı
-                                  </span>
-                                )}
                               </div>
                             </td>
 
@@ -1205,7 +1420,7 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                               {(report.satis_yapildi && report.satis_tutari && report.satis_tutari > 0) ? (
                                 <div>
                                   <span className="font-bold text-emerald-700">{formatCurrency(report.satis_tutari)}</span>
-                                  <div className="text-[9px] text-emerald-600 font-sans font-medium">Satış</div>
+                                  <div className="text-[9px] text-emerald-600 font-sans font-medium">Satış Tutarı</div>
                                 </div>
                               ) : (report.teklif_verildi && report.teklif_tutari && report.teklif_tutari > 0) ? (
                                 <div>
@@ -1253,35 +1468,83 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                               )}
                             </td>
 
-                            {/* İşlemler (No-Print) */}
+                            {/* İşlemler (3 Aşamalı Boru Hattı Aksiyonları) */}
                             <td className="py-2.5 px-3 text-right whitespace-nowrap no-print">
                               <div className="flex items-center justify-end gap-1.5">
-                                {!isViewer && (
+                                
+                                {/* CASE 1: TEKLİF AŞAMASINDA -> "Satışı Onayla" + "Arşivle" */}
+                                {isOffer && !isViewer && (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleOpenConfirmSale(report)}
+                                      className="px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1 cursor-pointer bg-emerald-600 text-white hover:bg-emerald-500 border border-emerald-700 shadow-2xs"
+                                      title="Teklifi Onayla ve Satışa Dönüştür (Kotaya Aktar)"
+                                    >
+                                      <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+                                      <span>Satışı Onayla</span>
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      onClick={() => handleToggleComplete(report, true)}
+                                      className="p-1.5 text-slate-500 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg transition border border-slate-200 cursor-pointer"
+                                      title="Arşive Kaldır"
+                                    >
+                                      <Archive className="w-3.5 h-3.5" />
+                                    </button>
+                                  </>
+                                )}
+
+                                {/* CASE 2: SATIŞI GERÇEKLEŞENLER -> "Tamamla & Arşivle" + "Teklife Geri Al" */}
+                                {isRealizedSale && !isViewer && (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleToggleComplete(report, true)}
+                                      className="px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1 cursor-pointer bg-indigo-600 text-white hover:bg-indigo-500 border border-indigo-700 shadow-2xs"
+                                      title="İşi Tamamla & Arşive Taşı"
+                                    >
+                                      <Archive className="w-3.5 h-3.5" />
+                                      <span>Tamamla &amp; Arşivle</span>
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRevertToOffer(report)}
+                                      className="p-1.5 text-amber-700 hover:text-amber-800 hover:bg-amber-50 rounded-lg transition border border-amber-200 cursor-pointer"
+                                      title="Satışı İptal Et & Teklife Geri Al"
+                                    >
+                                      <RotateCcw className="w-3.5 h-3.5" />
+                                    </button>
+                                  </>
+                                )}
+
+                                {/* CASE 3: ARŞİVLENENLER -> "Aktife Al" */}
+                                {isArchived && !isViewer && (
                                   <button
                                     type="button"
-                                    onClick={() => handleToggleComplete(report)}
-                                    className={`px-2 py-1 rounded text-[11px] font-bold transition flex items-center gap-1 cursor-pointer border shadow-2xs ${
-                                      report.tamamlandi
-                                        ? 'bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100'
-                                        : 'bg-emerald-600 text-white border-emerald-700 hover:bg-emerald-700'
-                                    }`}
-                                    title={report.tamamlandi ? 'Tamamlanma durumunu geri al (Aktif yap)' : 'İşi Tamamla / Çıktı Alındı (Arşive Taşı)'}
+                                    onClick={() => handleToggleComplete(report, false)}
+                                    className="px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1 cursor-pointer bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-300"
+                                    title="Arşivden Çıkar & Aktife Al"
                                   >
-                                    <CheckCircle2 className="w-3.5 h-3.5" />
-                                    <span>{report.tamamlandi ? 'Aktife Al' : 'Tamamla'}</span>
+                                    <RotateCcw className="w-3.5 h-3.5" />
+                                    <span>Aktife Al</span>
                                   </button>
                                 )}
 
+                                {/* DELETE (Yalnızca Admin veya Sahibi) */}
                                 {canDelete && !isViewer && (
                                   <button
                                     type="button"
                                     onClick={() => handleDeleteReport(report)}
-                                    className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition cursor-pointer"
+                                    className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
                                     title="Raporu Sil (Hatalı Giriş)"
                                   >
                                     <Trash2 className="w-3.5 h-3.5" />
                                   </button>
                                 )}
+
                               </div>
                             </td>
 
@@ -1291,8 +1554,14 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
 
                       {filteredReports.length === 0 && (
                         <tr>
-                          <td colSpan={12} className="text-center py-10 text-slate-400 font-mono text-xs">
-                            SEÇİLEN KRİTERLERE UYGUN ÇALIŞMA RAPORU KAYDI BULUNAMADI
+                          <td colSpan={12} className="text-center py-12 text-slate-400 font-mono text-xs">
+                            <div className="flex flex-col items-center justify-center gap-1.5">
+                              <FileCheck className="w-6 h-6 text-slate-300" />
+                              <span className="font-bold">BU AŞAMADA BULUNAN RAPOR KAYDI YOK</span>
+                              <span className="text-[10px] text-slate-400 font-sans">
+                                {pipelineStage === 'offers' ? 'Şu anda onay bekleyen açık teklif bulunmuyor.' : pipelineStage === 'realized' ? 'Henüz onaylanmış gerçekleşen satış kaydı bulunmuyor.' : 'Seçilen filtrelere uygun kayıt bulunamadı.'}
+                              </span>
+                            </div>
                           </td>
                         </tr>
                       )}
@@ -2125,6 +2394,158 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
         </div>
 
       </div>
+
+      {/* QUICK CONFIRM SALE MODAL (Teklifi Satışa Dönüştürme & Kotaya Aktarma Modalı) */}
+      {confirmSaleReport && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center bg-slate-950/70 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+          <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150">
+            
+            {/* Header */}
+            <div className="px-5 py-4 bg-emerald-700 text-white flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center font-bold">
+                  <Check className="w-4 h-4 stroke-[3]" />
+                </div>
+                <div>
+                  <h4 className="font-mono font-bold text-sm">TEKLİFİ SATIŞA DÖNÜŞTÜR</h4>
+                  <p className="text-[11px] text-emerald-100 font-sans">
+                    Onaylanan teklif doğrudan Dashboard Kota ve Hedef İlerlemesi grafiğine yansıtılacaktır.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setConfirmSaleReport(null)}
+                className="p-1 rounded-lg hover:bg-emerald-800 text-emerald-100 hover:text-white transition cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Form Body */}
+            <form onSubmit={handleExecuteConfirmSale} className="p-5 space-y-4">
+              
+              {/* Info Box */}
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-1.5 text-xs font-mono">
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Müşteri / Kurum:</span>
+                  <strong className="text-slate-900 text-sm font-sans">{confirmSaleReport.kurum_adi}</strong>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Görüşülen Yetkili:</span>
+                  <span className="text-slate-800 font-sans">{confirmSaleReport.yetkili}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Kanal &amp; Temsilci:</span>
+                  <span className="text-slate-800 font-sans">
+                    {confirmSaleReport.tv_kanali || 'Bi Kanal'} • {confirmSaleReport.user?.name || getRepName(confirmSaleReport.user_id)}
+                  </span>
+                </div>
+                {confirmSaleReport.teklif_tutari && confirmSaleReport.teklif_tutari > 0 && (
+                  <div className="flex justify-between pt-1 border-t border-slate-200/80">
+                    <span className="text-slate-500">Verilmiş Teklif:</span>
+                    <span className="text-sky-700 font-bold">{formatCurrency(confirmSaleReport.teklif_tutari)} ({confirmSaleReport.teklif_ihtimal || '%50'})</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Inputs */}
+              <div className="space-y-3">
+                <div>
+                  <label className="text-[11px] font-mono uppercase font-bold text-slate-700 block mb-1">
+                    Kesinleşen Satış Tutarı (₺) *
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      required
+                      min="1"
+                      placeholder="250000"
+                      value={saleAmountInput}
+                      onChange={(e) => setSaleAmountInput(e.target.value)}
+                      className="w-full text-base font-mono font-black px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-emerald-700 focus:outline-none focus:border-emerald-500 focus:bg-white"
+                    />
+                    <span className="absolute right-3.5 top-3 text-xs font-mono font-bold text-slate-400">TL</span>
+                  </div>
+                  {saleAmountInput && Number(saleAmountInput) > 0 && (
+                    <p className="text-[11px] text-emerald-700 font-mono font-semibold mt-1">
+                      → {formatCurrency(Number(saleAmountInput))} kotaya eklenecektir
+                    </p>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[11px] font-mono uppercase font-bold text-slate-700 block mb-1">
+                      Satış / Reklam Türü
+                    </label>
+                    <select
+                      value={saleTypeInput}
+                      onChange={(e) => setSaleTypeInput(e.target.value as WorkReportSaleType)}
+                      className="w-full text-xs font-semibold px-3 py-2 bg-white border border-slate-300 rounded-xl text-slate-800 focus:outline-none focus:border-emerald-500 cursor-pointer"
+                    >
+                      <option value="Spot Reklam">Spot Reklam</option>
+                      <option value="Alt Bant Reklam">Alt Bant Reklam</option>
+                      <option value="Sponsorluk">Sponsorluk</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-mono uppercase font-bold text-slate-700 block mb-1">
+                      Ödeme Vadesi
+                    </label>
+                    <select
+                      value={saleVadeInput}
+                      onChange={(e) => setSaleVadeInput(e.target.value)}
+                      className="w-full text-xs font-semibold px-3 py-2 bg-white border border-slate-300 rounded-xl text-slate-800 focus:outline-none focus:border-emerald-500 cursor-pointer"
+                    >
+                      <option value="Nakit">Nakit</option>
+                      <option value="30 Gün">30 Gün</option>
+                      <option value="60 Gün">60 Gün</option>
+                      <option value="90 Gün">90 Gün</option>
+                      <option value="120 Gün">120 Gün</option>
+                      <option value="150 Gün">150 Gün</option>
+                      <option value="180 Gün">180 Gün</option>
+                      <option value="Özel">Özel</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setConfirmSaleReport(null)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-800 bg-white border border-slate-200 rounded-xl transition cursor-pointer"
+                >
+                  Vazgeç
+                </button>
+                <button
+                  type="submit"
+                  disabled={isConfirmingSale}
+                  className="px-5 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 rounded-xl transition cursor-pointer shadow-sm flex items-center gap-1.5 disabled:opacity-50"
+                >
+                  {isConfirmingSale ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Onaylanıyor...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+                      <span>Satışı Onayla &amp; Kotaya Yansıt</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+            </form>
+
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

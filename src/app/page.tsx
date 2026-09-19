@@ -41,7 +41,6 @@ export default async function HomePage() {
         orderBy: { createdAt: 'desc' },
       }),
       prisma.workReport.findMany({
-        where: { tamamlandi: false },
         include: {
           user: true,
         },

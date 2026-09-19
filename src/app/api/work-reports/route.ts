@@ -277,7 +277,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { id, ...data } = body;
+    const { id, action, ...data } = body;
 
     if (!id) {
       return NextResponse.json({ success: false, error: 'Rapor ID gereklidir.' }, { status: 400 });
@@ -288,7 +288,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Rapor bulunamadı.' }, { status: 404 });
     }
 
-    const isAdmin = sessionUser.role === 'ADMIN';
+    const isAdmin = sessionUser.role === 'ADMIN' || sessionUser.role === 'SUPER_ADMIN';
     const isOwner = existing.user_id === sessionUser.id;
 
     if (!isAdmin && !isOwner) {
@@ -298,28 +298,147 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    // If this is a status toggle (tamamlandi)
-    if (data.tamamlandi !== undefined) {
-      await prisma.workReport.update({
-        where: { id },
-        data: { tamamlandi: Boolean(data.tamamlandi) },
-      });
+    // 1. ACTION: CONFIRM SALE (Satışı Onayla & Kotaya Aktar)
+    if (action === 'confirm_sale' || data.confirm_sale) {
+      const finalSatisTutari = data.satis_tutari !== undefined 
+        ? Number(data.satis_tutari) 
+        : (existing.satis_tutari && existing.satis_tutari > 0 ? existing.satis_tutari : (existing.teklif_tutari || 0));
+      
+      const finalSatisTuru = data.satis_turu || existing.satis_turu || 'Spot Reklam';
+      const finalVade = data.rezervasyon_vade !== undefined ? data.rezervasyon_vade : (existing.rezervasyon_vade || '');
 
-      if ((existing as any).deal_id) {
+      let dealId = existing.deal_id;
+
+      // If no linked deal exists yet, create client & deal
+      if (!dealId) {
+        let client = await prisma.client.findFirst({
+          where: { firma_adi: existing.kurum_adi },
+        });
+        if (!client) {
+          client = await prisma.client.create({
+            data: {
+              firma_adi: existing.kurum_adi,
+              yetkili_kisi: existing.yetkili || 'Yetkili',
+              telefon: existing.yetkili_telefon || '0000000000',
+              eposta: existing.yetkili_eposta || '',
+              musteri_tipi: existing.kurum_turu || 'Kurumsal',
+              satis_temsilcisi_id: existing.user_id,
+              sonraki_takip_tarihi: new Date(),
+            }
+          });
+        }
+        const createdDeal = await prisma.deal.create({
+          data: {
+            musteri_id: client.id,
+            kanal: existing.tv_kanali || 'Bi Kanal',
+            teklif_tutari: finalSatisTutari,
+            ihtimal_derecesi: 'Kesin',
+            asama: 'SATIŞ',
+            is_archived: false,
+            not: `${finalSatisTuru} - Çalışma Raporundan Satış Onaylandı`,
+          }
+        });
+        dealId = createdDeal.id;
+      } else {
+        // Update existing linked deal to SATIŞ
         try {
           await prisma.deal.update({
-            where: { id: (existing as any).deal_id },
-            data: { is_archived: Boolean(data.tamamlandi) },
+            where: { id: dealId },
+            data: {
+              asama: 'SATIŞ',
+              teklif_tutari: finalSatisTutari,
+              ihtimal_derecesi: 'Kesin',
+              is_archived: false,
+              not: `${finalSatisTuru} - Çalışma Raporundan Satış Onaylandı`,
+            }
+          });
+        } catch (dealErr) {
+          console.error('Error updating linked deal on confirm_sale:', dealErr);
+        }
+      }
+
+      const updated = await prisma.workReport.update({
+        where: { id },
+        data: {
+          satis_yapildi: true,
+          satis_tutari: finalSatisTutari,
+          satis_turu: finalSatisTuru,
+          rezervasyon_vade: finalVade,
+          tamamlandi: false,
+          deal_id: dealId,
+        },
+        include: { user: true },
+      });
+
+      return NextResponse.json({ success: true, report: updated });
+    }
+
+    // 2. ACTION: REVERT TO OFFER (Teklife / Bekleyen Teklife Geri Al)
+    if (action === 'revert_to_offer') {
+      let dealId = existing.deal_id;
+      if (dealId) {
+        try {
+          const offerProb = existing.teklif_ihtimal === '%100' ? 'Kesin' 
+            : existing.teklif_ihtimal === '%75' ? 'Yüksek' 
+            : existing.teklif_ihtimal === '%25' ? 'Düşük' 
+            : 'Orta';
+
+          await prisma.deal.update({
+            where: { id: dealId },
+            data: {
+              asama: 'TEKLİF',
+              teklif_tutari: existing.teklif_tutari || 0,
+              ihtimal_derecesi: offerProb,
+              is_archived: false,
+              not: 'Teklif Aşamasında - Çalışma Raporundan Güncellendi',
+            }
+          });
+        } catch (dealErr) {
+          console.error('Error reverting deal to offer:', dealErr);
+        }
+      }
+
+      const updated = await prisma.workReport.update({
+        where: { id },
+        data: {
+          satis_yapildi: false,
+          satis_tutari: 0,
+          tamamlandi: false,
+        },
+        include: { user: true },
+      });
+
+      return NextResponse.json({ success: true, report: updated });
+    }
+
+    // 3. ACTION: TOGGLE ARCHIVE (Arşivle / Aktife Al)
+    if (action === 'toggle_archive' || data.tamamlandi !== undefined) {
+      const newStatus = data.tamamlandi !== undefined ? Boolean(data.tamamlandi) : !existing.tamamlandi;
+
+      await prisma.workReport.update({
+        where: { id },
+        data: { tamamlandi: newStatus },
+      });
+
+      if (existing.deal_id) {
+        try {
+          await prisma.deal.update({
+            where: { id: existing.deal_id },
+            data: { is_archived: newStatus },
           });
         } catch (dealErr) {
           console.error('Failed to sync deal archive status:', dealErr);
         }
       }
 
-      const updated = await prisma.workReport.findUnique({ where: { id } });
+      const updated = await prisma.workReport.findUnique({
+        where: { id },
+        include: { user: true },
+      });
       return NextResponse.json({ success: true, report: updated });
     }
 
+    // 4. GENERAL FULL UPDATE
     const reportDate = data.tarih ? new Date(data.tarih) : existing.tarih;
 
     const updated = await prisma.workReport.update({
@@ -356,7 +475,29 @@ export async function PUT(request: NextRequest) {
         rezervasyon_toplam_saniye: data.rezervasyon_toplam_saniye !== undefined ? Number(data.rezervasyon_toplam_saniye) : existing.rezervasyon_toplam_saniye,
         rezervasyon_vade: data.rezervasyon_vade !== undefined ? data.rezervasyon_vade : (existing as any).rezervasyon_vade,
       },
+      include: { user: true },
     });
+
+    // If deal sync is needed
+    if (existing.deal_id) {
+      try {
+        const isSale = updated.satis_yapildi;
+        const isOffer = updated.teklif_verildi;
+        const asama = isSale ? 'SATIŞ' : isOffer ? 'TEKLİF' : 'GÖRÜŞME';
+        const tutar = isSale ? (updated.satis_tutari || 0) : (updated.teklif_tutari || 0);
+
+        await prisma.deal.update({
+          where: { id: existing.deal_id },
+          data: {
+            asama,
+            teklif_tutari: tutar,
+            kanal: updated.tv_kanali || 'Bi Kanal',
+          }
+        });
+      } catch (err) {
+        console.error('Error syncing deal during general update:', err);
+      }
+    }
 
     return NextResponse.json({ success: true, report: updated });
   } catch (error: any) {
