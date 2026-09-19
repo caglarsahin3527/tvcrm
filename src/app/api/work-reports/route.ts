@@ -139,7 +139,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Assign to sessionUser by default, or if Admin, allow assigning to designated user
-    const effectiveUserId = (sessionUser.role === 'ADMIN' && user_id) ? user_id : sessionUser.id;
+    const effectiveUserId = ((sessionUser.role === 'ADMIN' || sessionUser.role === 'SUPER_ADMIN') && user_id) ? user_id : sessionUser.id;
     const reportDate = tarih ? new Date(tarih) : new Date();
 
     const report = await prisma.workReport.create({

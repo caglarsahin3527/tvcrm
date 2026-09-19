@@ -422,7 +422,7 @@ export async function createWorkReport(data: any) {
     throw new Error('İzleme / Misafir yetkisinde çalışma raporu eklenemez.');
   }
 
-  const effectiveUserId = (sessionUser.role === 'ADMIN' && data.user_id) ? data.user_id : sessionUser.id;
+  const effectiveUserId = ((sessionUser.role === 'ADMIN' || sessionUser.role === 'SUPER_ADMIN') && data.user_id) ? data.user_id : sessionUser.id;
   const reportDate = data.tarih ? new Date(data.tarih) : new Date();
 
   const report = await prisma.workReport.create({

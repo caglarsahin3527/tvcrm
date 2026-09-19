@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
 
     // If not Admin, enforce rep ID to be current user
     let repId = data.satis_temsilcisi_id;
-    if (sessionUser.role !== 'ADMIN' || !repId) {
+    if ((sessionUser.role !== 'ADMIN' && sessionUser.role !== 'SUPER_ADMIN') || !repId) {
       repId = sessionUser.id;
     }
 
