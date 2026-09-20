@@ -223,13 +223,22 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
     });
 
     return Array.from(map.values()).filter(item => {
-      if (currentUser?.role === 'SALES_REP') {
-        const client = clients.find(c => c.firma_adi?.toUpperCase() === item.name.toUpperCase());
-        if (client && client.satis_temsilcisi_id !== currentUser.id) return false;
-      }
+      const client = clients.find(c => c.firma_adi?.toLocaleUpperCase('tr-TR') === item.name.toLocaleUpperCase('tr-TR'));
+      if (client && client.satis_temsilcisi_id !== currentUser?.id) return false;
       return true;
     });
   }, [clients, localReports, currentUser]);
+
+  // Check if entered company name belongs to another sales rep
+  const conflictingClient = useMemo(() => {
+    if (!kurumAdi.trim()) return null;
+    const upper = kurumAdi.trim().toLocaleUpperCase('tr-TR');
+    const found = clients.find((c) => c.firma_adi?.toLocaleUpperCase('tr-TR') === upper);
+    if (found && found.satis_temsilcisi_id !== currentUser?.id) {
+      return found;
+    }
+    return null;
+  }, [kurumAdi, clients, currentUser]);
 
   // Filtered suggestions based on user input
   const filteredSuggestions = useMemo(() => {
@@ -539,6 +548,10 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
       alert('İzleme modundaki hesapların işlem yetkisi yoktur.');
       return;
     }
+    if (report.user_id !== currentUser?.id) {
+      alert('Yalnızca kendinize ait çalışma raporlarının satışını onaylayabilirsiniz. Marka Merkezi ve Satış Yöneticisi dahil başkasının müşterisine/raporuna satış onayı verilemez.');
+      return;
+    }
     setConfirmSaleReport(report);
     const defaultAmount = report.satis_tutari && report.satis_tutari > 0
       ? report.satis_tutari
@@ -554,6 +567,11 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
   const handleExecuteConfirmSale = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!confirmSaleReport) return;
+
+    if (confirmSaleReport.user_id !== currentUser?.id) {
+      alert('Yalnızca kendinize ait çalışma raporlarının satışını onaylayabilirsiniz.');
+      return;
+    }
 
     const finalAmount = Number(saleAmountInput) || 0;
     if (finalAmount <= 0) {
@@ -616,6 +634,11 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
       return;
     }
 
+    if (report.user_id !== currentUser?.id) {
+      alert('Yalnızca kendinize ait çalışma raporlarını teklife geri alabilirsiniz.');
+      return;
+    }
+
     if (!confirm(`"${report.kurum_adi}" için gerçekleşen satışı iptal edip teklif aşamasına geri almak istiyor musunuz?`)) {
       return;
     }
@@ -661,12 +684,17 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
       return;
     }
 
+    if (conflictingClient) {
+      setErrorMessage(`Bu müşteri "${conflictingClient.satis_temsilcisi?.name || 'başka bir temsilci'}" portföyündedir. Marka Merkezi ve Satış Yöneticisi dahil başka bir temsilcinin müşterisine teklif verilemez veya satış yapılamaz.`);
+      return;
+    }
+
     setSubmitting(true);
     setErrorMessage('');
     setSuccessMessage('');
 
     try {
-      const effectiveUserId = isSuperAdmin ? assignedUserId : currentUser?.id;
+      const effectiveUserId = currentUser?.id || assignedUserId;
 
       const payload = {
         tarih,
@@ -1477,65 +1505,87 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                             <td className="py-2.5 px-3 text-right whitespace-nowrap no-print">
                               <div className="flex items-center justify-end gap-1.5">
                                 
-                                {/* CASE 1: TEKLİF AŞAMASINDA -> "Satışı Onayla" + "Arşivle" */}
+                                {/* CASE 1: TEKLİF AŞAMASINDA -> "Satışı Onayla" + "Arşivle" (Yalnızca Sahibi) */}
                                 {isOffer && !isViewer && (
                                   <>
-                                    <button
-                                      type="button"
-                                      onClick={() => handleOpenConfirmSale(report)}
-                                      className="px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1 cursor-pointer bg-emerald-600 text-white hover:bg-emerald-500 border border-emerald-700 shadow-2xs"
-                                      title="Teklifi Onayla ve Satışa Dönüştür (Kotaya Aktar)"
-                                    >
-                                      <Check className="w-3.5 h-3.5 stroke-[2.5]" />
-                                      <span>Satışı Onayla</span>
-                                    </button>
+                                    {isOwner ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleOpenConfirmSale(report)}
+                                        className="px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1 cursor-pointer bg-emerald-600 text-white hover:bg-emerald-500 border border-emerald-700 shadow-2xs"
+                                        title="Teklifi Onayla ve Satışa Dönüştür (Kotaya Aktar)"
+                                      >
+                                        <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+                                        <span>Satışı Onayla</span>
+                                      </button>
+                                    ) : (
+                                      <span className="text-[10px] text-slate-400 font-mono italic px-2 py-0.5 bg-slate-50 rounded border border-slate-200">
+                                        Salt Okunur
+                                      </span>
+                                    )}
 
-                                    <button
-                                      type="button"
-                                      onClick={() => handleToggleComplete(report, true)}
-                                      className="p-1.5 text-slate-500 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg transition border border-slate-200 cursor-pointer"
-                                      title="Arşive Kaldır"
-                                    >
-                                      <Archive className="w-3.5 h-3.5" />
-                                    </button>
+                                    {isOwner && (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleToggleComplete(report, true)}
+                                        className="p-1.5 text-slate-500 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg transition border border-slate-200 cursor-pointer"
+                                        title="Arşive Kaldır"
+                                      >
+                                        <Archive className="w-3.5 h-3.5" />
+                                      </button>
+                                    )}
                                   </>
                                 )}
 
-                                {/* CASE 2: SATIŞI GERÇEKLEŞENLER -> "Tamamla & Arşivle" + "Teklife Geri Al" */}
+                                {/* CASE 2: SATIŞI GERÇEKLEŞENLER -> "Tamamla & Arşivle" + "Teklife Geri Al" (Yalnızca Sahibi) */}
                                 {isRealizedSale && !isViewer && (
                                   <>
-                                    <button
-                                      type="button"
-                                      onClick={() => handleToggleComplete(report, true)}
-                                      className="px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1 cursor-pointer bg-indigo-600 text-white hover:bg-indigo-500 border border-indigo-700 shadow-2xs"
-                                      title="İşi Tamamla & Arşive Taşı"
-                                    >
-                                      <Archive className="w-3.5 h-3.5" />
-                                      <span>Tamamla &amp; Arşivle</span>
-                                    </button>
+                                    {isOwner ? (
+                                      <>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleToggleComplete(report, true)}
+                                          className="px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1 cursor-pointer bg-indigo-600 text-white hover:bg-indigo-500 border border-indigo-700 shadow-2xs"
+                                          title="İşi Tamamla & Arşive Taşı"
+                                        >
+                                          <Archive className="w-3.5 h-3.5" />
+                                          <span>Tamamla &amp; Arşivle</span>
+                                        </button>
 
-                                    <button
-                                      type="button"
-                                      onClick={() => handleRevertToOffer(report)}
-                                      className="p-1.5 text-amber-700 hover:text-amber-800 hover:bg-amber-50 rounded-lg transition border border-amber-200 cursor-pointer"
-                                      title="Satışı İptal Et & Teklife Geri Al"
-                                    >
-                                      <RotateCcw className="w-3.5 h-3.5" />
-                                    </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleRevertToOffer(report)}
+                                          className="p-1.5 text-amber-700 hover:text-amber-800 hover:bg-amber-50 rounded-lg transition border border-amber-200 cursor-pointer"
+                                          title="Satışı İptal Et & Teklife Geri Al"
+                                        >
+                                          <RotateCcw className="w-3.5 h-3.5" />
+                                        </button>
+                                      </>
+                                    ) : (
+                                      <span className="text-[10px] text-slate-400 font-mono italic px-2 py-0.5 bg-slate-50 rounded border border-slate-200">
+                                        Salt Okunur
+                                      </span>
+                                    )}
                                   </>
                                 )}
 
-                                {/* CASE 3: ARŞİVLENENLER -> "Aktife Al" */}
+                                {/* CASE 3: ARŞİVLENENLER -> "Aktife Al" (Yalnızca Sahibi) */}
                                 {isArchived && !isViewer && (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleToggleComplete(report, false)}
-                                    className="px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1 cursor-pointer bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-300"
-                                    title="Arşivden Çıkar & Aktife Al"
-                                  >
-                                    <RotateCcw className="w-3.5 h-3.5" />
-                                    <span>Aktife Al</span>
-                                  </button>
+                                  isOwner ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleToggleComplete(report, false)}
+                                      className="px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1 cursor-pointer bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-300"
+                                      title="Arşivden Çıkar & Aktife Al"
+                                    >
+                                      <RotateCcw className="w-3.5 h-3.5" />
+                                      <span>Aktife Al</span>
+                                    </button>
+                                  ) : (
+                                    <span className="text-[10px] text-slate-400 font-mono italic px-2 py-0.5 bg-slate-50 rounded border border-slate-200">
+                                      Arşivde
+                                    </span>
+                                  )
                                 )}
 
                                 {/* DELETE (Yalnızca Admin veya Sahibi) */}
@@ -1549,7 +1599,6 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                                     <Trash2 className="w-3.5 h-3.5" />
                                   </button>
                                 )}
-
                               </div>
                             </td>
 
@@ -1839,7 +1888,7 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                   {showSuggestions && filteredSuggestions.length > 0 && (
                     <div className="absolute top-full left-0 right-0 z-30 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden divide-y divide-slate-100 animate-in fade-in zoom-in-95 duration-100">
                       <div className="px-3 py-1.5 bg-slate-50 text-[10px] font-mono font-bold text-slate-500 uppercase">
-                        Kayıtlı Kurumlar (Mükerrer kaydı önlemek için seçin):
+                        Kayıtlı Kurumlar:
                       </div>
                       {filteredSuggestions.map((item, idx) => (
                         <button
@@ -1859,6 +1908,19 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                           </span>
                         </button>
                       ))}
+                    </div>
+                  )}
+
+                  {/* Portfolio Conflict Alert */}
+                  {conflictingClient && (
+                    <div className="mt-2 p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 flex items-start gap-2 animate-in fade-in">
+                      <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-bold">Müşteri Portföy Koruması Aktif</p>
+                        <p className="text-[11px] text-rose-700 mt-0.5">
+                          Bu müşteri <strong>{conflictingClient.satis_temsilcisi?.name || 'başka bir temsilci'}</strong> adına kayıtlıdır. Marka Merkezi ve Satış Yöneticisi dahil başkasının müşterisine teklif verme veya satış yapma yetkisi kapalıdır.
+                        </p>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -2352,7 +2414,7 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                 </button>
                 <button
                   type="submit"
-                  disabled={submitting}
+                  disabled={submitting || Boolean(conflictingClient)}
                   className="flex items-center gap-1.5 px-5 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 rounded-xl shadow-sm transition cursor-pointer disabled:opacity-50"
                 >
                   {submitting ? (

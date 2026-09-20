@@ -3,6 +3,7 @@
 import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { getSessionUser } from '@/lib/auth';
+import { toTurkishUpper, toCleanEmail } from '@/lib/formatters';
 
 export async function getUsers() {
   return await prisma.user.findMany({
@@ -127,9 +128,32 @@ export async function createClientAndDeal(data: {
   not?: string;
 }) {
   try {
-    let repId = data.satis_temsilcisi_id;
-    if (!repId) {
-      throw new Error('Satış temsilcisi belirtilmelidir. Müşteri bir temsilciye atanmadan kaydedilemez.');
+    const sessionUser = await getSessionUser();
+    if (!sessionUser) throw new Error('Oturum açılmalıdır.');
+    if (sessionUser.role === 'VIEWER') {
+      throw new Error('İzleme modundaki hesapların müşteri ve teklif ekleme yetkisi yoktur.');
+    }
+
+    const upperFirmaAdi = toTurkishUpper(data.firma_adi?.trim());
+    if (!upperFirmaAdi) {
+      throw new Error('Firma adı belirtilmelidir.');
+    }
+
+    // Check duplicate client
+    const existingClient = await prisma.client.findFirst({
+      where: { firma_adi: upperFirmaAdi },
+      include: { satis_temsilcisi: true },
+    });
+
+    if (existingClient && existingClient.satis_temsilcisi_id !== sessionUser.id) {
+      throw new Error(
+        `Bu firma zaten "${existingClient.satis_temsilcisi?.name || 'başka bir temsilci'}" portföyünde kayıtlıdır. Marka Merkezi ve Satış Yöneticisi dahil başka bir temsilcinin müşterisine teklif verilemez veya satış yapılamaz.`
+      );
+    }
+
+    let repId = sessionUser.id;
+    if ((sessionUser.role === 'ADMIN' || sessionUser.role === 'SUPER_ADMIN') && data.satis_temsilcisi_id) {
+      repId = data.satis_temsilcisi_id;
     }
 
     const followUpDate = data.sonraki_takip_tarihi
@@ -138,10 +162,10 @@ export async function createClientAndDeal(data: {
 
     const client = await (prisma.client as any).create({
       data: {
-        firma_adi: data.firma_adi,
-        yetkili_kisi: data.yetkili_kisi,
+        firma_adi: upperFirmaAdi,
+        yetkili_kisi: toTurkishUpper(data.yetkili_kisi),
         telefon: data.telefon,
-        eposta: data.eposta || '',
+        eposta: toCleanEmail(data.eposta),
         musteri_tipi: data.musteri_tipi || 'Kurumsal',
         satis_temsilcisi_id: repId,
         sonraki_takip_tarihi: isNaN(followUpDate.getTime()) ? new Date() : followUpDate,
@@ -205,13 +229,18 @@ export async function createDeal(data: {
     throw new Error('İzleme modundaki hesapların fırsat ekleme yetkisi yoktur.');
   }
 
-  if (sessionUser.role !== 'ADMIN' && sessionUser.role !== 'SUPER_ADMIN') {
-    const client = await prisma.client.findUnique({
-      where: { id: data.musteri_id },
-    });
-    if (!client || client.satis_temsilcisi_id !== sessionUser.id) {
-      throw new Error('Yalnızca kendi müşterilerinize teklif/fırsat ekleyebilirsiniz.');
-    }
+  // Strict ownership check: NO ONE (including Marka Merkezi and Satış Yöneticisi) can add deals to another rep's client
+  const client = await prisma.client.findUnique({
+    where: { id: data.musteri_id },
+    include: { satis_temsilcisi: true },
+  });
+  if (!client) {
+    throw new Error('Müşteri bulunamadı.');
+  }
+  if (client.satis_temsilcisi_id !== sessionUser.id) {
+    throw new Error(
+      `Bu müşteri "${client.satis_temsilcisi?.name || 'başka bir temsilci'}" portföyündedir. Marka Merkezi ve Satış Yöneticisi dahil hiç kimse bir başkasının müşterisine teklif veremez veya satış yapamaz.`
+    );
   }
 
   const deal = await (prisma.deal as any).create({
@@ -248,14 +277,15 @@ export async function updateDealStage(dealId: string, asama: string) {
     throw new Error('İzleme modundaki hesapların aşama değiştirme yetkisi yoktur.');
   }
 
-  if (sessionUser.role !== 'ADMIN' && sessionUser.role !== 'SUPER_ADMIN') {
-    const existingDeal = await prisma.deal.findUnique({
-      where: { id: dealId },
-      include: { musteri: true },
-    });
-    if (!existingDeal || existingDeal.musteri.satis_temsilcisi_id !== sessionUser.id) {
-      throw new Error('Yalnızca kendi fırsatlarınızı güncelleyebilirsiniz.');
-    }
+  const existingDeal = await prisma.deal.findUnique({
+    where: { id: dealId },
+    include: { musteri: { include: { satis_temsilcisi: true } } },
+  });
+  if (!existingDeal) {
+    throw new Error('Fırsat bulunamadı.');
+  }
+  if (existingDeal.musteri.satis_temsilcisi_id !== sessionUser.id) {
+    throw new Error('Bu fırsat başka bir temsilcinin müşterisine aittir. Marka Merkezi ve Satış Yöneticisi dahil başkasının fırsatını güncelleyemez veya aşamasını değiştiremez.');
   }
 
   const updated = await prisma.deal.update({
@@ -273,13 +303,15 @@ export async function updateClientFollowUpDate(clientId: string, nextFollowUpDat
     throw new Error('İzleme modundaki hesapların takip tarihi güncelleme yetkisi yoktur.');
   }
 
-  if (sessionUser.role !== 'ADMIN' && sessionUser.role !== 'SUPER_ADMIN') {
-    const existingClient = await prisma.client.findUnique({
-      where: { id: clientId },
-    });
-    if (!existingClient || existingClient.satis_temsilcisi_id !== sessionUser.id) {
-      throw new Error('Yalnızca kendi müşterilerinizin takip tarihini güncelleyebilirsiniz.');
-    }
+  const existingClient = await prisma.client.findUnique({
+    where: { id: clientId },
+    include: { satis_temsilcisi: true },
+  });
+  if (!existingClient) {
+    throw new Error('Müşteri bulunamadı.');
+  }
+  if (existingClient.satis_temsilcisi_id !== sessionUser.id) {
+    throw new Error(`Bu müşteri "${existingClient.satis_temsilcisi?.name || 'başka bir temsilci'}" portföyündedir. Yalnızca kendi müşterilerinizin takip tarihini güncelleyebilirsiniz.`);
   }
 
   const updated = await prisma.client.update({
@@ -307,12 +339,26 @@ export async function createClient(data: {
     throw new Error('İzleme modundaki hesapların müşteri oluşturma yetkisi yoktur.');
   }
 
-  let repId = data.satis_temsilcisi_id;
-  if (sessionUser.role !== 'ADMIN' && sessionUser.role !== 'SUPER_ADMIN') {
-    repId = sessionUser.id;
+  const upperFirmaAdi = toTurkishUpper(data.firma_adi?.trim());
+  if (!upperFirmaAdi) {
+    throw new Error('Firma adı belirtilmelidir.');
   }
-  if (!repId) {
-    throw new Error('Satış temsilcisi belirtilmelidir. Müşteri bir temsilciye atanmadan kaydedilemez.');
+
+  // Check duplicate client
+  const existingClient = await prisma.client.findFirst({
+    where: { firma_adi: upperFirmaAdi },
+    include: { satis_temsilcisi: true },
+  });
+
+  if (existingClient) {
+    throw new Error(
+      `Bu firma zaten "${existingClient.satis_temsilcisi?.name || 'başka bir temsilci'}" portföyünde kayıtlıdır. Marka Merkezi ve Satış Yöneticisi dahil başka bir temsilcinin müşterisine mükerrer kayıt açılamaz veya teklif verilemez.`
+    );
+  }
+
+  let repId = sessionUser.id;
+  if ((sessionUser.role === 'ADMIN' || sessionUser.role === 'SUPER_ADMIN') && data.satis_temsilcisi_id) {
+    repId = data.satis_temsilcisi_id;
   }
 
   const followUpDate = data.sonraki_takip_tarihi
@@ -321,10 +367,10 @@ export async function createClient(data: {
 
   const client = await prisma.client.create({
     data: {
-      firma_adi: data.firma_adi,
-      yetkili_kisi: data.yetkili_kisi,
+      firma_adi: upperFirmaAdi,
+      yetkili_kisi: toTurkishUpper(data.yetkili_kisi),
       telefon: data.telefon,
-      eposta: data.eposta || '',
+      eposta: toCleanEmail(data.eposta),
       musteri_tipi: data.musteri_tipi || 'Kurumsal',
       satis_temsilcisi_id: repId,
       sonraki_takip_tarihi: isNaN(followUpDate.getTime()) ? new Date() : followUpDate,
@@ -422,16 +468,31 @@ export async function createWorkReport(data: any) {
     throw new Error('İzleme / Misafir yetkisinde çalışma raporu eklenemez.');
   }
 
-  const effectiveUserId = ((sessionUser.role === 'ADMIN' || sessionUser.role === 'SUPER_ADMIN') && data.user_id) ? data.user_id : sessionUser.id;
+  const effectiveUserId = sessionUser.id;
   const reportDate = data.tarih ? new Date(data.tarih) : new Date();
+  const upperKurumAdi = toTurkishUpper(data.kurum_adi?.trim());
+
+  // Yetki Kontrolü: Müşteri sistemde başka bir temsilciye kayıtlıysa, Marka Merkezi ve Satış Yöneticisi dahil HİÇ KİMSE işlem yapamaz
+  let client = await prisma.client.findFirst({
+    where: { firma_adi: upperKurumAdi },
+    include: { satis_temsilcisi: true },
+  });
+
+  if (client && client.satis_temsilcisi_id !== sessionUser.id) {
+    throw new Error(
+      `Bu müşteri "${client.satis_temsilcisi?.name || 'başka bir temsilci'}" portföyündedir. Marka Merkezi ve Satış Yöneticisi dahil hiç kimse bir başkasının müşterisine teklif veremez, satış yapamaz veya rapor ekleyemez.`
+    );
+  }
 
   const report = await prisma.workReport.create({
     data: {
       user_id: effectiveUserId,
       tarih: isNaN(reportDate.getTime()) ? new Date() : reportDate,
-      kurum_adi: data.kurum_adi,
+      kurum_adi: upperKurumAdi,
       kurum_turu: data.kurum_turu || 'Kurumsal',
-      yetkili: data.yetkili,
+      yetkili: toTurkishUpper(data.yetkili),
+      yetkili_telefon: data.yetkili_telefon || '',
+      yetkili_eposta: toCleanEmail(data.yetkili_eposta),
       iletisim_turu: data.iletisim_turu,
       gorusme_amaci: data.gorusme_amaci || '',
       teklif_verildi: Boolean(data.teklif_verildi),

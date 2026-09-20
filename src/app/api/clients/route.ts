@@ -21,8 +21,28 @@ export async function POST(request: NextRequest) {
     }
 
     const data = await request.json();
+    const upperFirmaAdi = toTurkishUpper(data.firma_adi?.trim());
+    if (!upperFirmaAdi) {
+      return NextResponse.json({ success: false, error: 'Firma adı gereklidir.' }, { status: 400 });
+    }
 
-    // If not Admin, enforce rep ID to be current user
+    // Check if client with identical company name already exists
+    const existingSameName = await prisma.client.findFirst({
+      where: { firma_adi: upperFirmaAdi },
+      include: { satis_temsilcisi: true },
+    });
+
+    if (existingSameName) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: `Bu firma zaten "${existingSameName.satis_temsilcisi?.name || 'başka bir temsilci'}" portföyünde kayıtlıdır. Marka Merkezi ve Satış Yöneticisi dahil başka bir temsilcinin müşterisine mükerrer kayıt açılamaz veya teklif verilemez.` 
+        },
+        { status: 400 }
+      );
+    }
+
+    // Default rep is current session user
     let repId = data.satis_temsilcisi_id;
     if ((sessionUser.role !== 'ADMIN' && sessionUser.role !== 'SUPER_ADMIN') || !repId) {
       repId = sessionUser.id;
@@ -34,7 +54,7 @@ export async function POST(request: NextRequest) {
 
     const client = await prisma.client.create({
       data: {
-        firma_adi: toTurkishUpper(data.firma_adi),
+        firma_adi: upperFirmaAdi,
         yetkili_kisi: toTurkishUpper(data.yetkili_kisi),
         telefon: data.telefon,
         eposta: toCleanEmail(data.eposta),
@@ -79,16 +99,20 @@ export async function PUT(request: NextRequest) {
 
     const existingClient = await prisma.client.findUnique({
       where: { id: clientId },
+      include: { satis_temsilcisi: true },
     });
 
     if (!existingClient) {
       return NextResponse.json({ success: false, error: 'Müşteri bulunamadı.' }, { status: 404 });
     }
 
-    // Role check: If rep or manager, ensure client belongs to them (Admins can update anyone)
-    if (sessionUser.role !== 'ADMIN' && sessionUser.role !== 'SUPER_ADMIN' && existingClient.satis_temsilcisi_id !== sessionUser.id) {
+    // Role check: Only the client owner can update their customer's follow-up date
+    if (existingClient.satis_temsilcisi_id !== sessionUser.id) {
       return NextResponse.json(
-        { success: false, error: 'Yalnızca kendi müşterilerinizin takip tarihini güncelleyebilirsiniz.' },
+        { 
+          success: false, 
+          error: `Bu müşteri "${existingClient.satis_temsilcisi?.name || 'başka bir temsilci'}" portföyündedir. Yalnızca kendi müşterilerinizin takip tarihini güncelleyebilirsiniz.` 
+        },
         { status: 403 }
       );
     }

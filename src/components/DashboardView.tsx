@@ -144,10 +144,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const collectionDeals = scopedDeals.filter((d) => !d.is_archived && d.asama === 'TAHSİLAT');
   const collectionTotal = collectionDeals.reduce((sum, d) => sum + (d.teklif_tutari || 0), 0);
 
-  const isRep = currentUser?.role === 'SALES_REP';
-  const totalTarget = isRep
-    ? currentUser?.target || 500000
-    : users.filter((u) => u.role !== 'VIEWER' && u.role !== 'GUEST').reduce((sum, u) => sum + (u.target || 0), 0);
+  const totalTarget = users
+    .filter((u) => u.role !== 'VIEWER' && u.role !== 'GUEST')
+    .reduce((sum, u) => sum + (u.target || 0), 0);
 
   const remainingToTarget = Math.max(0, totalTarget - realizedTotal);
   const achievementRate = totalTarget > 0 ? (realizedTotal / totalTarget) * 100 : 0;
@@ -444,7 +443,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div>
             <div className="text-lg font-mono font-black text-slate-900">{formatCurrency(totalTarget)}</div>
             <div className="text-[10px] font-mono text-slate-500 mt-1">
-              {isRep ? 'Bireysel Kota' : 'Konsolide Kota'}
+              Konsolide Kota
             </div>
           </div>
         </div>

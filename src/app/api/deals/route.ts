@@ -21,17 +21,22 @@ export async function POST(request: NextRequest) {
 
     const data = await request.json();
 
-    // Check client ownership (Admins can create deals for any client)
-    if (sessionUser.role !== 'ADMIN' && sessionUser.role !== 'SUPER_ADMIN') {
-      const client = await prisma.client.findUnique({
-        where: { id: data.musteri_id },
-      });
-      if (!client || client.satis_temsilcisi_id !== sessionUser.id) {
-        return NextResponse.json(
-          { success: false, error: 'Yalnızca kendi müşterilerinize fırsat ekleyebilirsiniz.' },
-          { status: 403 }
-        );
-      }
+    // Strict Client Ownership Check: NO ONE (including Marka Merkezi / Admin & Sales Manager) can create deals/quotes for another rep's client
+    const client = await prisma.client.findUnique({
+      where: { id: data.musteri_id },
+      include: { satis_temsilcisi: true },
+    });
+    if (!client) {
+      return NextResponse.json({ success: false, error: 'Müşteri bulunamadı.' }, { status: 404 });
+    }
+    if (client.satis_temsilcisi_id !== sessionUser.id) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: `Bu müşteri "${client.satis_temsilcisi?.name || 'başka bir temsilci'}" portföyündedir. Marka Merkezi ve Satış Yöneticisi dahil hiç kimse bir başkasının müşterisine teklif veremez veya satış yapamaz.` 
+        },
+        { status: 403 }
+      );
     }
 
     const deal = await (prisma.deal as any).create({
@@ -102,9 +107,12 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Fırsat bulunamadı.' }, { status: 404 });
     }
 
-    if (sessionUser.role !== 'ADMIN' && sessionUser.role !== 'SUPER_ADMIN' && existingDeal.musteri.satis_temsilcisi_id !== sessionUser.id) {
+    if (existingDeal.musteri.satis_temsilcisi_id !== sessionUser.id) {
       return NextResponse.json(
-        { success: false, error: 'Yalnızca kendi fırsatlarınızı güncelleyebilirsiniz.' },
+        { 
+          success: false, 
+          error: 'Bu fırsat başka bir temsilcinin müşterisine aittir. Marka Merkezi ve Satış Yöneticisi dahil başkasının fırsatını güncelleyemez veya aşamasını değiştiremez.' 
+        },
         { status: 403 }
       );
     }

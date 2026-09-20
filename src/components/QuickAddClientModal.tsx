@@ -63,6 +63,13 @@ export const QuickAddClientModal: React.FC<QuickAddClientModalProps> = ({
     );
   }, [firmaAdi, clients]);
 
+  // Check if entered company name already exists in database
+  const duplicateClient = useMemo(() => {
+    if (!firmaAdi.trim()) return null;
+    const query = firmaAdi.trim().toLocaleUpperCase('tr-TR');
+    return clients.find((c) => c.firma_adi?.toLocaleUpperCase('tr-TR') === query) || null;
+  }, [firmaAdi, clients]);
+
   // Handle selecting an autocomplete suggestion
   const handleSelectSuggestion = (client: Client) => {
     setFirmaAdi(toTurkishUpper(client.firma_adi));
@@ -95,6 +102,11 @@ export const QuickAddClientModal: React.FC<QuickAddClientModalProps> = ({
       return;
     }
 
+    if (duplicateClient) {
+      alert(`Bu firma zaten "${duplicateClient.satis_temsilcisi?.name || 'başka bir temsilci'}" portföyünde kayıtlıdır. Marka Merkezi ve Satış Yöneticisi dahil başka bir temsilcinin müşterisine mükerrer kayıt açılamaz veya teklif verilemez.`);
+      return;
+    }
+
     const effectiveRepId = !isSuperAdmin ? (currentUser?.id || satisTemsilcisiId) : (satisTemsilcisiId || currentUser?.id || users[0]?.id || '');
 
     setLoading(true);
@@ -115,9 +127,10 @@ export const QuickAddClientModal: React.FC<QuickAddClientModalProps> = ({
         body: JSON.stringify(payload),
       });
 
-      if (!res.ok) {
-        // Fallback to Server Action if needed
-        await createClient(payload as any);
+      const resData = await res.json();
+      if (!res.ok || !resData.success) {
+        alert(resData.error || 'Müşteri eklenirken bir hata oluştu.');
+        return;
       }
 
       // Reset form
@@ -128,9 +141,9 @@ export const QuickAddClientModal: React.FC<QuickAddClientModalProps> = ({
       if (isSuperAdmin) setSatisTemsilcisiId(currentUser?.id || users[0]?.id || '');
       onSuccess();
       onClose();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Müşteri ekleme hatası:', err);
-      alert('Müşteri eklenirken bir hata oluştu.');
+      alert(err.message || 'Müşteri eklenirken bir hata oluştu.');
     } finally {
       setLoading(false);
     }
@@ -225,6 +238,19 @@ export const QuickAddClientModal: React.FC<QuickAddClientModalProps> = ({
                       </span>
                     </button>
                   ))}
+                </div>
+              )}
+
+              {/* Portfolio Conflict Alert Banner */}
+              {duplicateClient && (
+                <div className="mt-2 p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 flex items-start gap-2 animate-in fade-in">
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-bold">Müşteri Portföy Koruması Aktif</p>
+                    <p className="text-[11px] text-rose-700 mt-0.5">
+                      Bu firma zaten <strong>{duplicateClient.satis_temsilcisi?.name || 'başka bir temsilci'}</strong> adına kayıtlıdır. Marka Merkezi ve Satış Yöneticisi dahil başka bir temsilcinin müşterisine mükerrer kayıt açılamaz veya teklif verilemez.
+                    </p>
+                  </div>
                 </div>
               )}
             </div>
@@ -343,7 +369,7 @@ export const QuickAddClientModal: React.FC<QuickAddClientModalProps> = ({
             </button>
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || Boolean(duplicateClient)}
               className="px-4 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 rounded-xl transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50 shadow-sm shadow-emerald-600/20"
             >
               {loading ? (

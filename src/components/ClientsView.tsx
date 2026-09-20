@@ -104,8 +104,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
           const deals = client.deals || [];
           const totalDealsAmount = deals.reduce((sum, d) => sum + (d.teklif_tutari || 0), 0);
           const isOwner = currentUser?.id === client.satis_temsilcisi_id;
-          const isAdmin = currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPER_ADMIN';
-          const canManage = (isAdmin || isOwner) && currentUser?.role !== 'VIEWER';
+          const canManage = isOwner && currentUser?.role !== 'VIEWER';
 
           return (
             <div
@@ -213,7 +212,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
                 const totalDealsAmount = deals.reduce((sum, d) => sum + (d.teklif_tutari || 0), 0);
                 const isOwner = currentUser?.id === client.satis_temsilcisi_id;
                 const isAdmin = currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPER_ADMIN';
-                const canManage = (isAdmin || isOwner) && currentUser?.role !== 'VIEWER';
+                const canManage = isOwner && currentUser?.role !== 'VIEWER';
 
                 return (
                   <tr key={client.id} className="hover:bg-slate-50/80 transition-colors">

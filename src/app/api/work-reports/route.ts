@@ -138,23 +138,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Assign to sessionUser by default, or if Admin, allow assigning to designated user
-    const effectiveUserId = ((sessionUser.role === 'ADMIN' || sessionUser.role === 'SUPER_ADMIN') && user_id) ? user_id : sessionUser.id;
+    // Enforce report creator to be session user
+    const effectiveUserId = sessionUser.id;
     const reportDate = tarih ? new Date(tarih) : new Date();
 
-    // Yetki Kontrolü: Müşteri zaten başkasına aitse ve temsilci işlem yapıyorsa engelle
+    const upperKurumAdi = toTurkishUpper(kurum_adi);
+
+    // Yetki Kontrolü: Müşteri sistemde başka bir temsilciye kayıtlıysa, Marka Merkezi ve Satış Yöneticisi dahil HİÇ KİMSE işlem yapamaz
     let client = await prisma.client.findFirst({
-      where: { firma_adi: toTurkishUpper(kurum_adi) },
+      where: { firma_adi: upperKurumAdi },
+      include: { satis_temsilcisi: true },
     });
 
-    if (client) {
-      const canManageClient = sessionUser.role === 'ADMIN' || sessionUser.role === 'SUPER_ADMIN' || sessionUser.role === 'SALES_MANAGER' || client.satis_temsilcisi_id === sessionUser.id;
-      if (!canManageClient) {
-        return NextResponse.json(
-          { success: false, error: 'Bu müşteri başka bir temsilciye aittir. Yalnızca kendi müşterileriniz için işlem yapabilirsiniz.' },
-          { status: 403 }
-        );
-      }
+    if (client && client.satis_temsilcisi_id !== sessionUser.id) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: `Bu müşteri "${client.satis_temsilcisi?.name || 'başka bir temsilci'}" portföyündedir. Marka Merkezi ve Satış Yöneticisi dahil hiç kimse bir başkasının müşterisine teklif veremez, satış yapamaz veya rapor ekleyemez.` 
+        },
+        { status: 403 }
+      );
     }
 
     const report = await prisma.workReport.create({
@@ -302,12 +305,14 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Rapor bulunamadı.' }, { status: 404 });
     }
 
-    const isAdminOrManager = sessionUser.role === 'ADMIN' || sessionUser.role === 'SUPER_ADMIN' || sessionUser.role === 'SALES_MANAGER';
     const isOwner = existing.user_id === sessionUser.id;
 
-    if (!isAdminOrManager && !isOwner) {
+    if (!isOwner) {
       return NextResponse.json(
-        { success: false, error: 'Başkasına ait çalışma raporuna müdahale etme yetkiniz yoktur.' },
+        { 
+          success: false, 
+          error: 'Bu çalışma raporu başka bir personele aittir. Marka Merkezi ve Satış Yöneticisi dahil başkasının raporu üzerinde teklif verme veya satışı onaylama işlemi yapılamaz.' 
+        },
         { status: 403 }
       );
     }

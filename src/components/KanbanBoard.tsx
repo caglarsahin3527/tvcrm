@@ -236,13 +236,8 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
     const deal = localDeals.find((d) => d.id === draggableId);
     if (!deal) return;
 
-    if (
-      currentUser &&
-      currentUser.role !== 'ADMIN' &&
-      currentUser.role !== 'SUPER_ADMIN' &&
-      deal.musteri?.satis_temsilcisi_id !== currentUser.id
-    ) {
-      alert('Sadece kendi müşterilerinize ait fırsatları güncelleyebilirsiniz.');
+    if (currentUser && deal.musteri?.satis_temsilcisi_id !== currentUser.id) {
+      alert('Sadece kendi müşterilerinize ait fırsatları güncelleyebilirsiniz. Marka Merkezi ve Satış Yöneticisi dahil başkasının fırsatını taşıyamaz veya satışı kapatamaz.');
       return;
     }
 
@@ -271,13 +266,8 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
 
   // Quick close deal to SATIŞ
   const handleQuickCloseSale = async (deal: Deal) => {
-    if (
-      currentUser &&
-      currentUser.role !== 'ADMIN' &&
-      currentUser.role !== 'SUPER_ADMIN' &&
-      deal.musteri?.satis_temsilcisi_id !== currentUser.id
-    ) {
-      alert('Sadece kendi müşterilerinize ait fırsatları güncelleyebilirsiniz.');
+    if (currentUser && deal.musteri?.satis_temsilcisi_id !== currentUser.id) {
+      alert('Sadece kendi müşterilerinize ait fırsatları satışa taşıyabilirsiniz. Marka Merkezi ve Satış Yöneticisi dahil başkasının fırsatını satışa dönüştüremez.');
       return;
     }
     const confirm = window.confirm(
@@ -666,9 +656,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
 
                             const isBiKanal = deal.kanal === 'Bi Kanal';
                             const isDealOwner = currentUser?.id === client?.satis_temsilcisi_id;
-                            const isAdmin =
-                              currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPER_ADMIN';
-                            const canManageDeal = (isAdmin || isDealOwner) && !isReadOnly;
+                            const canManageDeal = isDealOwner && !isReadOnly;
 
                             return (
                               <Draggable
