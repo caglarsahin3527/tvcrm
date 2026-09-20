@@ -82,11 +82,13 @@ export const FilterBar: React.FC<FilterBarProps> = ({
             className="bg-transparent font-medium text-slate-800 focus:outline-none cursor-pointer"
           >
             <option value="all" className="bg-white text-slate-800">Tüm Satışçılar</option>
-            {users.map((u) => (
-              <option key={u.id} value={u.id} className="bg-white text-slate-800">
-                {u.name}
-              </option>
-            ))}
+            {users
+              .filter((u) => u.role !== 'VIEWER' && u.role !== 'GUEST')
+              .map((u) => (
+                <option key={u.id} value={u.id} className="bg-white text-slate-800">
+                  {u.name}
+                </option>
+              ))}
           </select>
         </div>
 

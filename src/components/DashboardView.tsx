@@ -147,7 +147,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const isRep = currentUser?.role === 'SALES_REP';
   const totalTarget = isRep
     ? currentUser?.target || 500000
-    : users.reduce((sum, u) => sum + (u.target || 0), 0);
+    : users.filter((u) => u.role !== 'VIEWER' && u.role !== 'GUEST').reduce((sum, u) => sum + (u.target || 0), 0);
 
   const remainingToTarget = Math.max(0, totalTarget - realizedTotal);
   const achievementRate = totalTarget > 0 ? (realizedTotal / totalTarget) * 100 : 0;

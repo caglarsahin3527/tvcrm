@@ -237,22 +237,26 @@ export async function POST(request: NextRequest) {
           ? 'Teklif Verildi' 
           : `${rezervasyon_turu || 'Spot'} Kuşak Rezervasyonu (${rezervasyon_toplam_saniye || 0} sn)`;
 
+        const dealProbability = satis_yapildi
+          ? 'Kesin'
+          : teklif_verildi && teklif_ihtimal
+          ? (teklif_ihtimal === '%100'
+              ? 'Kesin'
+              : (teklif_ihtimal === '%75' || teklif_ihtimal === '%90')
+              ? 'Yüksek'
+              : (teklif_ihtimal === '%25' || teklif_ihtimal === '%10')
+              ? 'Düşük'
+              : 'Orta')
+          : rezervasyon_var
+          ? 'Yüksek'
+          : 'Orta';
+
         const deal = await prisma.deal.create({
           data: {
             musteri_id: client.id,
             kanal: tv_kanali || 'Bi Kanal',
             teklif_tutari: tutar,
-            ihtimal_derecesi: satis_yapildi 
-              ? 'Kesin' 
-              : rezervasyon_var 
-              ? 'Yüksek' 
-              : (teklif_ihtimal === '%100' 
-                  ? 'Kesin' 
-                  : teklif_ihtimal === '%75' 
-                  ? 'Yüksek' 
-                  : teklif_ihtimal === '%25' 
-                  ? 'Düşük' 
-                  : (teklif_ihtimal === '%90' ? 'Yüksek' : teklif_ihtimal === '%10' ? 'Düşük' : 'Orta')),
+            ihtimal_derecesi: dealProbability,
             asama: asama,
             not: `${dealNote} - Çalışma Raporundan Otomatik Eklendi`,
           }
@@ -494,13 +498,27 @@ export async function PUT(request: NextRequest) {
         const isSale = updated.satis_yapildi;
         const isOffer = updated.teklif_verildi;
         const asama = isSale ? 'SATIŞ' : isOffer ? 'TEKLİF' : 'GÖRÜŞME';
-        const tutar = isSale ? (updated.satis_tutari || 0) : (updated.teklif_tutari || 0);
+        const tutar = isSale ? (updated.satis_tutari || 0) : isOffer ? (updated.teklif_tutari || 0) : 0;
+        const ihtimal = isSale
+          ? 'Kesin'
+          : isOffer && updated.teklif_ihtimal
+          ? (updated.teklif_ihtimal === '%100'
+              ? 'Kesin'
+              : (updated.teklif_ihtimal === '%75' || updated.teklif_ihtimal === '%90')
+              ? 'Yüksek'
+              : (updated.teklif_ihtimal === '%25' || updated.teklif_ihtimal === '%10')
+              ? 'Düşük'
+              : 'Orta')
+          : updated.rezervasyon_var
+          ? 'Yüksek'
+          : 'Orta';
 
         await prisma.deal.update({
           where: { id: existing.deal_id },
           data: {
             asama,
             teklif_tutari: tutar,
+            ihtimal_derecesi: ihtimal,
             kanal: updated.tv_kanali || 'Bi Kanal',
           }
         });

@@ -119,10 +119,17 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
   const [customEndDate, setCustomEndDate] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Active sales team members (excluding VIEWER / GUEST roles who are read-only observers)
+  const salesUsers = useMemo(() => users.filter((u) => u.role !== 'VIEWER' && u.role !== 'GUEST'), [users]);
+
   // --- NEW WORK REPORT FORM STATE ---
   const todayIso = new Date().toISOString().split('T')[0];
   const [tarih, setTarih] = useState(todayIso);
-  const [assignedUserId, setAssignedUserId] = useState(currentUser ? currentUser.id : users[0]?.id || '');
+  const [assignedUserId, setAssignedUserId] = useState(
+    currentUser && currentUser.role !== 'VIEWER' && currentUser.role !== 'GUEST' 
+      ? currentUser.id 
+      : salesUsers[0]?.id || users.find((u) => u.role !== 'VIEWER' && u.role !== 'GUEST')?.id || users[0]?.id || ''
+  );
   const [kurumAdi, setKurumAdi] = useState('');
   const [kurumTuru, setKurumTuru] = useState<WorkReportOrgType>('Marka');
   const [musteriDurumu, setMusteriDurumu] = useState<WorkReportCustomerStatus>('Yeni Müşteri');
@@ -234,7 +241,11 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
   // Reset Form
   const resetForm = () => {
     setTarih(new Date().toISOString().split('T')[0]);
-    setAssignedUserId(currentUser ? currentUser.id : users[0]?.id || '');
+    setAssignedUserId(
+      currentUser && currentUser.role !== 'VIEWER' && currentUser.role !== 'GUEST' 
+        ? currentUser.id 
+        : salesUsers[0]?.id || users.find((u) => u.role !== 'VIEWER' && u.role !== 'GUEST')?.id || users[0]?.id || ''
+    );
     setKurumAdi('');
     setKurumTuru('Marka');
     setMusteriDurumu('Yeni Müşteri');
@@ -428,12 +439,11 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
 
   // --- EXECUTIVE SUMMARY MATRIX (Personel Bazlı Matris Tablosu) ---
   const executiveMatrix = useMemo(() => {
-    // Filter by selected user if specific user selected, else list all team members with activity
+    // Filter by selected user if specific user selected, else list active sales/management team members (Marka Merkezi, Satış Yöneticisi, Satış Temsilcisi)
     const targetUsers = selectedUserFilter !== 'all' 
-      ? users.filter((u) => u.id === selectedUserFilter)
-      : users.filter((u) => {
-          if (isSuperAdmin || isViewer) return true;
-          if (isManager) return u.role !== 'ADMIN' && u.role !== 'SUPER_ADMIN';
+      ? salesUsers.filter((u) => u.id === selectedUserFilter)
+      : salesUsers.filter((u) => {
+          if (isSuperAdmin || isViewer || isManager) return true;
           return u.id === currentUser?.id;
         });
 
@@ -481,7 +491,7 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
         rezSum,
       };
     });
-  }, [users, baseFilteredReports, selectedUserFilter]);
+  }, [salesUsers, baseFilteredReports, selectedUserFilter]);
 
   // Matrix Grand Totals
   const matrixTotals = useMemo(() => {
@@ -808,7 +818,7 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
     if (activeTab === 'matrix') {
       const matrixRows = executiveMatrix.map((r) => ({
         'Grup Üyesi': r.user.name,
-        'Rol': r.user.role === 'SALES_MANAGER' ? 'Satış Yöneticisi' : 'Satış Temsilcisi',
+        'Rol': r.user.role === 'SALES_MANAGER' ? 'Satış Yöneticisi' : r.user.role === 'ADMIN' ? 'Marka Merkezi' : r.user.role === 'VIEWER' ? 'Yönetim Katı / Misafir' : 'Satış Temsilcisi',
         'Telefon': r.telCount,
         'Dijital Toplantı': r.dijitalCount,
         'Yüzyüze Toplantı': r.yuzyuzeCount,
@@ -829,12 +839,7 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
     }
 
     const exportRows = filteredReports.filter((r) => {
-      if (isSuperAdmin || isViewer) return true; // Marka Merkezi ve Misafir yönetici tüm raporları alır
-      if (isManager) {
-        // Yönetici kendisi ve temsilciler için rapor alır (Admin'leri hariç tut)
-        const userRole = users.find(u => u.id === r.user_id)?.role;
-        return userRole !== 'ADMIN' && userRole !== 'SUPER_ADMIN';
-      }
+      if (isSuperAdmin || isViewer || isManager) return true; // Marka Merkezi, Misafir ve Satış Yöneticisi tüm ekip raporlarını alır
       return r.user_id === currentUser?.id; // Temsilci sadece kendisi için rapor alır
     }).map((r) => ({
       'Tarih': formatDate(r.tarih),
@@ -1191,7 +1196,7 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                       className="bg-transparent font-bold text-slate-800 focus:outline-none cursor-pointer"
                     >
                       <option value="all">Tüm Grup Üyeleri (Genel)</option>
-                      {users.map((u) => (
+                      {salesUsers.map((u) => (
                         <option key={u.id} value={u.id}>
                           {u.name} ({u.role === 'SALES_MANAGER' ? 'Yönetici' : u.role === 'ADMIN' ? 'Admin' : 'Temsilci'})
                         </option>
@@ -1795,8 +1800,8 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                       onChange={(e) => setAssignedUserId(e.target.value)}
                       className="w-full text-xs px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-sky-500 shadow-2xs font-semibold cursor-pointer"
                     >
-                      {users.length > 0 ? (
-                        users.map((u) => (
+                      {salesUsers.length > 0 ? (
+                        salesUsers.map((u) => (
                           <option key={u.id} value={u.id}>
                             {u.name} ({u.role === 'SALES_MANAGER' ? 'Yönetici' : u.role === 'ADMIN' ? 'Marka Merkezi' : 'Satış Temsilcisi'})
                           </option>

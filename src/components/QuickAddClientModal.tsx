@@ -32,8 +32,11 @@ export const QuickAddClientModal: React.FC<QuickAddClientModalProps> = ({
   const [telefon, setTelefon] = useState('');
   const [eposta, setEposta] = useState('');
   const [musteriTipi, setMusteriTipi] = useState<CustomerType>('Kurumsal');
+  const salesUsers = useMemo(() => users.filter((u) => u.role !== 'VIEWER' && u.role !== 'GUEST'), [users]);
   const [satisTemsilcisiId, setSatisTemsilcisiId] = useState(
-    currentUser ? currentUser.id : users[0]?.id || ''
+    currentUser && currentUser.role !== 'VIEWER' && currentUser.role !== 'GUEST' 
+      ? currentUser.id 
+      : salesUsers[0]?.id || users.find((u) => u.role !== 'VIEWER' && u.role !== 'GUEST')?.id || users[0]?.id || ''
   );
 
   // Autocomplete state
@@ -301,8 +304,8 @@ export const QuickAddClientModal: React.FC<QuickAddClientModalProps> = ({
                   onChange={(e) => setSatisTemsilcisiId(e.target.value)}
                   className="w-full text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:border-sky-500 cursor-pointer font-semibold"
                 >
-                  {users.length > 0 ? (
-                    users.map((u) => (
+                  {salesUsers.length > 0 ? (
+                    salesUsers.map((u) => (
                       <option key={u.id} value={u.id}>
                         {u.name} ({u.role === 'ADMIN' ? 'Marka Merkezi' : u.role === 'SALES_MANAGER' ? 'Yönetici' : 'Temsilci'})
                       </option>
