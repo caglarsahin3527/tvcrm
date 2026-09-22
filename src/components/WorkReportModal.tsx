@@ -711,23 +711,23 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
         gorusme_amaci: gorusmeAmaci,
         sonuc,
         teklif_verildi: teklifVerildi,
-        teklif_tutari: teklifVerildi ? Number(teklifTutari) || 0 : 0,
+        teklif_tutari: teklifVerildi ? (Number(teklifTutari) || (calculatedReservation.totalAmount > 0 ? calculatedReservation.totalAmount : 0)) : 0,
         teklif_ihtimal: teklifVerildi ? teklifIhtimal : '',
         satis_yapildi: satisYapildi,
         satis_turu: satisYapildi ? satisTuru : '',
-        satis_tutari: satisYapildi ? Number(satisTutari) || 0 : 0,
+        satis_tutari: satisYapildi ? (Number(satisTutari) || (calculatedReservation.totalAmount > 0 ? calculatedReservation.totalAmount : 0)) : 0,
         kurumsal_ziyaret: kurumsalZiyaret || iletisimTuru === 'Kurumsal Ziyaret',
-        rezervasyon_var: rezervasyonVar,
-        rezervasyon_gelen: rezervasyonVar ? Number(rezervasyonGelen) || 1 : 0,
-        rezervasyon_turu: rezervasyonVar ? rezervasyonTuru : '',
-        rezervasyon_fiyat_tipi: rezervasyonVar ? rezervasyonFiyatTipi : 'TEK_FIYAT',
-        rezervasyon_opt_saniye: rezervasyonVar && rezervasyonFiyatTipi === 'PT_OPT' ? Number(rezervasyonOptSaniye) || 0 : 0,
-        rezervasyon_opt_fiyat: rezervasyonVar && rezervasyonFiyatTipi === 'PT_OPT' ? Number(rezervasyonOptFiyat) || 0 : 0,
-        rezervasyon_pt_saniye: rezervasyonVar && rezervasyonFiyatTipi === 'PT_OPT' ? Number(rezervasyonPtSaniye) || 0 : 0,
-        rezervasyon_pt_fiyat: rezervasyonVar && rezervasyonFiyatTipi === 'PT_OPT' ? Number(rezervasyonPtFiyat) || 0 : 0,
-        rezervasyon_birim_fiyat: rezervasyonVar ? calculatedReservation.unitPrice : 0,
-        rezervasyon_toplam_saniye: rezervasyonVar ? calculatedReservation.totalSaniye : 0,
-        rezervasyon_vade: (rezervasyonVar || satisYapildi) ? (rezervasyonVade || '') : '',
+        rezervasyon_var: Boolean((teklifVerildi || satisYapildi) && (calculatedReservation.totalSaniye > 0 || calculatedReservation.totalAmount > 0 || (teklifVerildi && Number(teklifTutari) > 0) || (satisYapildi && Number(satisTutari) > 0))),
+        rezervasyon_gelen: (teklifVerildi || satisYapildi) ? (Number(rezervasyonGelen) || 1) : 0,
+        rezervasyon_turu: teklifVerildi ? (rezervasyonTuru || 'Spot') : (satisYapildi ? (satisTuru ? (satisTuru.replace(' Reklam', '') as WorkReportReservationType) : (rezervasyonTuru || 'Spot')) : ''),
+        rezervasyon_fiyat_tipi: (teklifVerildi || satisYapildi) ? (rezervasyonFiyatTipi || 'TEK_FIYAT') : 'TEK_FIYAT',
+        rezervasyon_opt_saniye: (teklifVerildi || satisYapildi) && rezervasyonFiyatTipi === 'PT_OPT' ? Number(rezervasyonOptSaniye) || 0 : 0,
+        rezervasyon_opt_fiyat: (teklifVerildi || satisYapildi) && rezervasyonFiyatTipi === 'PT_OPT' ? Number(rezervasyonOptFiyat) || 0 : 0,
+        rezervasyon_pt_saniye: (teklifVerildi || satisYapildi) && rezervasyonFiyatTipi === 'PT_OPT' ? Number(rezervasyonPtSaniye) || 0 : 0,
+        rezervasyon_pt_fiyat: (teklifVerildi || satisYapildi) && rezervasyonFiyatTipi === 'PT_OPT' ? Number(rezervasyonPtFiyat) || 0 : 0,
+        rezervasyon_birim_fiyat: (teklifVerildi || satisYapildi) ? calculatedReservation.unitPrice : 0,
+        rezervasyon_toplam_saniye: (teklifVerildi || satisYapildi) ? calculatedReservation.totalSaniye : 0,
+        rezervasyon_vade: (teklifVerildi || satisYapildi) ? (rezervasyonVade || '') : '',
       };
 
       const res = await fetch('/api/work-reports', {
@@ -2098,172 +2098,361 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
 
               </div>
 
-              {/* OPSİYONEL ALANLAR: TEKLİF, SATIŞ, REZERVASYON */}
+              {/* ENTEGRE İŞLEM & ÇIKTI ALANLARI: TEKLİF VERİLDİ VEYA SATIŞ YAPILDI */}
               <div className="pt-2 border-t border-slate-200 space-y-3">
-                <span className="text-xs font-mono font-bold uppercase text-slate-500 block">
-                  İşlem & Çıktı Detayları (Opsiyonel):
-                </span>
-
-                {/* TEKLİF VERİLDİ BÖLÜMÜ */}
-                <div className="bg-white p-3.5 rounded-xl border border-slate-200 space-y-2.5">
-                  <label className="flex items-center gap-2 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={teklifVerildi}
-                      onChange={(e) => setTeklifVerildi(e.target.checked)}
-                      className="rounded border-slate-300 text-sky-600 focus:ring-0 w-4 h-4 cursor-pointer"
-                    />
-                    <span className="text-xs font-bold text-slate-800">
-                      Teklif Verildi
-                    </span>
-                  </label>
-
-                  {teklifVerildi && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-100">
-                      <div>
-                        <label className="text-[10px] font-mono uppercase text-slate-500 font-bold">Teklif Tutarı (₺)</label>
-                        <input
-                          type="number"
-                          placeholder="250000"
-                          value={teklifTutari}
-                          onChange={(e) => setTeklifTutari(e.target.value)}
-                          className="w-full text-xs px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-emerald-700 font-mono font-bold focus:outline-none focus:border-sky-500"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="text-[10px] font-mono uppercase text-slate-500 font-bold">İhtimal % Oranı</label>
-                        <select
-                          value={teklifIhtimal}
-                          onChange={(e) => setTeklifIhtimal(e.target.value)}
-                          className="w-full text-xs px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-bold focus:outline-none focus:border-sky-500 cursor-pointer"
-                        >
-                          <option value="%25">%25 (Düşük İhtimal)</option>
-                          <option value="%50">%50 (Orta İhtimal)</option>
-                          <option value="%75">%75 (Yüksek İhtimal)</option>
-                          <option value="%100">%100 (Kesinleşti)</option>
-                        </select>
-                      </div>
-                    </div>
-                  )}
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-mono font-bold uppercase text-slate-600 block">
+                    İşlem, Teklif &amp; Kuşak Fiyatlandırması (Opsiyonel):
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-mono">
+                    Görüşme sonucuna göre Teklif veya Satış detaylarını giriniz
+                  </span>
                 </div>
 
-                {/* SATIŞ YAPILDI BÖLÜMÜ */}
-                <div className="bg-white p-3.5 rounded-xl border border-slate-200 space-y-2.5">
-                  <label className="flex items-center gap-2 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={satisYapildi}
-                      onChange={(e) => setSatisYapildi(e.target.checked)}
-                      className="rounded border-slate-300 text-emerald-600 focus:ring-0 w-4 h-4 cursor-pointer"
-                    />
-                    <span className="text-xs font-bold text-slate-800">
-                      Satış Yapıldı (Anlaşma Sağlandı)
-                    </span>
-                  </label>
-
-                  {satisYapildi && (
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-slate-100">
-                      <div>
-                        <label className="text-[10px] font-mono uppercase text-slate-500 font-bold">Satış / Reklam Türü</label>
-                        <select
-                          value={satisTuru}
-                          onChange={(e) => setSatisTuru(e.target.value as WorkReportSaleType)}
-                          className="w-full text-xs px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-bold focus:outline-none focus:border-sky-500 cursor-pointer"
-                        >
-                          <option value="Spot Reklam">Spot Reklam</option>
-                          <option value="Alt Bant Reklam">Alt Bant Reklam</option>
-                          <option value="Sponsorluk">Sponsorluk</option>
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="text-[10px] font-mono uppercase text-slate-500 font-bold">Satış Bedeli (₺)</label>
-                        <input
-                          type="number"
-                          placeholder="500000"
-                          value={satisTutari}
-                          onChange={(e) => setSatisTutari(e.target.value)}
-                          className="w-full text-xs px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-emerald-700 font-mono font-black focus:outline-none focus:border-sky-500"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="text-[10px] font-mono uppercase text-slate-500 font-bold">Vade (Ödeme)</label>
-                        <select
-                          value={rezervasyonVade}
-                          onChange={(e) => setRezervasyonVade(e.target.value)}
-                          className="w-full text-xs px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-emerald-500 cursor-pointer"
-                        >
-                          <option value="">Seçiniz...</option>
-                          <option value="Nakit">Nakit</option>
-                          <option value="30 Gün">30 Gün</option>
-                          <option value="60 Gün">60 Gün</option>
-                          <option value="90 Gün">90 Gün</option>
-                          <option value="120 Gün">120 Gün</option>
-                          <option value="150 Gün">150 Gün</option>
-                          <option value="180 Gün">180 Gün</option>
-                          <option value="Özel">Özel</option>
-                        </select>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* TV REKLAM REZERVASYONU BÖLÜMÜ (PT / OPT / TEK FİYAT DESTEKLİ) */}
-                <div className="bg-white p-3.5 rounded-xl border border-slate-200 space-y-3">
+                {/* 1. TEKLİF VERİLDİ BÖLÜMÜ (ENTEGRE KUŞAK & FİYATLANDIRMA) */}
+                <div className={`p-4 rounded-xl border transition-all ${
+                  teklifVerildi ? 'bg-sky-50/40 border-sky-300 shadow-xs' : 'bg-white border-slate-200'
+                }`}>
                   <div className="flex items-center justify-between">
-                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <label className="flex items-center gap-2.5 cursor-pointer select-none">
                       <input
                         type="checkbox"
-                        checked={rezervasyonVar}
-                        onChange={(e) => setRezervasyonVar(e.target.checked)}
-                        className="rounded border-slate-300 text-amber-600 focus:ring-0 w-4 h-4 cursor-pointer"
+                        checked={teklifVerildi}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          setTeklifVerildi(checked);
+                          if (checked) {
+                            setSatisYapildi(false);
+                            if (calculatedReservation.totalAmount > 0 && !teklifTutari) {
+                              setTeklifTutari(String(calculatedReservation.totalAmount));
+                            }
+                          }
+                        }}
+                        className="rounded border-slate-300 text-sky-600 focus:ring-0 w-4 h-4 cursor-pointer"
                       />
-                      <span className="text-xs font-bold text-slate-800">
-                        Rezervasyon Kaydı
-                      </span>
-                    </label>
-
-                    {rezervasyonVar && (
-                      <div className="flex items-center bg-slate-100 p-0.5 rounded-lg text-[11px] font-semibold">
-                        <button
-                          type="button"
-                          onClick={() => setRezervasyonFiyatTipi('TEK_FIYAT')}
-                          className={`px-3 py-1.5 text-xs font-bold rounded-lg border transition ${
-                            rezervasyonFiyatTipi === 'TEK_FIYAT' 
-                              ? 'bg-slate-100 border-slate-200 text-slate-700' 
-                              : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
-                          }`}
-                        >
-                          Tek Fiyat
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setRezervasyonFiyatTipi('PT_OPT')}
-                          className={`px-3 py-1.5 text-xs font-bold rounded-lg border transition ${
-                            rezervasyonFiyatTipi === 'PT_OPT' 
-                              ? 'bg-amber-600 border-amber-700 text-white shadow-sm' 
-                              : 'bg-white border-amber-200 text-amber-700 hover:bg-amber-50'
-                          }`}
-                        >
-                          OPT & PT
-                        </button>
+                      <div>
+                        <span className="text-xs font-bold text-slate-900 block">
+                          Teklif Verildi (Kuşak Fiyatlandırması &amp; Açık Teklif)
+                        </span>
+                        <span className="text-[10px] text-slate-500 font-sans block">
+                          Müşteriye TV reklam kuşak fiyatı veya teklif sunulduğunda işaretleyin
+                        </span>
                       </div>
+                    </label>
+                    {teklifVerildi && (
+                      <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-sky-100 text-sky-800 border border-sky-200 font-bold">
+                        Teklif Aşaması
+                      </span>
                     )}
                   </div>
 
-                  {rezervasyonVar && (
-                    <div className="space-y-3 pt-2 border-t border-slate-100">
+                  {teklifVerildi && (
+                    <div className="space-y-3.5 pt-3 mt-3 border-t border-sky-100">
                       
-                      {/* Vade Seçimi */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-mono uppercase text-slate-500 font-bold">Vade (Ödeme)</label>
+                      {/* Üst Alanlar: Reklam Türü, Vade, İhtimal */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                          <label className="text-[10px] font-mono uppercase text-slate-600 font-bold">Teklif / Reklam Türü</label>
+                          <select
+                            value={rezervasyonTuru}
+                            onChange={(e) => setRezervasyonTuru(e.target.value as WorkReportReservationType)}
+                            className="w-full text-xs px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-sky-500 cursor-pointer shadow-2xs"
+                          >
+                            <option value="Spot">Spot Reklam</option>
+                            <option value="Alt Bant">Alt Bant Reklam</option>
+                            <option value="Sponsorluk">Sponsorluk</option>
+                            <option value="Kamu Spotu">Kamu Spotu</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="text-[10px] font-mono uppercase text-slate-600 font-bold">Ödeme Vadesi</label>
                           <select
                             value={rezervasyonVade}
                             onChange={(e) => setRezervasyonVade(e.target.value)}
-                            className="w-full text-xs px-2.5 py-2 bg-white border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:border-amber-500 font-semibold"
+                            className="w-full text-xs px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-sky-500 cursor-pointer shadow-2xs"
+                          >
+                            <option value="">Seçiniz...</option>
+                            <option value="Nakit">Nakit</option>
+                            <option value="30 Gün">30 Gün</option>
+                            <option value="60 Gün">60 Gün</option>
+                            <option value="90 Gün">90 Gün</option>
+                            <option value="120 Gün">120 Gün</option>
+                            <option value="150 Gün">150 Gün</option>
+                            <option value="180 Gün">180 Gün</option>
+                            <option value="Özel">Özel</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="text-[10px] font-mono uppercase text-slate-600 font-bold">Teklif İhtimali</label>
+                          <select
+                            value={teklifIhtimal}
+                            onChange={(e) => setTeklifIhtimal(e.target.value)}
+                            className="w-full text-xs px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-900 font-bold focus:outline-none focus:border-sky-500 cursor-pointer shadow-2xs"
+                          >
+                            <option value="%25">%25 (Düşük İhtimal)</option>
+                            <option value="%50">%50 (Orta İhtimal)</option>
+                            <option value="%75">%75 (Yüksek İhtimal)</option>
+                            <option value="%100">%100 (Kesinleşecek)</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* Entegre TV Reklam Kuşak Fiyatlandırması (Tek Fiyat veya PT / OPT) */}
+                      <div className="bg-white p-3 rounded-xl border border-sky-200/80 space-y-3 shadow-2xs">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-mono uppercase font-bold text-sky-900 flex items-center gap-1.5">
+                            <Calculator className="w-3.5 h-3.5 text-sky-600" />
+                            Kuşak &amp; Rezervasyon Fiyatlama
+                          </span>
+                          <div className="flex items-center bg-slate-100 p-0.5 rounded-lg text-[11px] font-semibold">
+                            <button
+                              type="button"
+                              onClick={() => setRezervasyonFiyatTipi('TEK_FIYAT')}
+                              className={`px-2.5 py-1 text-xs font-bold rounded-md transition cursor-pointer ${
+                                rezervasyonFiyatTipi === 'TEK_FIYAT'
+                                  ? 'bg-sky-600 text-white shadow-xs'
+                                  : 'text-slate-600 hover:text-slate-900'
+                              }`}
+                            >
+                              Tek Fiyat
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setRezervasyonFiyatTipi('PT_OPT')}
+                              className={`px-2.5 py-1 text-xs font-bold rounded-md transition cursor-pointer ${
+                                rezervasyonFiyatTipi === 'PT_OPT'
+                                  ? 'bg-sky-600 text-white shadow-xs'
+                                  : 'text-slate-600 hover:text-slate-900'
+                              }`}
+                            >
+                              OPT &amp; PT
+                            </button>
+                          </div>
+                        </div>
+
+                        {rezervasyonFiyatTipi === 'TEK_FIYAT' ? (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-sky-50/50 p-2.5 rounded-lg border border-sky-100">
+                            <div>
+                              <label className="text-[10px] font-mono uppercase text-sky-900 font-bold">Tek Birim Fiyat (₺/sn)</label>
+                              <input
+                                type="number"
+                                placeholder="40"
+                                value={rezervasyonBirimFiyat}
+                                onChange={(e) => {
+                                  setRezervasyonBirimFiyat(e.target.value);
+                                  const sn = Number(rezervasyonToplamSaniye) || 0;
+                                  const pr = Number(e.target.value) || 0;
+                                  if (sn > 0 && pr > 0) setTeklifTutari(String(sn * pr));
+                                }}
+                                className="w-full text-xs px-2.5 py-1.5 bg-white border border-sky-200 rounded-lg text-slate-900 font-mono font-bold focus:outline-none focus:border-sky-500"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[10px] font-mono uppercase text-sky-900 font-bold">Toplam Kuşak Saniyesi (sn)</label>
+                              <input
+                                type="number"
+                                placeholder="30"
+                                value={rezervasyonToplamSaniye}
+                                onChange={(e) => {
+                                  setRezervasyonToplamSaniye(e.target.value);
+                                  const sn = Number(e.target.value) || 0;
+                                  const pr = Number(rezervasyonBirimFiyat) || 0;
+                                  if (sn > 0 && pr > 0) setTeklifTutari(String(sn * pr));
+                                }}
+                                className="w-full text-xs px-2.5 py-1.5 bg-white border border-sky-200 rounded-lg text-slate-900 font-mono font-bold focus:outline-none focus:border-sky-500"
+                              />
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="bg-sky-50/50 p-2.5 rounded-lg border border-sky-100">
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                              <div>
+                                <label className="text-[10px] font-mono uppercase text-sky-900 font-bold">OPT Saniye</label>
+                                <input
+                                  type="number"
+                                  placeholder="20"
+                                  value={rezervasyonOptSaniye}
+                                  onChange={(e) => {
+                                    setRezervasyonOptSaniye(e.target.value);
+                                    const optSn = Number(e.target.value) || 0;
+                                    const optPr = Number(rezervasyonOptFiyat) || 0;
+                                    const ptSn = Number(rezervasyonPtSaniye) || 0;
+                                    const ptPr = Number(rezervasyonPtFiyat) || 0;
+                                    const total = (optSn * optPr) + (ptSn * ptPr);
+                                    if (total > 0) setTeklifTutari(String(total));
+                                  }}
+                                  className="w-full text-xs px-2.5 py-1.5 bg-white border border-sky-200 rounded-lg text-slate-900 font-mono font-bold focus:outline-none"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[10px] font-mono uppercase text-sky-900 font-bold">OPT Birim Fiyat (₺)</label>
+                                <input
+                                  type="number"
+                                  placeholder="35"
+                                  value={rezervasyonOptFiyat}
+                                  onChange={(e) => {
+                                    setRezervasyonOptFiyat(e.target.value);
+                                    const optSn = Number(rezervasyonOptSaniye) || 0;
+                                    const optPr = Number(e.target.value) || 0;
+                                    const ptSn = Number(rezervasyonPtSaniye) || 0;
+                                    const ptPr = Number(rezervasyonPtFiyat) || 0;
+                                    const total = (optSn * optPr) + (ptSn * ptPr);
+                                    if (total > 0) setTeklifTutari(String(total));
+                                  }}
+                                  className="w-full text-xs px-2.5 py-1.5 bg-white border border-sky-200 rounded-lg text-slate-900 font-mono font-bold focus:outline-none"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[10px] font-mono uppercase text-sky-900 font-bold">PT Saniye</label>
+                                <input
+                                  type="number"
+                                  placeholder="10"
+                                  value={rezervasyonPtSaniye}
+                                  onChange={(e) => {
+                                    setRezervasyonPtSaniye(e.target.value);
+                                    const optSn = Number(rezervasyonOptSaniye) || 0;
+                                    const optPr = Number(rezervasyonOptFiyat) || 0;
+                                    const ptSn = Number(e.target.value) || 0;
+                                    const ptPr = Number(rezervasyonPtFiyat) || 0;
+                                    const total = (optSn * optPr) + (ptSn * ptPr);
+                                    if (total > 0) setTeklifTutari(String(total));
+                                  }}
+                                  className="w-full text-xs px-2.5 py-1.5 bg-white border border-sky-200 rounded-lg text-slate-900 font-mono font-bold focus:outline-none"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[10px] font-mono uppercase text-sky-900 font-bold">PT Birim Fiyat (₺)</label>
+                                <input
+                                  type="number"
+                                  placeholder="50"
+                                  value={rezervasyonPtFiyat}
+                                  onChange={(e) => {
+                                    setRezervasyonPtFiyat(e.target.value);
+                                    const optSn = Number(rezervasyonOptSaniye) || 0;
+                                    const optPr = Number(rezervasyonOptFiyat) || 0;
+                                    const ptSn = Number(rezervasyonPtSaniye) || 0;
+                                    const ptPr = Number(e.target.value) || 0;
+                                    const total = (optSn * optPr) + (ptSn * ptPr);
+                                    if (total > 0) setTeklifTutari(String(total));
+                                  }}
+                                  className="w-full text-xs px-2.5 py-1.5 bg-white border border-sky-200 rounded-lg text-slate-900 font-mono font-bold focus:outline-none"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Kuşak Bilgi Özeti */}
+                        {calculatedReservation.totalSaniye > 0 && (
+                          <div className="flex flex-wrap items-center justify-between text-xs bg-sky-50 px-3 py-1.5 rounded-lg font-mono border border-sky-100">
+                            <span className="text-sky-900 font-semibold">
+                              Kuşak: <strong>{calculatedReservation.totalSaniye} sn</strong> Toplam
+                            </span>
+                            <span className="text-sky-900 font-semibold">
+                              Hesaplanan Kuşak Tutarı: <strong className="text-sky-700">{formatCurrency(calculatedReservation.totalAmount)}</strong>
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Toplam Teklif Tutarı */}
+                      <div>
+                        <div className="flex items-center justify-between">
+                          <label className="text-[10px] font-mono uppercase text-slate-700 font-bold">
+                            Toplam Teklif Tutarı (₺) *
+                          </label>
+                          {calculatedReservation.totalAmount > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => setTeklifTutari(String(calculatedReservation.totalAmount))}
+                              className="text-[10px] text-sky-600 hover:underline font-semibold cursor-pointer"
+                            >
+                              Hesaplanan Tutarı Uygula ({formatCurrency(calculatedReservation.totalAmount)})
+                            </button>
+                          )}
+                        </div>
+                        <input
+                          type="number"
+                          placeholder="Örn: 250000"
+                          value={teklifTutari}
+                          onChange={(e) => setTeklifTutari(e.target.value)}
+                          className="w-full text-sm px-3 py-2 bg-white border border-sky-300 rounded-lg text-sky-800 font-mono font-black focus:outline-none focus:border-sky-500 shadow-2xs mt-1"
+                        />
+                      </div>
+
+                    </div>
+                  )}
+                </div>
+
+                {/* 2. SATIŞ YAPILDI BÖLÜMÜ (ENTEGRE KUŞAK & FİYATLANDIRMA) */}
+                <div className={`p-4 rounded-xl border transition-all ${
+                  satisYapildi ? 'bg-emerald-50/40 border-emerald-300 shadow-xs' : 'bg-white border-slate-200'
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={satisYapildi}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          setSatisYapildi(checked);
+                          if (checked) {
+                            setTeklifVerildi(false);
+                            if (calculatedReservation.totalAmount > 0 && !satisTutari) {
+                              setSatisTutari(String(calculatedReservation.totalAmount));
+                            }
+                          }
+                        }}
+                        className="rounded border-slate-300 text-emerald-600 focus:ring-0 w-4 h-4 cursor-pointer"
+                      />
+                      <div>
+                        <span className="text-xs font-bold text-slate-900 block">
+                          Satış Yapıldı (Anlaşma Sağlandı &amp; Rezervasyon Kesinleşti)
+                        </span>
+                        <span className="text-[10px] text-slate-500 font-sans block">
+                          Müşteri ile anlaşmaya varılıp satış kesinleştiğinde işaretleyin (Hedef &amp; Kotaya aktarılır)
+                        </span>
+                      </div>
+                    </label>
+                    {satisYapildi && (
+                      <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-200 font-bold">
+                        Gerçekleşen Satış
+                      </span>
+                    )}
+                  </div>
+
+                  {satisYapildi && (
+                    <div className="space-y-3.5 pt-3 mt-3 border-t border-emerald-100">
+                      
+                      {/* Üst Alanlar: Satış Türü, Vade */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-[10px] font-mono uppercase text-slate-600 font-bold">Satış / Reklam Türü</label>
+                          <select
+                            value={satisTuru}
+                            onChange={(e) => {
+                              const val = e.target.value as WorkReportSaleType;
+                              setSatisTuru(val);
+                              if (val === 'Alt Bant Reklam') setRezervasyonTuru('Alt Bant');
+                              else if (val === 'Sponsorluk') setRezervasyonTuru('Sponsorluk');
+                              else setRezervasyonTuru('Spot');
+                            }}
+                            className="w-full text-xs px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-emerald-500 cursor-pointer shadow-2xs"
+                          >
+                            <option value="Spot Reklam">Spot Reklam</option>
+                            <option value="Alt Bant Reklam">Alt Bant Reklam</option>
+                            <option value="Sponsorluk">Sponsorluk</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="text-[10px] font-mono uppercase text-slate-600 font-bold">Ödeme Vadesi</label>
+                          <select
+                            value={rezervasyonVade}
+                            onChange={(e) => setRezervasyonVade(e.target.value)}
+                            className="w-full text-xs px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-emerald-500 cursor-pointer shadow-2xs"
                           >
                             <option value="">Seçiniz...</option>
                             <option value="Nakit">Nakit</option>
@@ -2278,123 +2467,187 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                         </div>
                       </div>
 
-                      {/* Rezervasyon Adet ve Türü */}
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="text-[10px] font-mono uppercase text-slate-500 font-bold">Rezervasyon Adedi</label>
-                          <input
-                            type="number"
-                            min="1"
-                            max="100"
-                            value={rezervasyonGelen}
-                            onChange={(e) => setRezervasyonGelen(e.target.value)}
-                            className="w-full text-xs px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-mono font-bold focus:outline-none focus:border-sky-500"
-                          />
+                      {/* Entegre TV Reklam Kuşak Fiyatlandırması (Tek Fiyat veya PT / OPT) */}
+                      <div className="bg-white p-3 rounded-xl border border-emerald-200/80 space-y-3 shadow-2xs">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-mono uppercase font-bold text-emerald-900 flex items-center gap-1.5">
+                            <Calculator className="w-3.5 h-3.5 text-emerald-600" />
+                            Kuşak &amp; Rezervasyon Fiyatlama
+                          </span>
+                          <div className="flex items-center bg-slate-100 p-0.5 rounded-lg text-[11px] font-semibold">
+                            <button
+                              type="button"
+                              onClick={() => setRezervasyonFiyatTipi('TEK_FIYAT')}
+                              className={`px-2.5 py-1 text-xs font-bold rounded-md transition cursor-pointer ${
+                                rezervasyonFiyatTipi === 'TEK_FIYAT'
+                                  ? 'bg-emerald-600 text-white shadow-xs'
+                                  : 'text-slate-600 hover:text-slate-900'
+                              }`}
+                            >
+                              Tek Fiyat
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setRezervasyonFiyatTipi('PT_OPT')}
+                              className={`px-2.5 py-1 text-xs font-bold rounded-md transition cursor-pointer ${
+                                rezervasyonFiyatTipi === 'PT_OPT'
+                                  ? 'bg-emerald-600 text-white shadow-xs'
+                                  : 'text-slate-600 hover:text-slate-900'
+                              }`}
+                            >
+                              OPT &amp; PT
+                            </button>
+                          </div>
                         </div>
 
-                        <div>
-                          <label className="text-[10px] font-mono uppercase text-slate-500 font-bold">Rezervasyon Türü</label>
-                          <select
-                            value={rezervasyonTuru}
-                            onChange={(e) => setRezervasyonTuru(e.target.value as WorkReportReservationType)}
-                            className="w-full text-xs px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-sky-500 cursor-pointer"
-                          >
-                            <option value="Spot">Spot</option>
-                            <option value="Alt Bant">Alt Bant</option>
-                            <option value="Sponsorluk">Sponsorluk</option>
-                            <option value="Kamu Spotu">Kamu Spotu</option>
-                          </select>
-                        </div>
+                        {rezervasyonFiyatTipi === 'TEK_FIYAT' ? (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-emerald-50/50 p-2.5 rounded-lg border border-emerald-100">
+                            <div>
+                              <label className="text-[10px] font-mono uppercase text-emerald-900 font-bold">Tek Birim Fiyat (₺/sn)</label>
+                              <input
+                                type="number"
+                                placeholder="40"
+                                value={rezervasyonBirimFiyat}
+                                onChange={(e) => {
+                                  setRezervasyonBirimFiyat(e.target.value);
+                                  const sn = Number(rezervasyonToplamSaniye) || 0;
+                                  const pr = Number(e.target.value) || 0;
+                                  if (sn > 0 && pr > 0) setSatisTutari(String(sn * pr));
+                                }}
+                                className="w-full text-xs px-2.5 py-1.5 bg-white border border-emerald-200 rounded-lg text-slate-900 font-mono font-bold focus:outline-none focus:border-emerald-500"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[10px] font-mono uppercase text-emerald-900 font-bold">Toplam Kuşak Saniyesi (sn)</label>
+                              <input
+                                type="number"
+                                placeholder="30"
+                                value={rezervasyonToplamSaniye}
+                                onChange={(e) => {
+                                  setRezervasyonToplamSaniye(e.target.value);
+                                  const sn = Number(e.target.value) || 0;
+                                  const pr = Number(rezervasyonBirimFiyat) || 0;
+                                  if (sn > 0 && pr > 0) setSatisTutari(String(sn * pr));
+                                }}
+                                className="w-full text-xs px-2.5 py-1.5 bg-white border border-emerald-200 rounded-lg text-slate-900 font-mono font-bold focus:outline-none focus:border-emerald-500"
+                              />
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="bg-emerald-50/50 p-2.5 rounded-lg border border-emerald-100">
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                              <div>
+                                <label className="text-[10px] font-mono uppercase text-emerald-900 font-bold">OPT Saniye</label>
+                                <input
+                                  type="number"
+                                  placeholder="20"
+                                  value={rezervasyonOptSaniye}
+                                  onChange={(e) => {
+                                    setRezervasyonOptSaniye(e.target.value);
+                                    const optSn = Number(e.target.value) || 0;
+                                    const optPr = Number(rezervasyonOptFiyat) || 0;
+                                    const ptSn = Number(rezervasyonPtSaniye) || 0;
+                                    const ptPr = Number(rezervasyonPtFiyat) || 0;
+                                    const total = (optSn * optPr) + (ptSn * ptPr);
+                                    if (total > 0) setSatisTutari(String(total));
+                                  }}
+                                  className="w-full text-xs px-2.5 py-1.5 bg-white border border-emerald-200 rounded-lg text-slate-900 font-mono font-bold focus:outline-none"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[10px] font-mono uppercase text-emerald-900 font-bold">OPT Birim Fiyat (₺)</label>
+                                <input
+                                  type="number"
+                                  placeholder="35"
+                                  value={rezervasyonOptFiyat}
+                                  onChange={(e) => {
+                                    setRezervasyonOptFiyat(e.target.value);
+                                    const optSn = Number(rezervasyonOptSaniye) || 0;
+                                    const optPr = Number(e.target.value) || 0;
+                                    const ptSn = Number(rezervasyonPtSaniye) || 0;
+                                    const ptPr = Number(rezervasyonPtFiyat) || 0;
+                                    const total = (optSn * optPr) + (ptSn * ptPr);
+                                    if (total > 0) setSatisTutari(String(total));
+                                  }}
+                                  className="w-full text-xs px-2.5 py-1.5 bg-white border border-emerald-200 rounded-lg text-slate-900 font-mono font-bold focus:outline-none"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[10px] font-mono uppercase text-emerald-900 font-bold">PT Saniye</label>
+                                <input
+                                  type="number"
+                                  placeholder="10"
+                                  value={rezervasyonPtSaniye}
+                                  onChange={(e) => {
+                                    setRezervasyonPtSaniye(e.target.value);
+                                    const optSn = Number(rezervasyonOptSaniye) || 0;
+                                    const optPr = Number(rezervasyonOptFiyat) || 0;
+                                    const ptSn = Number(e.target.value) || 0;
+                                    const ptPr = Number(rezervasyonPtFiyat) || 0;
+                                    const total = (optSn * optPr) + (ptSn * ptPr);
+                                    if (total > 0) setSatisTutari(String(total));
+                                  }}
+                                  className="w-full text-xs px-2.5 py-1.5 bg-white border border-emerald-200 rounded-lg text-slate-900 font-mono font-bold focus:outline-none"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[10px] font-mono uppercase text-emerald-900 font-bold">PT Birim Fiyat (₺)</label>
+                                <input
+                                  type="number"
+                                  placeholder="50"
+                                  value={rezervasyonPtFiyat}
+                                  onChange={(e) => {
+                                    setRezervasyonPtFiyat(e.target.value);
+                                    const optSn = Number(rezervasyonOptSaniye) || 0;
+                                    const optPr = Number(rezervasyonOptFiyat) || 0;
+                                    const ptSn = Number(rezervasyonPtSaniye) || 0;
+                                    const ptPr = Number(e.target.value) || 0;
+                                    const total = (optSn * optPr) + (ptSn * ptPr);
+                                    if (total > 0) setSatisTutari(String(total));
+                                  }}
+                                  className="w-full text-xs px-2.5 py-1.5 bg-white border border-emerald-200 rounded-lg text-slate-900 font-mono font-bold focus:outline-none"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Kuşak Bilgi Özeti */}
+                        {calculatedReservation.totalSaniye > 0 && (
+                          <div className="flex flex-wrap items-center justify-between text-xs bg-emerald-50 px-3 py-1.5 rounded-lg font-mono border border-emerald-100">
+                            <span className="text-emerald-900 font-semibold">
+                              Kuşak: <strong>{calculatedReservation.totalSaniye} sn</strong> Toplam
+                            </span>
+                            <span className="text-emerald-900 font-semibold">
+                              Hesaplanan Kuşak Tutarı: <strong className="text-emerald-700">{formatCurrency(calculatedReservation.totalAmount)}</strong>
+                            </span>
+                          </div>
+                        )}
                       </div>
 
-                      {/* SEÇENEK 1: TEK FİYAT MODU */}
-                      {rezervasyonFiyatTipi === 'TEK_FIYAT' && (
-                        <div className="grid grid-cols-2 gap-3 bg-amber-50/50 p-3 rounded-xl border border-amber-200/80">
-                          <div>
-                            <label className="text-[10px] font-mono uppercase text-amber-800 font-bold">Tek Birim Fiyat (₺/sn)</label>
-                            <input
-                              type="number"
-                              placeholder="40"
-                              value={rezervasyonBirimFiyat}
-                              onChange={(e) => setRezervasyonBirimFiyat(e.target.value)}
-                              className="w-full text-xs px-2.5 py-1.5 bg-white border border-amber-300 rounded-lg text-slate-900 font-mono font-bold focus:outline-none focus:border-sky-500"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="text-[10px] font-mono uppercase text-amber-800 font-bold">Toplam Saniye</label>
-                            <input
-                              type="number"
-                              placeholder="30"
-                              value={rezervasyonToplamSaniye}
-                              onChange={(e) => setRezervasyonToplamSaniye(e.target.value)}
-                              className="w-full text-xs px-2.5 py-1.5 bg-white border border-amber-300 rounded-lg text-slate-900 font-mono font-bold focus:outline-none focus:border-sky-500"
-                            />
-                          </div>
+                      {/* Toplam Satış Bedeli */}
+                      <div>
+                        <div className="flex items-center justify-between">
+                          <label className="text-[10px] font-mono uppercase text-slate-700 font-bold">
+                            Satış Bedeli (₺) *
+                          </label>
+                          {calculatedReservation.totalAmount > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => setSatisTutari(String(calculatedReservation.totalAmount))}
+                              className="text-[10px] text-emerald-600 hover:underline font-semibold cursor-pointer"
+                            >
+                              Hesaplanan Tutarı Uygula ({formatCurrency(calculatedReservation.totalAmount)})
+                            </button>
+                          )}
                         </div>
-                      )}
-
-                      {/* SEÇENEK 2: PT / OPT AYRI KUŞAK MODU */}
-                      {rezervasyonFiyatTipi === 'PT_OPT' && (
-                        <div className="space-y-2.5 bg-amber-50/50 p-3 rounded-xl border border-amber-200/80">
-                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                            {/* OPT Gündüz Kuşağı */}
-                            <div>
-                              <label className="text-[10px] font-mono uppercase text-amber-800 font-bold">OPT</label>
-                              <input
-                                type="number"
-                                placeholder="20"
-                                value={rezervasyonOptSaniye}
-                                onChange={(e) => setRezervasyonOptSaniye(e.target.value)}
-                                className="w-full text-xs px-2.5 py-1.5 bg-white border border-amber-300 rounded-lg text-slate-900 font-mono font-bold focus:outline-none"
-                              />
-                            </div>
-
-                            <div>
-                              <label className="text-[10px] font-mono uppercase text-amber-800 font-bold">OPT Birim Fiyat (₺)</label>
-                              <input
-                                type="number"
-                                placeholder="35"
-                                value={rezervasyonOptFiyat}
-                                onChange={(e) => setRezervasyonOptFiyat(e.target.value)}
-                                className="w-full text-xs px-2.5 py-1.5 bg-white border border-amber-300 rounded-lg text-slate-900 font-mono font-bold focus:outline-none"
-                              />
-                            </div>
-
-                            {/* PT Akşam Kuşağı */}
-                            <div>
-                              <label className="text-[10px] font-mono uppercase text-amber-800 font-bold">PT</label>
-                              <input
-                                type="number"
-                                placeholder="10"
-                                value={rezervasyonPtSaniye}
-                                onChange={(e) => setRezervasyonPtSaniye(e.target.value)}
-                                className="w-full text-xs px-2.5 py-1.5 bg-white border border-amber-300 rounded-lg text-slate-900 font-mono font-bold focus:outline-none"
-                              />
-                            </div>
-
-                            <div>
-                              <label className="text-[10px] font-mono uppercase text-amber-800 font-bold">PT Birim Fiyat (₺)</label>
-                              <input
-                                type="number"
-                                placeholder="50"
-                                value={rezervasyonPtFiyat}
-                                onChange={(e) => setRezervasyonPtFiyat(e.target.value)}
-                                className="w-full text-xs px-2.5 py-1.5 bg-white border border-amber-300 rounded-lg text-slate-900 font-mono font-bold focus:outline-none"
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Otomatik Hesaplanan Rezervasyon Özeti */}
-                      <div className="flex flex-wrap items-center justify-between text-xs bg-slate-100 px-3 py-2 rounded-lg font-mono">
-                        <span className="text-slate-600 font-bold">
-                          Hesaplanan Kuşak: <strong className="text-slate-900">{calculatedReservation.totalSaniye} sn</strong> Toplam
-                        </span>
-                        <span className="text-amber-800 font-bold">
-                          Rezervasyon Tutarı: <strong className="text-emerald-700">{formatCurrency(calculatedReservation.totalAmount)}</strong>
-                        </span>
+                        <input
+                          type="number"
+                          placeholder="Örn: 500000"
+                          value={satisTutari}
+                          onChange={(e) => setSatisTutari(e.target.value)}
+                          className="w-full text-sm px-3 py-2 bg-white border border-emerald-300 rounded-lg text-emerald-800 font-mono font-black focus:outline-none focus:border-emerald-500 shadow-2xs mt-1"
+                        />
                       </div>
 
                     </div>
