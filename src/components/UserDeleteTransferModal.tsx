@@ -57,11 +57,9 @@ export const UserDeleteTransferModal: React.FC<UserDeleteTransferModalProps> = (
   // Mode 3: Custom Per-Client Assignment (Map: clientId -> targetUserId)
   const [clientAssignments, setClientAssignments] = useState<Record<string, string>>({});
   
-  // Custom mode table search & selection
+  // Custom mode table search & filter
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
-  const [selectedClientIds, setSelectedClientIds] = useState<string[]>([]);
-  const [bulkAssignTargetId, setBulkAssignTargetId] = useState<string>('');
 
   // Eligible destination reps (excluding the user being deleted)
   const eligibleReps = useMemo(() => {
@@ -73,7 +71,6 @@ export const UserDeleteTransferModal: React.FC<UserDeleteTransferModalProps> = (
     if (isOpen && userToDelete?.id) {
       setIsLoadingClients(true);
       setErrorMessage('');
-      setSelectedClientIds([]);
       setSearchQuery('');
       setTypeFilter('all');
 
@@ -182,34 +179,12 @@ export const UserDeleteTransferModal: React.FC<UserDeleteTransferModalProps> = (
     });
   };
 
-  // Bulk assign selected clients in custom mode
-  const handleApplyBulkAssign = () => {
-    if (!bulkAssignTargetId || selectedClientIds.length === 0) return;
-    setClientAssignments((prev) => {
-      const updated = { ...prev };
-      selectedClientIds.forEach((id) => {
-        updated[id] = bulkAssignTargetId;
-      });
-      return updated;
-    });
-    setSelectedClientIds([]);
-  };
-
   // Handle single row assignment change
   const handleRowAssignChange = (clientId: string, targetId: string) => {
     setClientAssignments((prev) => ({
       ...prev,
       [clientId]: targetId,
     }));
-  };
-
-  // Toggle select all visible clients
-  const handleToggleSelectAll = () => {
-    if (selectedClientIds.length === filteredClients.length && filteredClients.length > 0) {
-      setSelectedClientIds([]);
-    } else {
-      setSelectedClientIds(filteredClients.map((c) => c.id));
-    }
   };
 
   // Submit transfer & delete
@@ -517,11 +492,11 @@ export const UserDeleteTransferModal: React.FC<UserDeleteTransferModalProps> = (
               {transferMode === 'custom' && (
                 <div className="space-y-3">
                   
-                  {/* Filter & Bulk Action Toolbar */}
+                  {/* Search & Filter Toolbar */}
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 bg-slate-50 p-3 rounded-xl border border-slate-200">
                     <div className="flex items-center gap-2 flex-1">
                       {/* Search */}
-                      <div className="relative flex-1 max-w-xs">
+                      <div className="relative flex-1 max-w-sm">
                         <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
                         <input
                           type="text"
@@ -536,9 +511,9 @@ export const UserDeleteTransferModal: React.FC<UserDeleteTransferModalProps> = (
                       <select
                         value={typeFilter}
                         onChange={(e) => setTypeFilter(e.target.value)}
-                        className="bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-700 focus:outline-none focus:border-indigo-500 shadow-2xs"
+                        className="bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-700 focus:outline-none focus:border-indigo-500 shadow-2xs font-medium"
                       >
-                        <option value="all">Tüm Tipler</option>
+                        <option value="all">Tüm Müşteri Tipleri</option>
                         <option value="Kurumsal">Kurumsal</option>
                         <option value="Kamu">Kamu</option>
                         <option value="Ajans">Ajans</option>
@@ -546,34 +521,9 @@ export const UserDeleteTransferModal: React.FC<UserDeleteTransferModalProps> = (
                       </select>
                     </div>
 
-                    {/* Bulk Assign Action */}
-                    {selectedClientIds.length > 0 && (
-                      <div className="flex items-center gap-2 bg-indigo-50 border border-indigo-200 px-2.5 py-1 rounded-lg animate-in fade-in">
-                        <span className="text-[11px] font-bold text-indigo-900 whitespace-nowrap">
-                          {selectedClientIds.length} Seçili:
-                        </span>
-                        <select
-                          value={bulkAssignTargetId}
-                          onChange={(e) => setBulkAssignTargetId(e.target.value)}
-                          className="bg-white border border-indigo-300 rounded-md px-2 py-1 text-xs text-slate-800 font-medium"
-                        >
-                          <option value="">Temsilci Seçiniz...</option>
-                          {eligibleReps.map((r) => (
-                            <option key={r.id} value={r.id}>
-                              {r.name}
-                            </option>
-                          ))}
-                        </select>
-                        <button
-                          type="button"
-                          onClick={handleApplyBulkAssign}
-                          disabled={!bulkAssignTargetId}
-                          className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-md transition cursor-pointer disabled:opacity-50"
-                        >
-                          Ata
-                        </button>
-                      </div>
-                    )}
+                    <div className="text-[11px] text-slate-500 font-medium self-end sm:self-center">
+                      Toplam <strong>{filteredClients.length}</strong> müşteri listeleniyor
+                    </div>
                   </div>
 
                   {/* Clients Table */}
@@ -581,40 +531,19 @@ export const UserDeleteTransferModal: React.FC<UserDeleteTransferModalProps> = (
                     <table className="w-full text-left text-xs border-collapse">
                       <thead className="bg-slate-100/90 text-slate-700 font-bold border-b border-slate-200 sticky top-0 z-10">
                         <tr>
-                          <th className="p-2.5 w-8">
-                            <input
-                              type="checkbox"
-                              checked={selectedClientIds.length === filteredClients.length && filteredClients.length > 0}
-                              onChange={handleToggleSelectAll}
-                              className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                            />
-                          </th>
                           <th className="p-2.5">Firma Adı & Yetkili</th>
                           <th className="p-2.5 hidden sm:table-cell">Müşteri Tipi</th>
                           <th className="p-2.5 hidden md:table-cell">Aktif Fırsat Tutarı</th>
-                          <th className="p-2.5">Yeni Temsilci</th>
+                          <th className="p-2.5 min-w-[180px]">Yeni Satış Temsilcisi</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
                         {filteredClients.map((c) => {
-                          const isChecked = selectedClientIds.includes(c.id);
                           const clientDealsSum = (c.deals || []).reduce((s: number, d: any) => s + (d.teklif_tutari || 0), 0);
                           const currentAssignee = clientAssignments[c.id] || '';
 
                           return (
-                            <tr key={c.id} className={`hover:bg-slate-50 transition ${isChecked ? 'bg-indigo-50/40' : ''}`}>
-                              <td className="p-2.5">
-                                <input
-                                  type="checkbox"
-                                  checked={isChecked}
-                                  onChange={() => {
-                                    setSelectedClientIds((prev) =>
-                                      prev.includes(c.id) ? prev.filter((id) => id !== c.id) : [...prev, c.id]
-                                    );
-                                  }}
-                                  className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                                />
-                              </td>
+                            <tr key={c.id} className="hover:bg-slate-50/80 transition">
                               <td className="p-2.5">
                                 <div className="font-bold text-slate-900">{c.firma_adi}</div>
                                 <div className="text-[11px] text-slate-500 flex items-center gap-2">
@@ -634,7 +563,7 @@ export const UserDeleteTransferModal: React.FC<UserDeleteTransferModalProps> = (
                                 <select
                                   value={currentAssignee}
                                   onChange={(e) => handleRowAssignChange(c.id, e.target.value)}
-                                  className="w-full bg-white border border-slate-300 rounded-lg px-2 py-1 text-xs font-semibold text-slate-900 focus:outline-none focus:border-indigo-500 shadow-2xs"
+                                  className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-900 focus:outline-none focus:border-indigo-500 shadow-2xs"
                                 >
                                   {eligibleReps.map((r) => (
                                     <option key={r.id} value={r.id}>
@@ -649,7 +578,7 @@ export const UserDeleteTransferModal: React.FC<UserDeleteTransferModalProps> = (
 
                         {filteredClients.length === 0 && (
                           <tr>
-                            <td colSpan={5} className="py-8 text-center text-slate-400 text-xs">
+                            <td colSpan={4} className="py-8 text-center text-slate-400 text-xs">
                               Eşleşen müşteri bulunamadı.
                             </td>
                           </tr>
