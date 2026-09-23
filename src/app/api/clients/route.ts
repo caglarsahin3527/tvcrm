@@ -5,6 +5,46 @@ import { toTurkishUpper, toCleanEmail } from '@/lib/formatters';
 
 export const dynamic = 'force-dynamic';
 
+export async function GET(request: NextRequest) {
+  try {
+    const sessionUser = await getSessionUserFast();
+    if (!sessionUser) {
+      return NextResponse.json({ success: false, error: 'Oturum açılmalıdır.' }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const repId = searchParams.get('repId') || searchParams.get('userId');
+
+    const clients = await prisma.client.findMany({
+      where: repId ? { satis_temsilcisi_id: repId } : undefined,
+      include: {
+        deals: {
+          where: { is_archived: false },
+          select: {
+            id: true,
+            teklif_tutari: true,
+            asama: true,
+            ihtimal_derecesi: true,
+            kanal: true,
+          },
+        },
+        satis_temsilcisi: {
+          select: { id: true, name: true, email: true, role: true },
+        },
+      },
+      orderBy: { firma_adi: 'asc' },
+    });
+
+    return NextResponse.json({ success: true, clients });
+  } catch (error: any) {
+    console.error('Error in GET /api/clients:', error);
+    return NextResponse.json(
+      { success: false, error: error.message || 'Müşteriler alınamadı.' },
+      { status: 500 }
+    );
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const sessionUser = await getSessionUserFast();

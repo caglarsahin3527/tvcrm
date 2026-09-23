@@ -18,6 +18,7 @@ import {
   Loader2,
   AlertCircle
 } from 'lucide-react';
+import { UserDeleteTransferModal } from '@/components/UserDeleteTransferModal';
 
 interface AdminUsersModalProps {
   isOpen: boolean;
@@ -38,6 +39,7 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
   const [activeTab, setActiveTab] = useState<'list' | 'add' | 'edit'>('list');
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  const [userToDeleteForTransfer, setUserToDeleteForTransfer] = useState<any | null>(null);
 
   // New User Form State
   const [newName, setNewName] = useState('');
@@ -188,24 +190,35 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
     }
   };
 
-  const handleDeleteUser = async (userId: string, userName: string) => {
-    if (!confirm(`${userName} isimli kullanıcıyı silmek istediğinize emin misiniz? (Müşterileri admin hesabına devredilecektir)`)) {
+  const handleDeleteUser = async (user: any) => {
+    const clientCount = user._count?.clients || 0;
+
+    // If user has clients, open the Portfolio Transfer Wizard
+    if (clientCount > 0) {
+      setUserToDeleteForTransfer(user);
+      return;
+    }
+
+    // Direct deletion if 0 clients
+    if (!confirm(`${user.name} isimli kullanıcıyı silmek istediğinize emin misiniz? (Üzerinde kayıtlı müşteri portföyü bulunmamaktadır)`)) {
       return;
     }
 
     try {
-      const res = await fetch(`/api/users?id=${userId}`, {
+      const res = await fetch(`/api/users?id=${user.id}`, {
         method: 'DELETE',
       });
       const data = await res.json();
       if (data.success) {
+        setSuccessMessage(`${user.name} başarıyla silindi.`);
         await fetchUsers();
         if (onUsersUpdated) onUsersUpdated();
+        setTimeout(() => setSuccessMessage(''), 2000);
       } else {
-        alert(data.error || 'Silinemedi');
+        setErrorMessage(data.error || 'Silinemedi');
       }
     } catch (e) {
-      alert('Silme sırasında hata oluştu.');
+      setErrorMessage('Silme sırasında hata oluştu.');
     }
   };
 
@@ -394,7 +407,7 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
                           {!isSelf && (
                             <button
                               type="button"
-                              onClick={() => handleDeleteUser(u.id, u.name)}
+                              onClick={() => handleDeleteUser(u)}
                               className="p-1.5 rounded-lg border border-slate-200 text-slate-400 hover:text-rose-600 hover:border-rose-300 hover:bg-rose-50 transition cursor-pointer"
                               title="Üyeyi Sil"
                             >
@@ -652,6 +665,23 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
         </div>
 
       </div>
+
+      {/* User Delete & Portfolio Transfer Wizard Modal */}
+      {userToDeleteForTransfer && (
+        <UserDeleteTransferModal
+          isOpen={!!userToDeleteForTransfer}
+          onClose={() => setUserToDeleteForTransfer(null)}
+          userToDelete={userToDeleteForTransfer}
+          availableUsers={userList}
+          currentUser={currentUser}
+          onSuccess={async () => {
+            setSuccessMessage(`${userToDeleteForTransfer.name} silindi ve müşteri portföyü başarıyla devredildi.`);
+            await fetchUsers();
+            if (onUsersUpdated) onUsersUpdated();
+            setTimeout(() => setSuccessMessage(''), 3000);
+          }}
+        />
+      )}
     </div>
   );
 };

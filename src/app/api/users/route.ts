@@ -174,8 +174,25 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
+    let userId: string | null = null;
+    let singleTargetId: string | null = null;
+    let customAssignments: { clientId: string; targetUserId: string }[] | null = null;
+
     const searchParams = request.nextUrl.searchParams;
-    const userId = searchParams.get('id');
+    const queryId = searchParams.get('id');
+
+    if (queryId) {
+      userId = queryId;
+    } else {
+      try {
+        const body = await request.json();
+        userId = body.id || body.userId;
+        singleTargetId = body.singleTargetId;
+        customAssignments = body.customAssignments || body.transfers;
+      } catch (e) {
+        // Body was empty or invalid JSON
+      }
+    }
 
     if (!userId) {
       return NextResponse.json(
@@ -191,24 +208,68 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Reassign or check if user has clients
+    const targetUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, name: true },
+    });
+
+    if (!targetUser) {
+      return NextResponse.json(
+        { success: false, error: 'Silinecek kullanıcı bulunamadı.' },
+        { status: 404 }
+      );
+    }
+
+    // Check how many clients this user has
     const clientCount = await prisma.client.count({
       where: { satis_temsilcisi_id: userId },
     });
 
     if (clientCount > 0) {
-      // Reassign to current admin before delete or inform user
-      await prisma.client.updateMany({
-        where: { satis_temsilcisi_id: userId },
-        data: { satis_temsilcisi_id: currentUser.id },
-      });
+      if (singleTargetId) {
+        // Option 1: Reassign all to a single destination representative
+        await prisma.client.updateMany({
+          where: { satis_temsilcisi_id: userId },
+          data: { satis_temsilcisi_id: singleTargetId },
+        });
+      } else if (customAssignments && customAssignments.length > 0) {
+        // Option 2 & 3: Reassign each client specifically as assigned
+        const updates = customAssignments
+          .filter((a) => a.clientId && a.targetUserId)
+          .map((a) =>
+            prisma.client.update({
+              where: { id: a.clientId },
+              data: { satis_temsilcisi_id: a.targetUserId },
+            })
+          );
+        
+        if (updates.length > 0) {
+          await prisma.$transaction(updates);
+        }
+
+        // Safety fallback: reassign any leftover clients of this user to current admin
+        await prisma.client.updateMany({
+          where: { satis_temsilcisi_id: userId },
+          data: { satis_temsilcisi_id: currentUser.id },
+        });
+      } else {
+        // Default fallback: reassign to current logged-in admin
+        await prisma.client.updateMany({
+          where: { satis_temsilcisi_id: userId },
+          data: { satis_temsilcisi_id: currentUser.id },
+        });
+      }
     }
 
+    // Now safely delete the user
     await prisma.user.delete({
       where: { id: userId },
     });
 
-    return NextResponse.json({ success: true, message: 'Kullanıcı silindi ve portföyü aktarıldı.' });
+    return NextResponse.json({
+      success: true,
+      message: `${targetUser.name} başarıyla silindi ve müşteri portföyü devredildi.`,
+    });
   } catch (error: any) {
     console.error('Error deleting user:', error);
     return NextResponse.json(
