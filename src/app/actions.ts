@@ -3,17 +3,43 @@
 import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { getSessionUser } from '@/lib/auth';
-import { toTurkishUpper, toCleanEmail } from '@/lib/formatters';
+import { toTurkishUpper, toCleanEmail, formatPhoneInput, isValidPhone } from '@/lib/formatters';
 
 export async function getUsers() {
+  const sessionUser = await getSessionUser();
+  if (!sessionUser) throw new Error('Oturum açılmalıdır.');
+
   return await prisma.user.findMany({
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      target: true,
+      phone: true,
+      avatar: true,
+      createdAt: true,
+    },
     orderBy: { name: 'asc' },
   });
 }
 
 export async function getUserById(id: string) {
+  const sessionUser = await getSessionUser();
+  if (!sessionUser) throw new Error('Oturum açılmalıdır.');
+
   return await prisma.user.findUnique({
     where: { id },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      target: true,
+      phone: true,
+      avatar: true,
+      createdAt: true,
+    },
   });
 }
 
@@ -25,6 +51,9 @@ export async function getDeals(filters: {
   musteriTipi?: string;
   timeRange?: string; // "all", "today", "this_week", "this_month", "this_quarter"
 }) {
+  const sessionUser = await getSessionUser();
+  if (!sessionUser) throw new Error('Oturum açılmalıdır.');
+
   const { selectedRepId, kanal, musteriTipi, timeRange } = filters;
 
   let repFilter: string | undefined = undefined;
@@ -70,7 +99,14 @@ export async function getDeals(filters: {
     include: {
       musteri: {
         include: {
-          satis_temsilcisi: true,
+          satis_temsilcisi: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              role: true,
+            },
+          },
         },
       },
     },
@@ -86,6 +122,9 @@ export async function getClients(filters: {
   selectedRepId?: string;
   musteriTipi?: string;
 }) {
+  const sessionUser = await getSessionUser();
+  if (!sessionUser) throw new Error('Oturum açılmalıdır.');
+
   const { selectedRepId, musteriTipi } = filters;
 
   let repFilter: string | undefined = undefined;
@@ -99,7 +138,14 @@ export async function getClients(filters: {
       ...(musteriTipi && musteriTipi !== 'all' ? { musteri_tipi: musteriTipi } : {}),
     },
     include: {
-      satis_temsilcisi: true,
+      satis_temsilcisi: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+        },
+      },
       deals: true,
     },
     orderBy: { createdAt: 'desc' },
@@ -344,6 +390,10 @@ export async function createClient(data: {
     throw new Error('Firma adı belirtilmelidir.');
   }
 
+  if (!data.telefon || !isValidPhone(data.telefon)) {
+    throw new Error('Lütfen geçerli bir telefon numarası giriniz (Örn: 05XX XXX XX XX).');
+  }
+
   // Check duplicate client
   const existingClient = await prisma.client.findFirst({
     where: { firma_adi: upperFirmaAdi },
@@ -369,7 +419,7 @@ export async function createClient(data: {
     data: {
       firma_adi: upperFirmaAdi,
       yetkili_kisi: toTurkishUpper(data.yetkili_kisi),
-      telefon: data.telefon,
+      telefon: formatPhoneInput(data.telefon),
       eposta: toCleanEmail(data.eposta),
       musteri_tipi: data.musteri_tipi || 'Kurumsal',
       satis_temsilcisi_id: repId,
@@ -385,11 +435,103 @@ export async function createClient(data: {
   return client;
 }
 
+export async function updateClient(
+  clientId: string,
+  data: {
+    firma_adi: string;
+    yetkili_kisi: string;
+    telefon: string;
+    eposta?: string | null;
+    musteri_tipi: string;
+    satis_temsilcisi_id: string;
+    sonraki_takip_tarihi?: string | Date;
+  }
+) {
+  const sessionUser = await getSessionUser();
+  if (!sessionUser) throw new Error('Oturum açılmalıdır.');
+
+  // Strict Role Check: ONLY Marka Merkezi (ADMIN or SUPER_ADMIN) can edit client information
+  if (sessionUser.role !== 'ADMIN' && sessionUser.role !== 'SUPER_ADMIN') {
+    throw new Error('Müşteri bilgilerini düzenleme yetkisi sadece Marka Merkezi rolüne aittir.');
+  }
+
+  const existingClient = await prisma.client.findUnique({
+    where: { id: clientId },
+    include: { satis_temsilcisi: true },
+  });
+
+  if (!existingClient) {
+    throw new Error('Düzenlenecek müşteri bulunamadı.');
+  }
+
+  const upperFirmaAdi = toTurkishUpper(data.firma_adi?.trim());
+  if (!upperFirmaAdi) {
+    throw new Error('Firma adı belirtilmelidir.');
+  }
+
+  // Check duplicate client name if name is changed
+  if (upperFirmaAdi !== existingClient.firma_adi) {
+    const duplicateClient = await prisma.client.findFirst({
+      where: {
+        firma_adi: upperFirmaAdi,
+        id: { not: clientId },
+      },
+      include: { satis_temsilcisi: true },
+    });
+
+    if (duplicateClient) {
+      throw new Error(
+        `Bu firma adı zaten "${duplicateClient.satis_temsilcisi?.name || 'başka bir temsilci'}" portföyünde kayıtlıdır.`
+      );
+    }
+  }
+
+  const followUpDate = data.sonraki_takip_tarihi
+    ? new Date(data.sonraki_takip_tarihi)
+    : existingClient.sonraki_takip_tarihi;
+
+  // If company name has changed, sync existing work reports that reference the old name
+  if (upperFirmaAdi !== existingClient.firma_adi) {
+    await prisma.workReport.updateMany({
+      where: { kurum_adi: existingClient.firma_adi },
+      data: { kurum_adi: upperFirmaAdi },
+    });
+  }
+
+  if (data.telefon && !isValidPhone(data.telefon)) {
+    throw new Error('Lütfen geçerli bir telefon numarası giriniz (Örn: 05XX XXX XX XX).');
+  }
+
+  const updatedClient = await prisma.client.update({
+    where: { id: clientId },
+    data: {
+      firma_adi: upperFirmaAdi,
+      yetkili_kisi: toTurkishUpper(data.yetkili_kisi),
+      telefon: data.telefon ? formatPhoneInput(data.telefon) : existingClient.telefon,
+      eposta: toCleanEmail(data.eposta),
+      musteri_tipi: data.musteri_tipi || 'Kurumsal',
+      satis_temsilcisi_id: data.satis_temsilcisi_id || existingClient.satis_temsilcisi_id,
+      sonraki_takip_tarihi: isNaN(followUpDate.getTime()) ? existingClient.sonraki_takip_tarihi : followUpDate,
+    },
+    include: {
+      satis_temsilcisi: true,
+      deals: true,
+    },
+  });
+
+  revalidatePath('/');
+  return updatedClient;
+}
+
 export async function deleteDeal(dealId: string) {
   const sessionUser = await getSessionUser();
   if (!sessionUser || (sessionUser.role !== 'ADMIN' && sessionUser.role !== 'SUPER_ADMIN')) {
-    throw new Error('Fırsat silmek için Admin yetkisi gereklidir.');
+    throw new Error('Fırsat silmek için Marka Merkezi yetkisi gereklidir.');
   }
+  await prisma.workReport.updateMany({
+    where: { deal_id: dealId },
+    data: { deal_id: null },
+  });
   await prisma.deal.delete({ where: { id: dealId } });
   revalidatePath('/');
 }
@@ -397,8 +539,23 @@ export async function deleteDeal(dealId: string) {
 export async function deleteClient(clientId: string) {
   const sessionUser = await getSessionUser();
   if (!sessionUser || (sessionUser.role !== 'ADMIN' && sessionUser.role !== 'SUPER_ADMIN')) {
-    throw new Error('Müşteri silmek için Admin yetkisi gereklidir.');
+    throw new Error('Müşteri silmek için Marka Merkezi yetkisi gereklidir.');
   }
+
+  // Find associated deals to unlink from work reports
+  const deals = await prisma.deal.findMany({
+    where: { musteri_id: clientId },
+    select: { id: true },
+  });
+
+  if (deals.length > 0) {
+    const dealIds = deals.map((d) => d.id);
+    await prisma.workReport.updateMany({
+      where: { deal_id: { in: dealIds } },
+      data: { deal_id: null },
+    });
+  }
+
   await prisma.client.delete({ where: { id: clientId } });
   revalidatePath('/');
 }
@@ -411,6 +568,9 @@ export async function getWorkReports(filters?: {
   kurumTuru?: string;
   iletisimTuru?: string;
 }) {
+  const sessionUser = await getSessionUser();
+  if (!sessionUser) throw new Error('Oturum açılmalıdır.');
+
   const { userId, timeRange, startDate, endDate, kurumTuru, iletisimTuru } = filters || {};
   let dateFilter: { gte?: Date; lte?: Date } | undefined = undefined;
   const now = new Date();

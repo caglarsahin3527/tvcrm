@@ -37,6 +37,10 @@ interface DashboardViewProps {
   users: User[];
   clients: Client[];
   currentUser: User | null;
+  selectedMonth?: number;
+  setSelectedMonth?: (month: number) => void;
+  selectedYear?: number;
+  setSelectedYear?: (year: number) => void;
 }
 
 // Custom Premium Light Mode Tooltip for Recharts
@@ -95,6 +99,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   users,
   clients,
   currentUser,
+  selectedMonth: propSelectedMonth,
+  setSelectedMonth: propSetSelectedMonth,
+  selectedYear: propSelectedYear,
+  setSelectedYear: propSetSelectedYear,
 }) => {
   const [isMounted, setIsMounted] = React.useState(false);
   React.useEffect(() => {
@@ -112,9 +120,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const [hoveredQuotaSlice, setHoveredQuotaSlice] = useState<number | null>(null);
   const [hoveredForecastSlice, setHoveredForecastSlice] = useState<number | null>(null);
 
-  // Filter deals based on active channel scope for the reactive charts
-  const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth());
-  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+  // Fallback local month & year if not provided as props
+  const [localMonth, setLocalMonth] = useState<number>(new Date().getMonth());
+  const [localYear, setLocalYear] = useState<number>(new Date().getFullYear());
+
+  const selectedMonth = propSelectedMonth !== undefined ? propSelectedMonth : localMonth;
+  const setSelectedMonth = propSetSelectedMonth || setLocalMonth;
+
+  const selectedYear = propSelectedYear !== undefined ? propSelectedYear : localYear;
+  const setSelectedYear = propSetSelectedYear || setLocalYear;
 
   const monthFilteredDeals = deals.filter(d => {
     const dateToUse = d.tahmini_kapanis_tarihi ? new Date(d.tahmini_kapanis_tarihi) : new Date(d.createdAt);

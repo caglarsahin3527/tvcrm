@@ -1,6 +1,6 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { verifyPassword, signSessionToken, AUTH_COOKIE_NAME } from '@/lib/auth';
+import { verifyPassword, signSessionToken, hashPassword, needsRehash, AUTH_COOKIE_NAME } from '@/lib/auth';
 import { checkRateLimit, recordFailedAttempt, resetRateLimit } from '@/lib/rateLimit';
 
 export async function POST(request: NextRequest) {
@@ -55,6 +55,14 @@ export async function POST(request: NextRequest) {
 
     // Successful login: reset failed attempts
     resetRateLimit(rateLimitKey);
+
+    // Seamlessly upgrade legacy/low-iteration password hash to 100,000-iteration standard
+    if (needsRehash(user.password)) {
+      prisma.user.update({
+        where: { id: user.id },
+        data: { password: hashPassword(password) },
+      }).catch((err) => console.error('Silent password rehash error:', err));
+    }
 
     // Sign session token
     const token = signSessionToken({

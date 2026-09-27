@@ -64,6 +64,11 @@ export const getReportRezAmount = (r: Partial<WorkReport>): number => {
 
 export type PipelineStageFilter = 'offers' | 'realized' | 'archived' | 'all';
 
+const MONTH_NAMES = [
+  'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
+  'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'
+];
+
 interface WorkReportModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -72,6 +77,10 @@ interface WorkReportModalProps {
   currentUser: User | null;
   workReports?: WorkReport[];
   onRefresh?: () => void;
+  selectedMonth?: number;
+  setSelectedMonth?: (month: number) => void;
+  selectedYear?: number;
+  setSelectedYear?: (year: number) => void;
 }
 
 export const WorkReportModal: React.FC<WorkReportModalProps> = ({
@@ -82,12 +91,26 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
   currentUser,
   workReports = [],
   onRefresh,
+  selectedMonth: propSelectedMonth,
+  setSelectedMonth: propSetSelectedMonth,
+  selectedYear: propSelectedYear,
+  setSelectedYear: propSetSelectedYear,
 }) => {
   const [activeTab, setActiveTab] = useState<'reports' | 'matrix' | 'new_entry'>('reports');
   const [submitting, setSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [localReports, setLocalReports] = useState<WorkReport[]>(workReports);
+
+  // Fallback local month & year if not provided as props
+  const [localMonth, setLocalMonth] = useState<number>(new Date().getMonth());
+  const [localYear, setLocalYear] = useState<number>(new Date().getFullYear());
+
+  const activeMonth = propSelectedMonth !== undefined ? propSelectedMonth : localMonth;
+  const setActiveMonth = propSetSelectedMonth || setLocalMonth;
+
+  const activeYear = propSelectedYear !== undefined ? propSelectedYear : localYear;
+  const setActiveYear = propSetSelectedYear || setLocalYear;
 
   // 3-Stage Pipeline Filter: 'offers' | 'realized' | 'archived' | 'all'
   const [pipelineStage, setPipelineStage] = useState<PipelineStageFilter>('offers');
@@ -110,8 +133,8 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
   // Misafir yönetici raporları görebilmeli
   const canSeeMatrix = isSuperAdmin || isManager || isViewer;
 
-  // --- FILTERS STATE ---
-  const [timeRange, setTimeRange] = useState<'today' | 'this_week' | 'this_month' | 'all' | 'custom'>('all');
+  // --- FILTERS STATE (Defaults to selected month so it matches Dashboard view) ---
+  const [timeRange, setTimeRange] = useState<'today' | 'this_week' | 'this_month' | 'all' | 'custom'>('this_month');
   const [selectedUserFilter, setSelectedUserFilter] = useState<string>('all');
   const [selectedOrgFilter, setSelectedOrgFilter] = useState<string>('all');
   const [selectedContactFilter, setSelectedContactFilter] = useState<string>('all');
@@ -383,6 +406,17 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
       const reportDate = new Date(r.tarih);
       const reportDateStr = reportDate.toISOString().split('T')[0];
 
+      // Timezone-safe year and month extraction
+      let reportYear = reportDate.getFullYear();
+      let reportMonth = reportDate.getMonth();
+      if (typeof r.tarih === 'string') {
+        const parts = r.tarih.split('T')[0].split('-');
+        if (parts.length === 3) {
+          reportYear = parseInt(parts[0], 10);
+          reportMonth = parseInt(parts[1], 10) - 1;
+        }
+      }
+
       if (timeRange === 'today') {
         return reportDateStr === todayDateStr;
       } else if (timeRange === 'this_week') {
@@ -390,11 +424,12 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
         const start = new Date(now);
         start.setDate(now.getDate() - day + 1);
         start.setHours(0, 0, 0, 0);
-        return reportDate >= start;
+        const end = new Date(start);
+        end.setDate(start.getDate() + 6);
+        end.setHours(23, 59, 59, 999);
+        return reportDate >= start && reportDate <= end;
       } else if (timeRange === 'this_month') {
-        const start = new Date(now.getFullYear(), now.getMonth(), 1);
-        start.setHours(0, 0, 0, 0);
-        return reportDate >= start;
+        return reportMonth === activeMonth && reportYear === activeYear;
       } else if (timeRange === 'custom') {
         if (customStartDate && reportDateStr < customStartDate) return false;
         if (customEndDate && reportDateStr > customEndDate) return false;
@@ -403,7 +438,7 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
 
       return true; // 'all'
     });
-  }, [localReports, selectedUserFilter, selectedOrgFilter, selectedContactFilter, timeRange, customStartDate, customEndDate, searchQuery]);
+  }, [localReports, selectedUserFilter, selectedOrgFilter, selectedContactFilter, timeRange, customStartDate, customEndDate, searchQuery, activeMonth, activeYear]);
 
   // 2. 3-Stage Pipeline Counts
   const pipelineCounts = useMemo(() => {
@@ -1045,7 +1080,7 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                   <div className="text-right text-[10px] font-mono">
                     <div><strong>Rapor Tarihi:</strong> {new Date().toLocaleDateString('tr-TR')}</div>
                     <div><strong>Filtre Kapsamı:</strong> {selectedUserFilter === 'all' ? 'Tüm Grup Üyeleri' : getRepName(selectedUserFilter)}</div>
-                    <div><strong>Zaman Dilimi:</strong> {timeRange === 'today' ? 'Bugün' : timeRange === 'this_week' ? 'Bu Hafta' : timeRange === 'this_month' ? 'Bu Ay' : 'Tüm Dönem'}</div>
+                    <div><strong>Zaman Dilimi:</strong> {timeRange === 'today' ? 'Bugün' : timeRange === 'this_week' ? 'Bu Hafta' : timeRange === 'this_month' ? `${MONTH_NAMES[activeMonth]} ${activeYear}` : timeRange === 'custom' ? `${customStartDate || ''} - ${customEndDate || ''}` : 'Tüm Dönem'}</div>
                   </div>
                 </div>
               </div>
@@ -1129,8 +1164,47 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                       </button>
                     </div>
 
+                    {/* Month & Year Scope Dropdown (Synced with Dashboard) */}
+                    <div className="flex items-center gap-1 bg-white border border-slate-200 px-2 py-1 rounded-lg shadow-2xs text-xs font-semibold">
+                      <Calendar className="w-3.5 h-3.5 text-sky-600 mr-0.5 shrink-0" />
+                      <select
+                        value={activeMonth}
+                        onChange={(e) => {
+                          setActiveMonth(Number(e.target.value));
+                          setTimeRange('this_month');
+                        }}
+                        className="bg-transparent text-slate-800 font-bold focus:outline-none cursor-pointer"
+                      >
+                        {MONTH_NAMES.map((name, idx) => (
+                          <option key={idx} value={idx}>{name}</option>
+                        ))}
+                      </select>
+                      <select
+                        value={activeYear}
+                        onChange={(e) => {
+                          setActiveYear(Number(e.target.value));
+                          setTimeRange('this_month');
+                        }}
+                        className="bg-transparent text-slate-800 font-bold focus:outline-none cursor-pointer"
+                      >
+                        <option value={2024}>2024</option>
+                        <option value={2025}>2025</option>
+                        <option value={2026}>2026</option>
+                        <option value={2027}>2027</option>
+                      </select>
+                    </div>
+
                     {/* 1. Time Range Quick Buttons */}
                     <div className="flex items-center bg-white border border-slate-200 p-0.5 rounded-lg shadow-2xs text-xs font-semibold">
+                      <button
+                        type="button"
+                        onClick={() => setTimeRange('this_month')}
+                        className={`px-2.5 py-1.5 rounded-md transition cursor-pointer ${
+                          timeRange === 'this_month' ? 'bg-sky-600 text-white font-bold' : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        {MONTH_NAMES[activeMonth]} (Seçili Ay)
+                      </button>
                       <button
                         type="button"
                         onClick={() => setTimeRange('today')}
@@ -1151,21 +1225,12 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                       </button>
                       <button
                         type="button"
-                        onClick={() => setTimeRange('this_month')}
-                        className={`px-2.5 py-1.5 rounded-md transition cursor-pointer ${
-                          timeRange === 'this_month' ? 'bg-sky-600 text-white font-bold' : 'text-slate-600 hover:text-slate-900'
-                        }`}
-                      >
-                        Bu Ay
-                      </button>
-                      <button
-                        type="button"
                         onClick={() => setTimeRange('all')}
                         className={`px-2.5 py-1.5 rounded-md transition cursor-pointer ${
                           timeRange === 'all' ? 'bg-sky-600 text-white font-bold' : 'text-slate-600 hover:text-slate-900'
                         }`}
                       >
-                        Tümü
+                        Tüm Dönem
                       </button>
                       <button
                         type="button"
@@ -1644,7 +1709,100 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                   </div>
                   <div className="text-right text-[11px] font-mono">
                     <div><strong>Tarih:</strong> {new Date().toLocaleDateString('tr-TR')}</div>
-                    <div><strong>Zaman Dilimi:</strong> {timeRange === 'today' ? 'Bugün' : timeRange === 'this_week' ? 'Bu Hafta' : timeRange === 'this_month' ? 'Bu Ay' : 'Tüm Dönem'}</div>
+                    <div><strong>Zaman Dilimi:</strong> {timeRange === 'today' ? 'Bugün' : timeRange === 'this_week' ? 'Bu Hafta' : timeRange === 'this_month' ? `${MONTH_NAMES[activeMonth]} ${activeYear}` : timeRange === 'custom' ? `${customStartDate || ''} - ${customEndDate || ''}` : 'Tüm Dönem'}</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* FILTER BAR (No-Print) */}
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 flex flex-wrap items-center justify-between gap-2 no-print text-xs">
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* Month & Year Scope Dropdown (Synced with Dashboard) */}
+                  <div className="flex items-center gap-1 bg-white border border-slate-200 px-2 py-1 rounded-lg shadow-2xs font-semibold">
+                    <Calendar className="w-3.5 h-3.5 text-indigo-600 mr-0.5 shrink-0" />
+                    <select
+                      value={activeMonth}
+                      onChange={(e) => {
+                        setActiveMonth(Number(e.target.value));
+                        setTimeRange('this_month');
+                      }}
+                      className="bg-transparent text-slate-800 font-bold focus:outline-none cursor-pointer"
+                    >
+                      {MONTH_NAMES.map((name, idx) => (
+                        <option key={idx} value={idx}>{name}</option>
+                      ))}
+                    </select>
+                    <select
+                      value={activeYear}
+                      onChange={(e) => {
+                        setActiveYear(Number(e.target.value));
+                        setTimeRange('this_month');
+                      }}
+                      className="bg-transparent text-slate-800 font-bold focus:outline-none cursor-pointer"
+                    >
+                      <option value={2024}>2024</option>
+                      <option value={2025}>2025</option>
+                      <option value={2026}>2026</option>
+                      <option value={2027}>2027</option>
+                    </select>
+                  </div>
+
+                  {/* Time Range Quick Buttons */}
+                  <div className="flex items-center bg-white border border-slate-200 p-0.5 rounded-lg shadow-2xs font-semibold">
+                    <button
+                      type="button"
+                      onClick={() => setTimeRange('this_month')}
+                      className={`px-2.5 py-1 rounded-md transition cursor-pointer ${
+                        timeRange === 'this_month' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      {MONTH_NAMES[activeMonth]} (Seçili Ay)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTimeRange('today')}
+                      className={`px-2.5 py-1 rounded-md transition cursor-pointer ${
+                        timeRange === 'today' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      Bugün
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTimeRange('this_week')}
+                      className={`px-2.5 py-1 rounded-md transition cursor-pointer ${
+                        timeRange === 'this_week' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      Bu Hafta
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTimeRange('all')}
+                      className={`px-2.5 py-1 rounded-md transition cursor-pointer ${
+                        timeRange === 'all' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      Tüm Dönem
+                    </button>
+                  </div>
+
+                  {/* Grup Üyesi */}
+                  <div className="flex items-center bg-white border border-slate-200 rounded-lg px-2 py-1">
+                    <Users className="w-3.5 h-3.5 text-indigo-600 mr-1.5" />
+                    <span className="text-slate-500 text-[11px] mr-1">Personel:</span>
+                    <select
+                      value={selectedUserFilter}
+                      onChange={(e) => setSelectedUserFilter(e.target.value)}
+                      className="bg-transparent font-bold text-slate-800 focus:outline-none cursor-pointer"
+                    >
+                      <option value="all">Tüm Satış Ekibi</option>
+                      {salesUsers.map((u) => (
+                        <option key={u.id} value={u.id}>
+                          {u.name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
               </div>

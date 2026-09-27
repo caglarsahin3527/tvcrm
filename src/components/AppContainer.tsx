@@ -46,6 +46,10 @@ export const AppContainer: React.FC<AppContainerProps> = ({
   const [selectedRep, setSelectedRep] = useState<string>('all');
   const [selectedCustomerType, setSelectedCustomerType] = useState<string>('all');
 
+  // Active Month & Year (Synced across Dashboard and Work Reports)
+  const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth());
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+
   // Modal States
   const [isAddClientOpen, setIsAddClientOpen] = useState(false);
   const [isFollowUpOpen, setIsFollowUpOpen] = useState(false);
@@ -248,6 +252,7 @@ export const AppContainer: React.FC<AppContainerProps> = ({
             <ClientsView
               clients={filteredClients}
               currentUser={currentUser}
+              users={users}
               onRefresh={refreshData}
               onOpenAddClient={() => setIsAddClientOpen(true)}
               onOpenFollowUpModal={handleOpenFollowUp}
@@ -260,6 +265,10 @@ export const AppContainer: React.FC<AppContainerProps> = ({
               users={users}
               clients={filteredClients}
               currentUser={currentUser}
+              selectedMonth={selectedMonth}
+              setSelectedMonth={setSelectedMonth}
+              selectedYear={selectedYear}
+              setSelectedYear={setSelectedYear}
             />
           )}
         </div>
@@ -299,6 +308,10 @@ export const AppContainer: React.FC<AppContainerProps> = ({
         currentUser={currentUser}
         workReports={workReports}
         onRefresh={refreshData}
+        selectedMonth={selectedMonth}
+        setSelectedMonth={setSelectedMonth}
+        selectedYear={selectedYear}
+        setSelectedYear={setSelectedYear}
       />
 
       {/* User Profile & Password Change Modal */}

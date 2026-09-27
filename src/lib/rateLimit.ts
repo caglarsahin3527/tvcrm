@@ -1,4 +1,4 @@
-﻿interface RateLimitEntry {
+interface RateLimitEntry {
   count: number;
   resetTime: number;
 }
@@ -77,6 +77,33 @@ export function recordFailedAttempt(
   } else {
     entry.count += 1;
   }
+}
+
+/**
+ * Increment request count and check if limit is exceeded (for general API DDoS/scraping protection)
+ */
+export function consumeRateLimit(
+  key: string,
+  options: RateLimitOptions = {}
+): { isBlocked: boolean; remainingAttempts: number; retryAfterSeconds: number } {
+  const maxAttempts = options.maxAttempts ?? 300;
+  const windowMs = options.windowMs ?? 60 * 1000; // 1 minute default
+  const now = Date.now();
+
+  let entry = store.get(key);
+  if (!entry || now > entry.resetTime) {
+    entry = { count: 1, resetTime: now + windowMs };
+    store.set(key, entry);
+    return { isBlocked: false, remainingAttempts: maxAttempts - 1, retryAfterSeconds: 0 };
+  }
+
+  entry.count += 1;
+  if (entry.count > maxAttempts) {
+    const retryAfterSeconds = Math.ceil((entry.resetTime - now) / 1000);
+    return { isBlocked: true, remainingAttempts: 0, retryAfterSeconds: Math.max(retryAfterSeconds, 1) };
+  }
+
+  return { isBlocked: false, remainingAttempts: maxAttempts - entry.count, retryAfterSeconds: 0 };
 }
 
 /**

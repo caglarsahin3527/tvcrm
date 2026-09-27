@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { User, Deal } from '@/types';
-import { getFollowUpStatus, formatCurrency } from '@/lib/formatters';
+import { getFollowUpStatus, formatCurrency, getWhatsAppUrl } from '@/lib/formatters';
 import { Bell, AlertOctagon, ChevronDown, Phone, MessageSquare, Clock, X, ArrowUpRight } from 'lucide-react';
 
 interface AlertBannerProps {
@@ -166,7 +166,7 @@ export const AlertBanner: React.FC<AlertBannerProps> = ({
                         <Phone className="w-3 h-3 text-emerald-600" />
                       </a>
                       <a
-                        href={`https://wa.me/${d.musteri?.telefon.replace(/\D/g, '')}`}
+                        href={getWhatsAppUrl(d.musteri?.telefon)}
                         target="_blank"
                         rel="noreferrer"
                         className="p-1.5 bg-white hover:bg-slate-100 border border-slate-200 rounded-md text-slate-700 transition shadow-2xs"

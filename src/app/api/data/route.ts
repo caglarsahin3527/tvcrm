@@ -7,6 +7,10 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: NextRequest) {
   try {
     const sessionUser = await getSessionUserFast();
+    if (!sessionUser) {
+      return NextResponse.json({ success: false, error: 'Oturum açılmalıdır.' }, { status: 401 });
+    }
+
     const searchParams = request.nextUrl.searchParams;
     const selectedRepId = searchParams.get('selectedRepId') || undefined;
     const kanal = searchParams.get('kanal') || undefined;
@@ -46,7 +50,19 @@ export async function GET(request: NextRequest) {
     }
 
     const [users, deals, clients, workReports] = await Promise.all([
-      prisma.user.findMany({ orderBy: { name: 'asc' } }),
+      prisma.user.findMany({
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          target: true,
+          phone: true,
+          avatar: true,
+          createdAt: true,
+        },
+        orderBy: { name: 'asc' },
+      }),
       prisma.deal.findMany({
         where: {
           is_archived: false,

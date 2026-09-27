@@ -1,63 +1,62 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { consumeRateLimit } from '@/lib/rateLimit';
 
-function isTokenValid(token: string | undefined): boolean {
-  if (!token || !token.includes('.')) return false;
-  try {
-    const [encoded] = token.split('.');
-    if (!encoded) return false;
-    // Decode base64url
-    const base64 = encoded.replace(/-/g, '+').replace(/_/g, '/');
-    const jsonStr = atob(base64);
-    const data = JSON.parse(jsonStr);
-    if (!data || !data.exp || typeof data.exp !== 'number') return false;
-    if (Date.now() > data.exp) return false;
-    return true;
-  } catch {
-    return false;
-  }
-}
+const AUTH_COOKIE_NAME = 'tvcrm_session';
+
+// Public routes that don't require authentication
+const PUBLIC_PATHS = ['/login', '/api/auth/login'];
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const sessionToken = request.cookies.get('tvcrm_session')?.value;
 
-  const isAuthPage = pathname.startsWith('/login');
-  const isApiAuth = pathname.startsWith('/api/auth');
-  const isStatic = 
-    pathname.startsWith('/_next') || 
-    pathname.startsWith('/favicon.ico') || 
-    pathname.startsWith('/file.svg') ||
-    pathname.startsWith('/globe.svg') ||
-    pathname.startsWith('/next.svg') ||
-    pathname.startsWith('/vercel.svg') ||
-    pathname.startsWith('/window.svg');
-
-  if (isStatic || isApiAuth) {
+  // 1. Skip static files, Next.js internal paths, and public assets
+  if (
+    pathname.startsWith('/_next') ||
+    pathname === '/favicon.ico' ||
+    pathname.endsWith('.svg') ||
+    pathname.endsWith('.png') ||
+    pathname.endsWith('.jpg') ||
+    pathname.endsWith('.ico')
+  ) {
     return NextResponse.next();
   }
 
-  const valid = isTokenValid(sessionToken);
-
-  // If token exists but is invalid/expired, remove it automatically
-  if (sessionToken && !valid) {
-    if (!isAuthPage) {
-      const loginUrl = new URL('/login', request.url);
-      loginUrl.searchParams.set('from', pathname);
-      const res = NextResponse.redirect(loginUrl);
-      res.cookies.delete('tvcrm_session');
-      return res;
-    } else {
-      const res = NextResponse.next();
-      res.cookies.delete('tvcrm_session');
-      return res;
+  // 2. Global Rate Limiting for all API routes (300 req / min per IP) to prevent DoS / scraping
+  if (pathname.startsWith('/api/')) {
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'local-client';
+    const rate = consumeRateLimit(`global_api:${ip}`, { maxAttempts: 300, windowMs: 60 * 1000 });
+    if (rate.isBlocked) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Çok fazla istek yapıldı. Lütfen ${rate.retryAfterSeconds} saniye sonra tekrar deneyiniz.`,
+        },
+        { status: 429 }
+      );
     }
   }
 
-  // If user is not logged in and tries to access protected page
-  if (!valid && !isAuthPage) {
+  const token = request.cookies.get(AUTH_COOKIE_NAME)?.value;
+  const isPublicPath = PUBLIC_PATHS.some((path) => pathname === path || pathname.startsWith(path + '/'));
+
+  // 3. If user has session token and is accessing /login, redirect to dashboard /
+  if (token && isPublicPath && pathname === '/login') {
+    return NextResponse.redirect(new URL('/', request.url));
+  }
+
+  // 4. If accessing protected routes without token
+  if (!token && !isPublicPath) {
+    // If it's an API route, return 401 Unauthorized JSON
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json(
+        { success: false, error: 'Oturum açılmalıdır.' },
+        { status: 401 }
+      );
+    }
+
+    // If it's a page route, redirect to /login
     const loginUrl = new URL('/login', request.url);
-    loginUrl.searchParams.set('from', pathname);
     return NextResponse.redirect(loginUrl);
   }
 
@@ -65,6 +64,13 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
+  matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     */
+    '/((?!_next/static|_next/image|favicon.ico).*)',
+  ],
 };
-

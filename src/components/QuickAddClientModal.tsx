@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { User, Client, CustomerType } from '@/types';
 import { createClient } from '@/app/actions';
-import { toTurkishUpper, toCleanEmail } from '@/lib/formatters';
+import { toTurkishUpper, toCleanEmail, formatPhoneInput, isValidPhone } from '@/lib/formatters';
 import { X, Building2, User as UserIcon, Phone, Mail, Calendar, Plus, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 interface QuickAddClientModalProps {
@@ -74,7 +74,7 @@ export const QuickAddClientModal: React.FC<QuickAddClientModalProps> = ({
   const handleSelectSuggestion = (client: Client) => {
     setFirmaAdi(toTurkishUpper(client.firma_adi));
     if (client.yetkili_kisi) setYetkiliKisi(toTurkishUpper(client.yetkili_kisi));
-    if (client.telefon) setTelefon(client.telefon);
+    if (client.telefon) setTelefon(formatPhoneInput(client.telefon));
     if (client.eposta) setEposta(toCleanEmail(client.eposta));
     if (client.musteri_tipi) setMusteriTipi(client.musteri_tipi as CustomerType);
     setShowSuggestions(false);
@@ -99,6 +99,11 @@ export const QuickAddClientModal: React.FC<QuickAddClientModalProps> = ({
     e.preventDefault();
     if (!firmaAdi || !yetkiliKisi || !telefon) {
       alert('Lütfen zorunlu alanları doldurunuz.');
+      return;
+    }
+
+    if (!isValidPhone(telefon)) {
+      alert('Lütfen geçerli bir telefon numarası giriniz (Örn: 05XX XXX XX XX).');
       return;
     }
 
@@ -273,16 +278,18 @@ export const QuickAddClientModal: React.FC<QuickAddClientModalProps> = ({
 
             {/* Telefon */}
             <div className="space-y-1">
-              <label className="text-[11px] font-mono uppercase text-slate-600 font-semibold flex items-center gap-1">
+              <label className="text-[11px] font-mono uppercase text-slate-700 font-bold flex items-center gap-1">
+                <Phone className="w-3.5 h-3.5 text-sky-600" />
                 Telefon <span className="text-rose-500">*</span>
               </label>
               <input
                 type="tel"
                 required
-                placeholder="0532XXXXXXX"
+                maxLength={14}
+                placeholder="05XX XXX XX XX"
                 value={telefon}
-                onChange={(e) => setTelefon(e.target.value)}
-                className="w-full text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-mono placeholder-slate-400 focus:outline-none focus:border-sky-500 focus:bg-white"
+                onChange={(e) => setTelefon(formatPhoneInput(e.target.value))}
+                className="w-full text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-mono tracking-wider placeholder:normal-case placeholder:font-normal placeholder-slate-400 focus:outline-none focus:border-sky-500 focus:bg-white transition"
               />
             </div>
 

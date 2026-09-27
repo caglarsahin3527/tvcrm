@@ -19,13 +19,31 @@ export default async function HomePage() {
   try {
     // Fetch initial data directly on the server (instant local query)
     const [users, deals, clients, workReports] = await Promise.all([
-      prisma.user.findMany({ orderBy: { name: 'asc' } }),
+      prisma.user.findMany({
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          target: true,
+          phone: true,
+          avatar: true,
+        },
+        orderBy: { name: 'asc' },
+      }),
       prisma.deal.findMany({
         where: { is_archived: false },
         include: {
           musteri: {
             include: {
-              satis_temsilcisi: true,
+              satis_temsilcisi: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  role: true,
+                },
+              },
             },
           },
         },
@@ -33,7 +51,14 @@ export default async function HomePage() {
       }),
       prisma.client.findMany({
         include: {
-          satis_temsilcisi: true,
+          satis_temsilcisi: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              role: true,
+            },
+          },
           deals: {
             where: { is_archived: false }
           },
@@ -42,7 +67,14 @@ export default async function HomePage() {
       }),
       prisma.workReport.findMany({
         include: {
-          user: true,
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              role: true,
+            },
+          },
         },
         orderBy: { tarih: 'desc' },
       }),

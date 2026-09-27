@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { Deal, DealStage, STAGES, Client, User } from '@/types';
 import { updateDealStage } from '@/app/actions';
-import { formatCurrency, formatDate, getFollowUpStatus } from '@/lib/formatters';
+import { formatCurrency, formatDate, getFollowUpStatus, getWhatsAppUrl } from '@/lib/formatters';
 import {
   Phone,
   Mail,
@@ -815,7 +815,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
 
                                         {client?.telefon && (
                                           <a
-                                            href={`https://wa.me/${client.telefon.replace(/\D/g, '')}`}
+                                            href={getWhatsAppUrl(client.telefon)}
                                             target="_blank"
                                             rel="noreferrer"
                                             className="p-1.5 bg-slate-50 hover:bg-emerald-50 hover:text-emerald-700 border border-slate-200 rounded-md text-slate-600 transition cursor-pointer shadow-2xs"
@@ -952,7 +952,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                                           )}
                                           {client?.telefon && (
                                             <a
-                                              href={`https://wa.me/${client.telefon.replace(/\D/g, '')}`}
+                                              href={getWhatsAppUrl(client.telefon)}
                                               target="_blank"
                                               rel="noreferrer"
                                               className="p-1.5 bg-slate-50 border border-slate-200 rounded-md text-slate-600"

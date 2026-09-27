@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Client, Deal, User } from '@/types';
-import { formatCurrency, formatDate, getFollowUpStatus } from '@/lib/formatters';
+import { formatCurrency, formatDate, getFollowUpStatus, getWhatsAppUrl } from '@/lib/formatters';
 import { 
   Building2, 
   Phone, 
@@ -11,13 +11,16 @@ import {
   Clock, 
   Plus, 
   Search, 
-  Trash2 
+  Trash2,
+  Pencil
 } from 'lucide-react';
-import { deleteClient } from '@/app/actions';
+import { EditClientModal } from './EditClientModal';
+import { DeleteClientModal } from './DeleteClientModal';
 
 interface ClientsViewProps {
   clients: Client[];
   currentUser: User | null;
+  users?: User[];
   onRefresh: () => void;
   onOpenAddClient: () => void;
   onOpenFollowUpModal: (client: Client) => void;
@@ -26,11 +29,18 @@ interface ClientsViewProps {
 export const ClientsView: React.FC<ClientsViewProps> = ({
   clients,
   currentUser,
+  users = [],
   onRefresh,
   onOpenAddClient,
   onOpenFollowUpModal,
 }) => {
   const [search, setSearch] = useState('');
+  const [selectedClientForEdit, setSelectedClientForEdit] = useState<Client | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [selectedClientForDelete, setSelectedClientForDelete] = useState<Client | null>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+
+  const isMarkaMerkezi = currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPER_ADMIN';
 
   const filteredClients = clients.filter((c) => {
     const q = search.trim().toLowerCase();
@@ -44,18 +54,6 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
       (c.satis_temsilcisi?.name && c.satis_temsilcisi.name.toLowerCase().includes(q))
     );
   });
-
-  const handleDelete = async (id: string, name: string) => {
-    if (window.confirm(`"${name}" adlı müşteriyi ve bağlı tüm teklifleri silmek istediğinize emin misiniz?`)) {
-      try {
-        const res = await fetch(`/api/clients?id=${id}`, { method: 'DELETE' });
-        if (!res.ok) await deleteClient(id);
-      } catch {
-        await deleteClient(id);
-      }
-      onRefresh();
-    }
-  };
 
   return (
     <div className="space-y-4 pb-12">
@@ -169,7 +167,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
                     <Phone className="w-3.5 h-3.5" />
                   </a>
                   <a
-                    href={`https://wa.me/${client.telefon.replace(/\D/g, '')}`}
+                    href={getWhatsAppUrl(client.telefon)}
                     target="_blank"
                     rel="noreferrer"
                     className="p-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg active:scale-95 transition"
@@ -177,6 +175,30 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
                   >
                     <MessageSquare className="w-3.5 h-3.5" />
                   </a>
+                  {isMarkaMerkezi && (
+                    <>
+                      <button
+                        onClick={() => {
+                          setSelectedClientForEdit(client);
+                          setIsEditModalOpen(true);
+                        }}
+                        className="p-2 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-lg active:scale-95 transition cursor-pointer"
+                        title="Müşteri Bilgilerini Düzenle (Marka Merkezi)"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => {
+                          setSelectedClientForDelete(client);
+                          setIsDeleteModalOpen(true);
+                        }}
+                        className="p-2 bg-rose-50 text-rose-700 border border-rose-200 rounded-lg active:scale-95 transition cursor-pointer"
+                        title="Müşteriyi Kalıcı Sil (Marka Merkezi)"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -310,7 +332,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
                           <Phone className="w-3 h-3 text-emerald-600" />
                         </a>
                         <a
-                          href={`https://wa.me/${client.telefon.replace(/\D/g, '')}`}
+                          href={getWhatsAppUrl(client.telefon)}
                           target="_blank"
                           rel="noreferrer"
                           className="p-1.5 bg-slate-50 hover:bg-emerald-50 hover:text-emerald-700 border border-slate-200 rounded-md text-slate-600 transition cursor-pointer shadow-2xs"
@@ -327,14 +349,29 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
                             <Mail className="w-3 h-3 text-sky-600" />
                           </a>
                         )}
-                        {isAdmin && (
-                          <button
-                            onClick={() => handleDelete(client.id, client.firma_adi)}
-                            className="p-1.5 bg-slate-50 hover:bg-rose-50 hover:text-rose-600 border border-slate-200 rounded-md text-slate-400 transition cursor-pointer shadow-2xs"
-                            title="Müşteriyi Sil"
-                          >
-                            <Trash2 className="w-3 h-3 text-rose-600" />
-                          </button>
+                        {isMarkaMerkezi && (
+                          <>
+                            <button
+                              onClick={() => {
+                                setSelectedClientForEdit(client);
+                                setIsEditModalOpen(true);
+                              }}
+                              className="p-1.5 bg-slate-50 hover:bg-indigo-50 hover:text-indigo-600 border border-slate-200 hover:border-indigo-200 rounded-md text-slate-400 transition cursor-pointer shadow-2xs"
+                              title="Müşteri Bilgilerini Düzenle (Marka Merkezi)"
+                            >
+                              <Pencil className="w-3 h-3 text-indigo-600" />
+                            </button>
+                            <button
+                              onClick={() => {
+                                setSelectedClientForDelete(client);
+                                setIsDeleteModalOpen(true);
+                              }}
+                              className="p-1.5 bg-slate-50 hover:bg-rose-50 hover:text-rose-600 border border-slate-200 hover:border-rose-200 rounded-md text-slate-400 transition cursor-pointer shadow-2xs"
+                              title="Müşteriyi Kalıcı Sil (Marka Merkezi)"
+                            >
+                              <Trash2 className="w-3 h-3 text-rose-600" />
+                            </button>
+                          </>
                         )}
                       </div>
                     </td>
@@ -354,6 +391,32 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
           </table>
         </div>
       </div>
+
+      {/* Marka Merkezi - Edit Client Modal */}
+      <EditClientModal
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setSelectedClientForEdit(null);
+        }}
+        client={selectedClientForEdit}
+        users={users}
+        clients={clients}
+        currentUser={currentUser}
+        onSuccess={onRefresh}
+      />
+
+      {/* Marka Merkezi - Permanent Delete Client Modal */}
+      <DeleteClientModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => {
+          setIsDeleteModalOpen(false);
+          setSelectedClientForDelete(null);
+        }}
+        client={selectedClientForDelete}
+        currentUser={currentUser}
+        onSuccess={onRefresh}
+      />
 
     </div>
   );

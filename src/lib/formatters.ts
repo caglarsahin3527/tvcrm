@@ -82,3 +82,96 @@ export function toCleanEmail(email: string | null | undefined): string {
   return email.trim().toLowerCase();
 }
 
+/**
+ * Kullanıcı girdisini canlı olarak temizler ve "05XX XXX XX XX" formatına dönüştürür.
+ * Harf, sembol vb. karakterleri filtreler.
+ */
+export function formatPhoneInput(value: string | null | undefined): string {
+  if (!value) return '';
+  // Sadece rakamları al
+  let digits = value.replace(/\D/g, '');
+  if (!digits) return '';
+
+  // Eğer kullanıcı '905...' veya '+905...' girmişse baştaki 90'ı kaldır
+  if (digits.startsWith('90') && digits.length > 10) {
+    digits = digits.substring(2);
+  }
+
+  // Türkiye numaralarında kullanıcı '5...' ile başlarsa başına 0 ekle
+  if (digits.length > 0 && !digits.startsWith('0')) {
+    digits = '0' + digits;
+  }
+
+  // Maksimum 11 hane (0XXX XXX XX XX)
+  digits = digits.slice(0, 11);
+
+  // Parçaları biçimlendir: 0XXX XXX XX XX
+  const part1 = digits.slice(0, 4); // 05XX
+  const part2 = digits.slice(4, 7); // XXX
+  const part3 = digits.slice(7, 9); // XX
+  const part4 = digits.slice(9, 11); // XX
+
+  let formatted = part1;
+  if (part2) formatted += ' ' + part2;
+  if (part3) formatted += ' ' + part3;
+  if (part4) formatted += ' ' + part4;
+
+  return formatted;
+}
+
+/**
+ * Telefon numarasının geçerli Türkiye formatında (11 haneli 05XX... veya sabit hat) olup olmadığını doğrular.
+ */
+export function isValidPhone(phone: string | null | undefined): boolean {
+  if (!phone) return false;
+  const digits = phone.replace(/\D/g, '');
+  
+  // 11 haneli ve 0 ile başlıyor (05XX, 02XX, 03XX, 04XX, 0850)
+  if (digits.length === 11 && digits.startsWith('0')) {
+    return /^0[2-9]\d{9}$/.test(digits);
+  }
+  // 10 haneli (5XX, 2XX, 850...)
+  if (digits.length === 10) {
+    return /^[2-9]\d{9}$/.test(digits);
+  }
+  // 12 haneli (905XX...)
+  if (digits.length === 12 && digits.startsWith('90')) {
+    return /^90[2-9]\d{9}$/.test(digits);
+  }
+
+  return false;
+}
+
+/**
+ * WhatsApp'ın şart koştuğu 12 haneli uluslararası formata dönüştürür (905XXXXXXXXX).
+ * Başında '+' veya '0' bulunmaz, boşluk/tire içermez.
+ */
+export function getWhatsAppNumber(phone: string | null | undefined): string {
+  if (!phone) return '';
+  let digits = phone.replace(/\D/g, '');
+  if (!digits) return '';
+
+  if (digits.length === 11 && digits.startsWith('0')) {
+    digits = '90' + digits.substring(1);
+  } else if (digits.length === 10) {
+    digits = '90' + digits;
+  } else if (digits.length === 12 && digits.startsWith('90')) {
+    // zaten 90 ile başlıyor
+  }
+  return digits;
+}
+
+/**
+ * WhatsApp doğrudan sohbet linki üretir (https://wa.me/905XXXXXXXXX).
+ */
+export function getWhatsAppUrl(phone: string | null | undefined, message?: string): string {
+  const waNumber = getWhatsAppNumber(phone);
+  if (!waNumber) return '#';
+  const url = `https://wa.me/${waNumber}`;
+  if (message) {
+    return `${url}?text=${encodeURIComponent(message)}`;
+  }
+  return url;
+}
+
+
