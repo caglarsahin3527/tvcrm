@@ -6,6 +6,10 @@ const nextConfig: NextConfig = {
       allowedOrigins: [
         'localhost:3000',
         '127.0.0.1:3000',
+        '72.62.53.239',
+        '72.62.53.239:3000',
+        'bikanaltv.tech',
+        '*.bikanaltv.tech',
         '192.168.1.42:3000',
         '192.168.1.42',
         '192.168.1.*',
