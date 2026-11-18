@@ -7,7 +7,7 @@ const AUTH_COOKIE_NAME = 'tvcrm_session';
 // Public routes that don't require authentication
 const PUBLIC_PATHS = ['/login', '/api/auth/login'];
 
-export function proxy(request: NextRequest) {
+export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // 1. Skip static files, Next.js internal paths, and public assets
@@ -40,12 +40,7 @@ export function proxy(request: NextRequest) {
   const token = request.cookies.get(AUTH_COOKIE_NAME)?.value;
   const isPublicPath = PUBLIC_PATHS.some((path) => pathname === path || pathname.startsWith(path + '/'));
 
-  // 3. If user has session token and is accessing /login, redirect to dashboard /
-  if (token && isPublicPath && pathname === '/login') {
-    return NextResponse.redirect(new URL('/', request.url));
-  }
-
-  // 4. If accessing protected routes without token
+  // 3. If accessing protected routes without token
   if (!token && !isPublicPath) {
     // If it's an API route, return 401 Unauthorized JSON
     if (pathname.startsWith('/api/')) {
