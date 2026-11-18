@@ -156,6 +156,7 @@ export async function getClients(filters: {
 
 export async function createClientAndDeal(data: {
   firma_adi: string;
+  ajans?: string;
   yetkili_kisi: string;
   telefon: string;
   eposta?: string;
@@ -209,6 +210,7 @@ export async function createClientAndDeal(data: {
     const client = await (prisma.client as any).create({
       data: {
         firma_adi: upperFirmaAdi,
+        ajans: data.ajans ? toTurkishUpper(data.ajans.trim()) : '',
         yetkili_kisi: toTurkishUpper(data.yetkili_kisi),
         telefon: data.telefon,
         eposta: toCleanEmail(data.eposta),
@@ -372,6 +374,7 @@ export async function updateClientFollowUpDate(clientId: string, nextFollowUpDat
 
 export async function createClient(data: {
   firma_adi: string;
+  ajans?: string;
   yetkili_kisi: string;
   telefon: string;
   eposta?: string;
@@ -418,6 +421,7 @@ export async function createClient(data: {
   const client = await prisma.client.create({
     data: {
       firma_adi: upperFirmaAdi,
+      ajans: data.ajans ? toTurkishUpper(data.ajans.trim()) : '',
       yetkili_kisi: toTurkishUpper(data.yetkili_kisi),
       telefon: formatPhoneInput(data.telefon),
       eposta: toCleanEmail(data.eposta),
@@ -439,6 +443,7 @@ export async function updateClient(
   clientId: string,
   data: {
     firma_adi: string;
+    ajans?: string | null;
     yetkili_kisi: string;
     telefon: string;
     eposta?: string | null;
@@ -506,6 +511,7 @@ export async function updateClient(
     where: { id: clientId },
     data: {
       firma_adi: upperFirmaAdi,
+      ajans: data.ajans !== undefined ? (data.ajans ? toTurkishUpper(data.ajans.trim()) : '') : existingClient.ajans,
       yetkili_kisi: toTurkishUpper(data.yetkili_kisi),
       telefon: data.telefon ? formatPhoneInput(data.telefon) : existingClient.telefon,
       eposta: toCleanEmail(data.eposta),

@@ -42,6 +42,7 @@ export interface User {
 export interface Client {
   id: string;
   firma_adi: string;
+  ajans?: string | null;
   yetkili_kisi: string;
   telefon: string;
   eposta?: string | null;

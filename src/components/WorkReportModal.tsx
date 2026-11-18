@@ -113,7 +113,7 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
   const setActiveYear = propSetSelectedYear || setLocalYear;
 
   // 3-Stage Pipeline Filter: 'offers' | 'realized' | 'archived' | 'all'
-  const [pipelineStage, setPipelineStage] = useState<PipelineStageFilter>('offers');
+  const [pipelineStage, setPipelineStage] = useState<PipelineStageFilter>('all');
 
   // Quick Confirm Sale Modal State
   const [confirmSaleReport, setConfirmSaleReport] = useState<WorkReport | null>(null);
@@ -475,6 +475,14 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
 
   const satisReports = filteredReports.filter((r) => r.satis_yapildi);
   const totalSatisTutari = satisReports.reduce((sum, r) => sum + (r.satis_tutari || 0), 0);
+
+  // Scope Sales (All realized sales within selected filters, regardless of pipeline tab)
+  const scopeSalesReports = useMemo(() => {
+    return baseFilteredReports.filter((r) => r.satis_yapildi);
+  }, [baseFilteredReports]);
+  const scopeSalesTotalAmount = useMemo(() => {
+    return scopeSalesReports.reduce((sum, r) => sum + (r.satis_tutari || 0), 0);
+  }, [scopeSalesReports]);
 
   const rezervasyonReports = filteredReports.filter((r) => r.rezervasyon_var);
   const totalRezervasyonAdet = rezervasyonReports.reduce((sum, r) => sum + (r.rezervasyon_gelen || 1), 0);
@@ -1404,6 +1412,7 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                         <th className="py-2.5 px-3 whitespace-nowrap">Personel</th>
                         <th className="py-2.5 px-3 whitespace-nowrap">Kurum</th>
                         <th className="py-2.5 px-3 whitespace-nowrap">Aşama & Durum</th>
+                        <th className="py-2.5 px-3 min-w-[200px]">Görüşme Notları & Detay</th>
                         <th className="py-2.5 px-3 whitespace-nowrap">Tür</th>
                         <th className="py-2.5 px-3 whitespace-nowrap">Yetkili</th>
                         <th className="py-2.5 px-3 whitespace-nowrap">İletişim</th>
@@ -1478,6 +1487,24 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                                   {report.musteri_durumu || 'Yeni Müşteri'}
                                 </span>
                               </div>
+                            </td>
+
+                            {/* Görüşme Notları & Detay */}
+                            <td className="py-2.5 px-3 min-w-[200px] max-w-xs text-[11px]">
+                              {report.gorusme_amaci ? (
+                                <div className="bg-slate-50 hover:bg-slate-100/90 border border-slate-200/90 rounded-lg p-2 text-slate-800 text-[10.5px] leading-snug transition-all shadow-2xs group relative cursor-pointer" title={report.gorusme_amaci}>
+                                  <p className="line-clamp-2 group-hover:line-clamp-none transition-all">
+                                    {report.gorusme_amaci}
+                                  </p>
+                                  {report.sonuc && (
+                                    <div className="text-[9.5px] text-emerald-700 font-semibold mt-1 pt-1 border-t border-slate-200/60 line-clamp-1 group-hover:line-clamp-none">
+                                      <span className="text-slate-500 font-normal">Sonuç:</span> {report.sonuc}
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="text-slate-400 font-mono text-[10px] italic">Not eklenmedi</span>
+                              )}
                             </td>
 
                             {/* Kurum Türü */}
@@ -1673,7 +1700,7 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
 
                       {filteredReports.length === 0 && (
                         <tr>
-                          <td colSpan={12} className="text-center py-12 text-slate-400 font-mono text-xs">
+                          <td colSpan={13} className="text-center py-12 text-slate-400 font-mono text-xs">
                             <div className="flex flex-col items-center justify-center gap-1.5">
                               <FileCheck className="w-6 h-6 text-slate-300" />
                               <span className="font-bold">BU AŞAMADA BULUNAN RAPOR KAYDI YOK</span>
@@ -1685,6 +1712,131 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                         </tr>
                       )}
                     </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* GERÇEKLEŞEN SATIŞLAR VE MARKA BAZLI SATIŞ DÖKÜMÜ */}
+              <div className="bg-white border-2 border-emerald-500/40 rounded-2xl overflow-hidden shadow-xs">
+                <div className="px-4 py-3 bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 border-b border-emerald-200 flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-7 h-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-mono font-bold text-xs shadow-xs">
+                      ₺
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold font-mono text-emerald-950 uppercase tracking-wider flex items-center gap-2">
+                        <span>GERÇEKLEŞEN SATIŞLAR VE MARKA BAZLI SATIŞ DÖKÜMÜ</span>
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-600 text-white font-bold">
+                          {scopeSalesReports.length} Satış
+                        </span>
+                      </h4>
+                      <p className="text-[10px] text-emerald-800 font-sans mt-0.5">
+                        Hangi markadan / firmadan, hangi personel tarafından ve hangi kanaldan ne kadar satış cirosu elde edildiğinin dökümü
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-xs font-mono font-black text-emerald-900 bg-white px-3 py-1.5 rounded-xl border border-emerald-300 shadow-2xs inline-block">
+                      Dönem Toplam Satış: {formatCurrency(scopeSalesTotalAmount)}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs font-sans">
+                    <thead className="bg-emerald-900 text-white text-[9.5px] uppercase font-mono font-bold">
+                      <tr>
+                        <th className="py-2.5 px-3 whitespace-nowrap">Tarih</th>
+                        <th className="py-2.5 px-3 whitespace-nowrap">Marka / Kurum Adı</th>
+                        <th className="py-2.5 px-3 whitespace-nowrap">Grup Üyesi (Satışçı)</th>
+                        <th className="py-2.5 px-3 whitespace-nowrap">Kanal</th>
+                        <th className="py-2.5 px-3 whitespace-nowrap">Satış Türü</th>
+                        <th className="py-2.5 px-3 whitespace-nowrap text-center">Vade</th>
+                        <th className="py-2.5 px-3 text-right">Satış Tutarı (₺)</th>
+                        <th className="py-2.5 px-3 min-w-[180px]">Satış &amp; Görüşme Notu</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-emerald-100/70">
+                      {scopeSalesReports.map((sale) => (
+                        <tr key={sale.id} className="hover:bg-emerald-50/50 transition-colors">
+                          <td className="py-2 px-3 font-mono text-[11px] text-slate-600 whitespace-nowrap">
+                            {formatDate(sale.tarih)}
+                          </td>
+                          <td className="py-2 px-3 whitespace-nowrap">
+                            <span className="font-bold text-slate-950 text-xs">{sale.kurum_adi}</span>
+                            <span className="ml-1.5 text-[9px] font-mono font-semibold px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 border border-slate-200 uppercase">
+                              {sale.kurum_turu}
+                            </span>
+                          </td>
+                          <td className="py-2 px-3 font-semibold text-slate-900 whitespace-nowrap text-[11px]">
+                            {sale.user?.name || getRepName(sale.user_id)}
+                          </td>
+                          <td className="py-2 px-3 whitespace-nowrap">
+                            <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border ${
+                              sale.tv_kanali === 'Bi Kanal' 
+                                ? 'bg-sky-50 text-sky-700 border-sky-200' 
+                                : 'bg-amber-50 text-amber-800 border-amber-200'
+                            }`}>
+                              {sale.tv_kanali || 'Bi Kanal'}
+                            </span>
+                          </td>
+                          <td className="py-2 px-3 whitespace-nowrap text-[11px] font-medium text-slate-700">
+                            {sale.satis_turu || 'Spot Reklam'}
+                          </td>
+                          <td className="py-2 px-3 whitespace-nowrap text-center font-mono text-[11px]">
+                            {sale.rezervasyon_vade ? (
+                              <span className="font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded border border-slate-200 inline-block text-[10px]">
+                                {sale.rezervasyon_vade}
+                              </span>
+                            ) : (
+                              <span className="text-slate-400">-</span>
+                            )}
+                          </td>
+                          <td className="py-2 px-3 text-right whitespace-nowrap font-mono">
+                            <span className="text-xs font-black text-emerald-700">
+                              {formatCurrency(sale.satis_tutari || 0)}
+                            </span>
+                          </td>
+                          <td className="py-2 px-3 min-w-[180px] max-w-xs text-[11px]">
+                            {sale.gorusme_amaci || sale.sonuc ? (
+                              <div className="text-[10.5px] text-slate-700 font-sans line-clamp-1 hover:line-clamp-none transition-all cursor-pointer" title={sale.gorusme_amaci || sale.sonuc}>
+                                {sale.gorusme_amaci || sale.sonuc}
+                              </div>
+                            ) : (
+                              <span className="text-slate-400 italic text-[10px]">-</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+
+                      {scopeSalesReports.length === 0 && (
+                        <tr>
+                          <td colSpan={8} className="text-center py-8 text-slate-400 font-mono text-xs">
+                            <div className="flex flex-col items-center justify-center gap-1">
+                              <CheckCircle2 className="w-5 h-5 text-emerald-300" />
+                              <span className="font-bold text-slate-600">SEÇİLİ FİLTRE VE DÖNEMDE GERÇEKLEŞEN SATIŞ BULUNMUYOR</span>
+                              <span className="text-[10.5px] text-slate-400 font-sans">
+                                Teklifleri onaylayıp satışa dönüştürdüğünüzde veya doğrudan satış girdiğinizde marka bazlı burada listelenir.
+                              </span>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+
+                    {scopeSalesReports.length > 0 && (
+                      <tfoot className="bg-emerald-50/80 font-mono text-[11px] font-black border-t-2 border-emerald-900 text-emerald-950">
+                        <tr>
+                          <td colSpan={6} className="py-2.5 px-3 uppercase tracking-wider">
+                            GENEL DÖNEM SATIŞ TOPLAMI ({scopeSalesReports.length} Adet Satış):
+                          </td>
+                          <td className="py-2.5 px-3 text-right text-xs font-black text-emerald-800">
+                            {formatCurrency(scopeSalesTotalAmount)}
+                          </td>
+                          <td className="py-2.5 px-3"></td>
+                        </tr>
+                      </tfoot>
+                    )}
                   </table>
                 </div>
               </div>
@@ -1814,6 +1966,7 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                     <tr>
                       <th className="py-1.5 px-2.5">Grup Üyesi (Personel)</th>
                       <th className="py-1.5 px-2 text-center">Telefon</th>
+                      <th className="py-1.5 px-2 text-center text-sky-300">Mail</th>
                       <th className="py-1.5 px-2 text-center">Dijital</th>
                       <th className="py-1.5 px-2 text-center">Yüzyüze</th>
                       <th className="py-1.5 px-2 text-center">Kurumsal Ziy.</th>
@@ -1835,6 +1988,7 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                           </div>
                         </td>
                         <td className="py-1.5 px-2 text-center font-mono font-bold text-slate-700">{row.telCount}</td>
+                        <td className="py-1.5 px-2 text-center font-mono font-bold text-sky-700">{row.emailCount}</td>
                         <td className="py-1.5 px-2 text-center font-mono font-bold text-slate-700">{row.dijitalCount}</td>
                         <td className="py-1.5 px-2 text-center font-mono font-bold text-slate-700">{row.yuzyuzeCount}</td>
                         <td className="py-1.5 px-2 text-center font-mono font-bold text-purple-700">{row.ziyaretCount}</td>
@@ -1858,6 +2012,7 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                     <tr className="bg-slate-100 font-mono text-[11px] font-black border-t-2 border-slate-900 text-slate-900">
                       <td className="py-2 px-2.5 uppercase tracking-wider">GENEL DİP TOPLAM:</td>
                       <td className="py-2 px-2 text-center text-slate-900">{matrixTotals.telCount}</td>
+                      <td className="py-2 px-2 text-center text-sky-900 font-bold">{matrixTotals.emailCount}</td>
                       <td className="py-2 px-2 text-center text-slate-900">{matrixTotals.dijitalCount}</td>
                       <td className="py-2 px-2 text-center text-slate-900">{matrixTotals.yuzyuzeCount}</td>
                       <td className="py-2 px-2 text-center text-purple-900">{matrixTotals.ziyaretCount}</td>
@@ -1910,6 +2065,47 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                 </div>
               </div>
 
+              {/* GERÇEKLEŞEN SATIŞLAR VE MARKA DÖKÜMÜ (MATRİS & YATAY A4 PDF İÇİN) */}
+              {scopeSalesReports.length > 0 && (
+                <div className="border border-emerald-300 bg-white rounded-xl overflow-hidden mt-1 print:mt-1 print:border-emerald-400 print-avoid-break shadow-2xs">
+                  <div className="px-3 py-1.5 bg-emerald-50/90 border-b border-emerald-200 flex items-center justify-between print:py-0.5">
+                    <span className="text-[10.5px] font-mono font-bold uppercase text-emerald-950 flex items-center gap-1.5 print:text-[8px]">
+                      <span className="w-4 h-4 rounded bg-emerald-600 text-white flex items-center justify-center font-mono text-[9px] print:w-3 print:h-3 print:text-[7px]">₺</span>
+                      Gerçekleşen Satışlar ve Marka Dökümü ({scopeSalesReports.length} Satış)
+                    </span>
+                    <span className="text-[10.5px] font-mono font-black text-emerald-800 print:text-[8px]">
+                      Toplam: {formatCurrency(scopeSalesTotalAmount)}
+                    </span>
+                  </div>
+                  <table className="w-full text-left text-[10.5px] font-sans print:text-[7.5px]">
+                    <thead className="bg-emerald-900 text-white text-[9px] uppercase font-mono font-bold print:text-[7px]">
+                      <tr>
+                        <th className="py-1 px-2.5">Tarih</th>
+                        <th className="py-1 px-2">Marka / Kurum</th>
+                        <th className="py-1 px-2">Temsilci</th>
+                        <th className="py-1 px-2">Kanal</th>
+                        <th className="py-1 px-2">Satış Türü</th>
+                        <th className="py-1 px-2 text-center">Vade</th>
+                        <th className="py-1 px-2.5 text-right">Tutar (₺)</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-emerald-100">
+                      {scopeSalesReports.map((sale) => (
+                        <tr key={sale.id} className="hover:bg-emerald-50/40">
+                          <td className="py-1 px-2.5 font-mono text-slate-600 whitespace-nowrap">{formatDate(sale.tarih)}</td>
+                          <td className="py-1 px-2 font-bold text-slate-900">{sale.kurum_adi}</td>
+                          <td className="py-1 px-2 font-medium text-slate-700">{sale.user?.name || getRepName(sale.user_id)}</td>
+                          <td className="py-1 px-2 font-mono text-[9.5px] text-slate-800 print:text-[7px]">{sale.tv_kanali || 'Bi Kanal'}</td>
+                          <td className="py-1 px-2 text-slate-600">{sale.satis_turu || 'Spot Reklam'}</td>
+                          <td className="py-1 px-2 text-center font-mono text-[9.5px] print:text-[7px]">{sale.rezervasyon_vade || 'Nakit'}</td>
+                          <td className="py-1 px-2.5 text-right font-mono font-black text-emerald-700">{formatCurrency(sale.satis_tutari || 0)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
               {/* PRINT FOOTER / SIGNATURE BLOCK (Visible on matrix print) */}
               <div className="grid grid-cols-3 gap-6 pt-3 mt-2 border-t border-slate-300 text-center font-mono text-[11px] print:pt-2 print:mt-2 print:text-[9px] print-avoid-break">
                 <div>
@@ -1919,13 +2115,13 @@ export const WorkReportModal: React.FC<WorkReportModalProps> = ({
                   <div className="text-[9px] text-slate-400 mt-0.5 print:text-[7.5px]">İmza</div>
                 </div>
                 <div>
-                  <div className="font-bold text-slate-900">Reklam Satış Grup Direktörü</div>
+                  <div className="font-bold text-slate-900">Pazarlama Direktörü</div>
                   <div className="text-slate-600 text-[10px] mt-0.5 print:text-[8px]">İnceleme & Kontrol</div>
                   <div className="mt-3 border-b border-slate-400 w-24 mx-auto"></div>
                   <div className="text-[9px] text-slate-400 mt-0.5 print:text-[7.5px]">İmza</div>
                 </div>
                 <div>
-                  <div className="font-bold text-slate-900">Marka Merkezi Onayı</div>
+                  <div className="font-bold text-slate-900">Genel Müdürlük</div>
                   <div className="text-slate-600 text-[10px] mt-0.5 print:text-[8px]">Yönetim / Onay</div>
                   <div className="mt-3 border-b border-slate-400 w-24 mx-auto"></div>
                   <div className="text-[9px] text-slate-400 mt-0.5 print:text-[7.5px]">Onay & Mühür</div>

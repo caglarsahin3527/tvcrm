@@ -102,6 +102,7 @@ export async function POST(request: NextRequest) {
     const client = await prisma.client.create({
       data: {
         firma_adi: upperFirmaAdi,
+        ajans: data.ajans ? toTurkishUpper(data.ajans.trim()) : '',
         yetkili_kisi: toTurkishUpper(data.yetkili_kisi),
         telefon: formatPhoneInput(data.telefon),
         eposta: toCleanEmail(data.eposta),
@@ -213,6 +214,7 @@ export async function PUT(request: NextRequest) {
         where: { id: clientId },
         data: {
           firma_adi: upperFirmaAdi,
+          ajans: data.ajans !== undefined ? (data.ajans ? toTurkishUpper(data.ajans.trim()) : '') : existingClient.ajans,
           yetkili_kisi: data.yetkili_kisi ? toTurkishUpper(data.yetkili_kisi) : existingClient.yetkili_kisi,
           telefon: data.telefon !== undefined ? formatPhoneInput(data.telefon) : existingClient.telefon,
           eposta: data.eposta !== undefined ? toCleanEmail(data.eposta) : existingClient.eposta,

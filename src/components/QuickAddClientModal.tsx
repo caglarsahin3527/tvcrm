@@ -4,7 +4,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { User, Client, CustomerType } from '@/types';
 import { createClient } from '@/app/actions';
 import { toTurkishUpper, toCleanEmail, formatPhoneInput, isValidPhone } from '@/lib/formatters';
-import { X, Building2, User as UserIcon, Phone, Mail, Calendar, Plus, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { X, Building2, User as UserIcon, Phone, Mail, Calendar, Plus, Loader2, AlertCircle, CheckCircle2, Briefcase } from 'lucide-react';
 
 interface QuickAddClientModalProps {
   isOpen: boolean;
@@ -28,6 +28,7 @@ export const QuickAddClientModal: React.FC<QuickAddClientModalProps> = ({
 
   // Form states
   const [firmaAdi, setFirmaAdi] = useState('');
+  const [ajans, setAjans] = useState('');
   const [yetkiliKisi, setYetkiliKisi] = useState('');
   const [telefon, setTelefon] = useState('');
   const [eposta, setEposta] = useState('');
@@ -73,6 +74,8 @@ export const QuickAddClientModal: React.FC<QuickAddClientModalProps> = ({
   // Handle selecting an autocomplete suggestion
   const handleSelectSuggestion = (client: Client) => {
     setFirmaAdi(toTurkishUpper(client.firma_adi));
+    if (client.ajans) setAjans(toTurkishUpper(client.ajans));
+    else setAjans('');
     if (client.yetkili_kisi) setYetkiliKisi(toTurkishUpper(client.yetkili_kisi));
     if (client.telefon) setTelefon(formatPhoneInput(client.telefon));
     if (client.eposta) setEposta(toCleanEmail(client.eposta));
@@ -118,6 +121,7 @@ export const QuickAddClientModal: React.FC<QuickAddClientModalProps> = ({
     try {
       const payload = {
         firma_adi: toTurkishUpper(firmaAdi),
+        ajans: ajans.trim() ? toTurkishUpper(ajans.trim()) : '',
         yetkili_kisi: toTurkishUpper(yetkiliKisi),
         telefon: telefon,
         eposta: toCleanEmail(eposta) || undefined,
@@ -140,6 +144,7 @@ export const QuickAddClientModal: React.FC<QuickAddClientModalProps> = ({
 
       // Reset form
       setFirmaAdi('');
+      setAjans('');
       setYetkiliKisi('');
       setTelefon('');
       setEposta('');
@@ -227,6 +232,12 @@ export const QuickAddClientModal: React.FC<QuickAddClientModalProps> = ({
                           </span>
                         </div>
                         <div className="text-[10px] text-slate-500 font-medium flex items-center gap-2 mt-0.5">
+                          {client.ajans && (
+                            <>
+                              <span className="text-indigo-600 font-semibold">Ajans: {client.ajans}</span>
+                              <span>•</span>
+                            </>
+                          )}
                           <span>Yetkili: {client.yetkili_kisi || '-'}</span>
                           <span>•</span>
                           <span>Tel: {client.telefon || '-'}</span>
@@ -258,6 +269,26 @@ export const QuickAddClientModal: React.FC<QuickAddClientModalProps> = ({
                   </div>
                 </div>
               )}
+            </div>
+
+            {/* Ajans (Medya Planlama Ajansı / Aracı Ajans) */}
+            <div className="space-y-1 sm:col-span-2">
+              <label className="text-[11px] font-mono uppercase text-slate-700 font-bold flex items-center justify-between">
+                <span className="flex items-center gap-1">
+                  <Briefcase className="w-3.5 h-3.5 text-sky-600" />
+                  Ajans (Medya Planlama Ajansı)
+                </span>
+                <span className="text-[10px] font-mono text-slate-400 font-normal">
+                  Opsiyonel
+                </span>
+              </label>
+              <input
+                type="text"
+                placeholder="Örn: GROUPM, HAVAS, MINDSHARE, WAVE MAKER..."
+                value={ajans}
+                onChange={(e) => setAjans(toTurkishUpper(e.target.value))}
+                className="w-full text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-semibold uppercase placeholder:normal-case placeholder:font-normal placeholder-slate-400 focus:outline-none focus:border-sky-500 focus:bg-white transition"
+              />
             </div>
 
             {/* Yetkili Kişi with Live Turkish Uppercase */}

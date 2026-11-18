@@ -16,7 +16,8 @@ import {
   AlertCircle, 
   ShieldAlert,
   Sparkles,
-  Save
+  Save,
+  Briefcase
 } from 'lucide-react';
 
 interface EditClientModalProps {
@@ -43,6 +44,7 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({
 
   // Form states
   const [firmaAdi, setFirmaAdi] = useState('');
+  const [ajans, setAjans] = useState('');
   const [yetkiliKisi, setYetkiliKisi] = useState('');
   const [telefon, setTelefon] = useState('');
   const [eposta, setEposta] = useState('');
@@ -54,6 +56,7 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({
   useEffect(() => {
     if (client) {
       setFirmaAdi(client.firma_adi || '');
+      setAjans(client.ajans || '');
       setYetkiliKisi(client.yetkili_kisi || '');
       setTelefon(formatPhoneInput(client.telefon || ''));
       setEposta(client.eposta || '');
@@ -121,6 +124,7 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({
     try {
       await updateClient(client.id, {
         firma_adi: firmaAdi,
+        ajans: ajans.trim() ? toTurkishUpper(ajans.trim()) : '',
         yetkili_kisi: yetkiliKisi,
         telefon,
         eposta,
@@ -231,6 +235,26 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({
                     </div>
                   </div>
                 )}
+              </div>
+
+              {/* Ajans (Medya Planlama Ajansı / Aracı Ajans) */}
+              <div className="space-y-1 sm:col-span-2">
+                <label className="text-[11px] font-mono uppercase text-slate-700 font-bold flex items-center justify-between">
+                  <span className="flex items-center gap-1">
+                    <Briefcase className="w-3.5 h-3.5 text-sky-600" />
+                    Ajans (Medya Planlama Ajansı)
+                  </span>
+                  <span className="text-[10px] font-mono text-slate-400 font-normal">
+                    Opsiyonel
+                  </span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="Örn: GROUPM, HAVAS, MINDSHARE, WAVE MAKER..."
+                  value={ajans}
+                  onChange={(e) => setAjans(toTurkishUpper(e.target.value))}
+                  className="w-full text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-semibold uppercase placeholder:normal-case placeholder:font-normal placeholder-slate-400 focus:outline-none focus:border-sky-500 focus:bg-white transition"
+                />
               </div>
 
               {/* Yetkili Kişi */}

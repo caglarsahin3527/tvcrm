@@ -25,6 +25,7 @@ model User {
 model Client {
   id                  String   @id @default(uuid())
   firma_adi           String
+  ajans               String?  @default("") // Medya Planlama Ajansı / Aracı Ajans
   yetkili_kisi        String
   telefon             String
   eposta              String?  @default("")

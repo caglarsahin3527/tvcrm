@@ -722,6 +722,11 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                                           <span className="font-bold text-slate-900 text-[11px] uppercase tracking-wide truncate">
                                             {client?.firma_adi || 'İsimsiz Müşteri'}
                                           </span>
+                                          {client?.ajans && (
+                                            <span className="text-[8px] font-mono font-bold px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 uppercase truncate" title={`Ajans: ${client.ajans}`}>
+                                              {client.ajans}
+                                            </span>
+                                          )}
                                           <span className="text-[8px] font-mono font-bold px-1.5 py-0.2 rounded bg-slate-100 text-slate-500 border border-slate-200 uppercase">
                                             {client?.musteri_tipi || 'Diğer'}
                                           </span>
@@ -916,9 +921,16 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                                       </div>
 
                                       <div>
-                                        <h4 className="font-bold text-sm text-slate-900 leading-snug">
-                                          {client?.firma_adi || 'Bilinmeyen Müşteri'}
-                                        </h4>
+                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                          <h4 className="font-bold text-sm text-slate-900 leading-snug">
+                                            {client?.firma_adi || 'Bilinmeyen Müşteri'}
+                                          </h4>
+                                          {client?.ajans && (
+                                            <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 uppercase">
+                                              Ajans: {client.ajans}
+                                            </span>
+                                          )}
+                                        </div>
                                         <p className="text-[11px] text-slate-500 font-medium flex items-center gap-1.5 mt-0.5">
                                           <UserIcon className="w-3 h-3 text-slate-400" />
                                           <span>{client?.yetkili_kisi}</span>

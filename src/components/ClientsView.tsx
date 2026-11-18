@@ -47,6 +47,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
     if (!q) return true;
     return (
       (c.firma_adi && c.firma_adi.toLowerCase().includes(q)) ||
+      (c.ajans && c.ajans.toLowerCase().includes(q)) ||
       (c.yetkili_kisi && c.yetkili_kisi.toLowerCase().includes(q)) ||
       (c.telefon && c.telefon.includes(q)) ||
       (c.eposta && c.eposta.toLowerCase().includes(q)) ||
@@ -113,7 +114,12 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <h3 className="font-bold text-sm text-slate-900 leading-snug">{client.firma_adi}</h3>
-                  <p className="text-[11px] text-slate-500 font-medium">{client.yetkili_kisi}</p>
+                  {client.ajans && (
+                    <span className="text-[9px] font-mono font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.2 rounded inline-block mt-0.5">
+                      Ajans: {client.ajans}
+                    </span>
+                  )}
+                  <p className="text-[11px] text-slate-500 font-medium mt-0.5">{client.yetkili_kisi}</p>
                 </div>
                 <span className="font-mono text-[10px] uppercase bg-slate-100 text-slate-700 border border-slate-200 px-2 py-0.5 rounded-full font-semibold shrink-0">
                   {client.musteri_tipi}
@@ -242,6 +248,11 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
                     {/* Firma Adı */}
                     <td className="px-4 py-3.5 font-semibold text-slate-900">
                       <div className="text-sm font-bold text-slate-900">{client.firma_adi}</div>
+                      {client.ajans && (
+                        <div className="text-[10px] font-mono font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200/90 px-1.5 py-0.5 rounded inline-block mt-0.5">
+                          Ajans: {client.ajans}
+                        </div>
+                      )}
                       <div className="text-[10px] font-mono text-slate-400 font-normal mt-0.5">
                         Kayıt: {formatDate(client.createdAt)}
                       </div>
